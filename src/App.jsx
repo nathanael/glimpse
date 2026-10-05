@@ -915,6 +915,8 @@ function App() {
                 symptoms={liveSymptoms}
                 stackItems={liveStackItems}
                 stackEntries={deferredStackEntries}
+                inputItems={liveInputItems}
+                inputEntries={inputEntries}
                 insightsWindow={insightsWindow}
                 setInsightsWindow={setInsightsWindow}
                 onOpenGraph={setShowSymptomGraph}
@@ -1035,6 +1037,8 @@ function App() {
                 symptoms={liveSymptoms}
                 stackItems={liveStackItems}
                 stackEntries={deferredStackEntries}
+                inputItems={liveInputItems}
+                inputEntries={inputEntries}
                 insightsWindow={insightsWindow}
                 setInsightsWindow={setInsightsWindow}
                 onOpenGraph={setShowSymptomGraph}

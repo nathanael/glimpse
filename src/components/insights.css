@@ -127,3 +127,4 @@
 .is-scrub b { margin-right: auto; font-size: 14px; font-weight: 600; color: #f3f4f6; }
 .is-scrub span { display: inline-flex; align-items: center; gap: 5px; color: #d1d5db; font-weight: 500; }
 .is-scrub i { width: 6px; height: 6px; border-radius: 50%; }
+.is-effect.event .mark { background: #fbbf24; }

@@ -23,6 +23,8 @@ export default function Insights({
   symptoms,
   stackItems,
   stackEntries,
+  inputItems,
+  inputEntries,
   isDesktop,
   barSlot,
   trackingMode,
@@ -46,6 +48,8 @@ export default function Insights({
             symptoms={symptoms}
             stackItems={stackItems}
             stackEntries={stackEntries}
+            inputItems={inputItems}
+            inputEntries={inputEntries}
             trackingMode={trackingMode}
             isDesktop={isDesktop}
             setStackItems={setStackItems}

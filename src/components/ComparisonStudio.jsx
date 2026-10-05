@@ -13,6 +13,7 @@ import {
   getSleepDailySeries,
 } from '../utils/correlationHelpers';
 import { getProtocolEvents, normalRange, changeEffect, addDays } from '../utils/protocolEvents';
+import { getInputEvents, nextDayEffect } from '../utils/inputEvents';
 import HealthScoreCompact from './HealthScoreCompact';
 import SeriesPicker from './SeriesPicker';
 import { useHealthScore } from '../hooks/useHealthScore';
@@ -30,12 +31,15 @@ const SLEEP_STYLES = [{ color: '#22d3ee' }, { color: '#06b6d4' }, { color: '#0ea
 
 const HEALTH_SCORE_COLOR = '#86efac';
 const MARKER_COLOR = '#a78bfa'; // protocol changes share the supplements' hue: a marker, not a warning
+const EVENT_COLOR = '#fbbf24'; // one-off days (alcohol, a food) read apart from protocol changes
 
 export default function ComparisonStudio({
   entries,
   symptoms,
   stackItems,
   stackEntries,
+  inputItems,
+  inputEntries,
   trackingMode,
   isDesktop,
   setStackItems,
@@ -458,8 +462,44 @@ export default function ComparisonStudio({
     return eligible.slice(0, MAX_MARKERS).sort((a, b) => a.idx - b.idx);
   }, [windowMarkers, timeframe, MAX_MARKERS]);
 
-  const [pickedMarkerDate, setPickedMarkerDate] = useState(null);
-  const activeMarker = protocolMarkers.find(m => m.date === pickedMarkerDate) || protocolMarkers[protocolMarkers.length - 1] || null;
+  // One-off days from the protocol's inputs (alcohol, a food): every one in the window, with how the next day went
+  const eventMarkers = useMemo(() => {
+    const events = getInputEvents(inputItems, inputEntries);
+    if (events.length === 0) return [];
+    const eventDates = new Set(events.map(ev => ev.date));
+    const datesByItem = new Map();
+    events.forEach(ev => { if (!datesByItem.has(ev.itemId)) datesByItem.set(ev.itemId, []); datesByItem.get(ev.itemId).push(ev.date); });
+    const scores = new Map();
+    const scoreFor = (d) => {
+      if (!scores.has(d)) scores.set(d, computeHealthScore(symptoms || [], entries, d, trackingMode).score);
+      return scores.get(d);
+    };
+    const symptomFor = (symId, d) => getSymptomDailySeries(entries, symId, [d], trackingMode)[0];
+    const byDate = new Map();
+    events.forEach((ev) => {
+      const idx = dates.indexOf(ev.date);
+      if (idx < 0) return;
+      if (!byDate.has(ev.date)) byDate.set(ev.date, { kind: 'event', key: `ev-${ev.date}`, date: ev.date, idx, events: [] });
+      byDate.get(ev.date).events.push(ev);
+    });
+    return [...byDate.values()].map((m) => {
+      const lead = m.events[0];
+      const effect = nextDayEffect({
+        date: m.date, todayStr, scoreFor, symptomFor, symptoms: activeSymptoms, eventDates,
+        itemDates: datesByItem.get(lead.itemId).filter(d => d < m.date),
+      });
+      return { ...m, label: m.events.map(ev => ev.label).join(', '), effect };
+    });
+  }, [inputItems, inputEntries, dates, symptoms, activeSymptoms, entries, trackingMode, todayStr]);
+
+  // Protocol changes and one-off days, in date order: the card under the chart steps through them
+  const chartMarkers = useMemo(
+    () => [...protocolMarkers.map(m => ({ ...m, kind: 'change', key: `pm-${m.date}` })), ...eventMarkers].sort((a, b) => a.idx - b.idx || (a.kind === 'change' ? -1 : 1)),
+    [protocolMarkers, eventMarkers]
+  );
+
+  const [pickedMarkerKey, setPickedMarkerKey] = useState(null);
+  const activeMarker = chartMarkers.find(m => m.key === pickedMarkerKey) || chartMarkers[chartMarkers.length - 1] || null;
   const markerEffect = activeMarker?.effect || null;
 
   // ── Chart points ──
@@ -988,21 +1028,24 @@ export default function ComparisonStudio({
       )}
 
       {/* Protocol changes: a flag on the time axis; the picked one carries its label */}
-      {protocolMarkers.map((m) => {
+      {chartMarkers.map((m) => {
         const x = padLeft + (m.idx / Math.max(1, dates.length - 1)) * chartW;
-        const active = activeMarker?.date === m.date;
+        const active = activeMarker?.key === m.key;
+        const color = m.kind === 'event' ? EVENT_COLOR : MARKER_COLOR;
         const base = padTop + chartH;
         const flag = (isDesktop ? 3 : 5) * s;
         const nearRight = x > W - padRight - (isDesktop ? 90 : 190) * s;
         return (
-          <g key={`pm-${m.date}`} opacity={active ? 1 : 0.45} style={{ cursor: 'pointer' }} onClick={() => { setPickedMarkerDate(m.date); haptic('light'); }}>
+          <g key={m.key} opacity={active ? 1 : 0.45} style={{ cursor: 'pointer' }} onClick={() => { setPickedMarkerKey(m.key); haptic('light'); }}>
             <title>{m.events.map(ev => ev.label).join(', ')}</title>
             <rect x={x - 8 * s} y={padTop} width={16 * s} height={chartH} fill="transparent" />
-            <line x1={x} y1={padTop} x2={x} y2={base} stroke={MARKER_COLOR} strokeWidth={(isDesktop ? 0.6 : 1.2) * s} strokeDasharray={`${3 * s},${3 * s}`} />
-            <path d={`M${x - flag} ${base} L${x} ${base - flag * 1.4} L${x + flag} ${base} Z`} fill={MARKER_COLOR} />
+            <line x1={x} y1={padTop} x2={x} y2={base} stroke={color} strokeWidth={(isDesktop ? 0.6 : 1.2) * s} strokeDasharray={m.kind === 'event' ? `${1 * s},${2.5 * s}` : `${3 * s},${3 * s}`} />
+            {m.kind === 'event'
+              ? <circle cx={x} cy={base - flag * 0.7} r={flag * 0.75} fill={color} />
+              : <path d={`M${x - flag} ${base} L${x} ${base - flag * 1.4} L${x + flag} ${base} Z`} fill={color} />}
             {active && !(touchX !== null && !isDesktop) && (
               <text x={nearRight ? x - 4 * s : x + 4 * s} y={padTop - (isDesktop ? 4 : 9) * s} textAnchor={nearRight ? 'end' : 'start'}
-                fill={MARKER_COLOR} fontSize={(isDesktop ? 7 : 16) * s} fontFamily="inherit" fontWeight="500">{m.label}</text>
+                fill={color} fontSize={(isDesktop ? 7 : 16) * s} fontFamily="inherit" fontWeight="500">{m.label}</text>
             )}
           </g>
         );
@@ -1179,34 +1222,58 @@ export default function ComparisonStudio({
     </div>
   );
 
-  // One line under the chart: which symptoms clearly moved after the picked protocol change. With several changes in the window, tapping it steps to the next one.
+  // One line under the chart. For a protocol change: which symptoms clearly moved since. For a one-off day (alcohol,
+  // a food): how the next day went against the usual. With several in the window, tapping it steps to the next one.
   const sinceText = activeMarker && (activeMarker.events.length === 1 ? activeMarker.events[0].since : `${activeMarker.events.length} protocol changes`);
   const nextMarker = () => {
-    const i = protocolMarkers.findIndex(m => m.date === activeMarker.date);
-    setPickedMarkerDate(protocolMarkers[(i + 1) % protocolMarkers.length].date);
+    const i = chartMarkers.findIndex(m => m.key === activeMarker.key);
+    setPickedMarkerKey(chartMarkers[(i + 1) % chartMarkers.length].key);
     haptic('light');
   };
-  const markerIndex = activeMarker ? protocolMarkers.findIndex(m => m.date === activeMarker.date) : -1;
+  const markerIndex = activeMarker ? chartMarkers.findIndex(m => m.key === activeMarker.key) : -1;
   const markerDay = activeMarker && new Date(activeMarker.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  // Health score: up is good. Under a point is "no change".
+  const scoreTag = (delta) => {
+    const flat = Math.abs(delta) < 1;
+    return <span className={`delta ${flat ? '' : delta > 0 ? 'good' : 'bad'}`}>{flat ? '–' : `${delta > 0 ? '▲' : '▼'}${Math.round(Math.abs(delta))}`}</span>;
+  };
+  const isEvent = activeMarker?.kind === 'event';
+  const eventLine = isEvent && markerEffect && (
+    markerEffect.pending ? <span>Next day not in yet</span>
+      : !markerEffect.score ? <span>Next day not logged</span>
+      : <>
+        <span>Next day <b>{markerEffect.score.next}%</b> {scoreTag(markerEffect.score.delta)} vs usual {Math.round(markerEffect.score.usual)}%</span>
+        {markerEffect.movers.slice(0, isDesktop ? 2 : 1).map(e => <b key={e.sym.id}>{e.sym.name} {deltaTag(e.delta)}</b>)}
+      </>
+  );
+  const patternText = isEvent && markerEffect?.pattern && (
+    <> · usually {markerEffect.pattern.delta <= -1 ? `${Math.round(-markerEffect.pattern.delta)} pts lower` : markerEffect.pattern.delta >= 1 ? `${Math.round(markerEffect.pattern.delta)} pts higher` : 'no different'} the next day ({markerEffect.pattern.n} times before)</>
+  );
   const markerChip = activeMarker && markerEffect && (
-    <button className="is-effect" disabled={protocolMarkers.length < 2} onClick={nextMarker}
-      aria-label={protocolMarkers.length > 1 ? 'Insights, show the next protocol change' : undefined}
-      title="Up to 30 days before the change against up to 30 days since, stopping at any other protocol change. Only clear changes are listed.">
+    <button className={`is-effect${isEvent ? ' event' : ''}`} disabled={chartMarkers.length < 2} onClick={nextMarker}
+      aria-label={chartMarkers.length > 1 ? 'Insights, show the next marker' : undefined}
+      title={isEvent
+        ? 'The health score the day after, against the days in the two weeks before that had no logged event.'
+        : 'Up to 30 days before the change against up to 30 days since, stopping at any other protocol change. Only clear changes are listed.'}>
       <span className="body">
         <span className="mark" />
         <span className="txt">
           <span className="movers">
-            {markerEffect.status === 'early' ? <span>Too early to tell</span>
+            {isEvent ? eventLine
+              : markerEffect.status === 'early' ? <span>Too early to tell</span>
               : markerEffect.status === 'crowded' ? <span>Too close to another change to tell</span>
               : markerEffect.movers.length === 0 ? <span>No clear change in any symptom</span>
               : markerEffect.movers.slice(0, isDesktop ? 3 : 2).map(e => (
                 <b key={e.sym.id}>{e.sym.name} {deltaTag(e.delta)}</b>
               ))}
           </span>
-          <span className="since">since {sinceText} · {markerDay}{protocolMarkers.length > 1 && <small> · {markerIndex + 1} of {protocolMarkers.length}</small>}</span>
+          <span className="since">
+            {isEvent ? <>{activeMarker.label} · {markerDay}{patternText}</> : <>since {sinceText} · {markerDay}</>}
+            {chartMarkers.length > 1 && <small> · {markerIndex + 1} of {chartMarkers.length}</small>}
+          </span>
         </span>
       </span>
-      {protocolMarkers.length > 1 && <span className="next"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></span>}
+      {chartMarkers.length > 1 && <span className="next"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6" /></svg></span>}
     </button>
   );
 
@@ -1276,8 +1343,8 @@ export default function ComparisonStudio({
               onTouchStart={e => { e.preventDefault(); const t = e.touches[0]; setTouchX(getSnappedIndex(t.clientX)); }}
               onTouchMove={e => { e.preventDefault(); const t = e.touches[0]; setTouchX(getSnappedIndex(t.clientX)); }}
               onTouchEnd={() => {
-                const near = protocolMarkers.find(m => Math.abs(m.idx - touchX) <= Math.max(1, Math.round(dates.length / 40)));
-                if (near) { setPickedMarkerDate(near.date); haptic('light'); }
+                const near = chartMarkers.find(m => Math.abs(m.idx - touchX) <= Math.max(1, Math.round(dates.length / 40)));
+                if (near) { setPickedMarkerKey(near.key); haptic('light'); }
                 setTouchX(null);
               }}
               style={{ display: 'block' }}
