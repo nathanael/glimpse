@@ -87,7 +87,7 @@ export default function BottomNav({
               ))}
             </div>
             <button className="mn-layer mn-adv" tabIndex={easy ? 0 : -1} aria-hidden={!easy || undefined} aria-label="Advanced mode" onClick={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => goTo('symptoms') })}>
-              <svg viewBox="0 0 24 24">{solar.toggle}</svg>
+              <svg viewBox="0 0 24 24">{solar.transfer}</svg>
             </button>
           </div>
           {/* Home only: the two things used most. Always mounted so they can fold away with the tabs */}
