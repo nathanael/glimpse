@@ -4,7 +4,7 @@ import { solar } from './solarIcons';
 import { shatterSwitch } from './shatter';
 
 const TABS = [
-  { id: 'home', label: 'Home', icon: solar.bolt },
+  { id: 'home', label: 'Home', icon: solar.home },
   { id: 'symptoms', label: 'Symptoms', icon: solar.symptoms },
   { id: 'stack', label: 'Protocol', icon: solar.protocol },
   { id: 'insights', label: 'Progress', icon: solar.progress },
@@ -98,7 +98,7 @@ export default function BottomNav({
             aria-label="Check in: rapid entry for today's symptoms"
             onClick={onHomeRapidEntry}
           >
-            <svg viewBox="0 0 24 24">{solar.symptoms}</svg><span>Check-in</span>
+            <svg viewBox="0 0 24 24">{solar.bolt}</svg><span>Check-in</span>
           </button>
           <button
             className={`mn-quick mn-note${easy ? ' easy' : ''}`}

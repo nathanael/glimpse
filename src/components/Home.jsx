@@ -41,23 +41,23 @@ export default function Home({
   const xpRef = useRef(null);
   const busy = useRef(false);
 
-  // Supplements on top, symptoms at the bottom. Two ways to log, then one way deeper. The `deep` option is the door into the detailed view
+  // Meals on top, supplements in the middle, symptoms at the bottom. Two ways to log, then one way deeper. The `deep` option is the door into the detailed view
   // rather than a way of logging, so it renders as plain text under the two bars.
   const cards = [
-    {
-      id: 'supplements', title: 'Log supplements', art: supplementsArt, line: summary.supplements,
-      options: [
-        { icon: 'yesterday', label: 'Match yesterday', onClick: onMatchYesterday },
-        { icon: 'protocol', label: 'Simple checklist', onClick: onSimpleChecklist },
-        { icon: 'more', label: 'Full detail', onClick: onProtocolDetail, deep: true },
-      ],
-    },
     {
       id: 'meals', title: 'Log a meal', art: mealsArt, line: summary.meals,
       options: [
         { icon: 'camera', label: 'Photo', onClick: onPhotoMeal },
         { icon: 'edit', label: 'Type it', onClick: onTypeMeal },
         { icon: 'note', label: "Today's meals", onClick: onTodaysMeals, deep: true },
+      ],
+    },
+    {
+      id: 'supplements', title: 'Log supplements', art: supplementsArt, line: summary.supplements,
+      options: [
+        { icon: 'yesterday', label: 'Match yesterday', onClick: onMatchYesterday },
+        { icon: 'protocol', label: 'Simple checklist', onClick: onSimpleChecklist },
+        { icon: 'more', label: 'Full detail', onClick: onProtocolDetail, deep: true },
       ],
     },
     {
