@@ -87,7 +87,7 @@ export default function BottomNav({
               ))}
             </div>
             <button className="mn-layer mn-adv" tabIndex={easy ? 0 : -1} aria-hidden={!easy || undefined} aria-label="Advanced mode" onClick={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => goTo('symptoms') })}>
-              <svg viewBox="0 0 24 24">{solar.tuning}</svg><span>Advanced</span>
+              <svg viewBox="0 0 24 24">{solar.toggle}</svg>
             </button>
           </div>
           {/* Home only: the two things used most. Always mounted so they can fold away with the tabs */}
@@ -95,10 +95,10 @@ export default function BottomNav({
             className={`mn-quick mn-rapid${easy ? ' easy' : ''}`}
             tabIndex={easy ? 0 : -1}
             aria-hidden={!easy || undefined}
-            aria-label="Rapid entry: rate today's symptoms"
+            aria-label="Check in: rapid entry for today's symptoms"
             onClick={onHomeRapidEntry}
           >
-            <svg viewBox="0 0 24 24">{solar.symptoms}</svg><span>Rate</span>
+            <svg viewBox="0 0 24 24">{solar.symptoms}</svg><span>Check-in</span>
           </button>
           <button
             className={`mn-quick mn-note${easy ? ' easy' : ''}`}

@@ -28,7 +28,7 @@ export default function NoteModal({
   onVoice, // mobile, today only: switch to a voice note
 }) {
   const textareaRef = useRef(null);
-  const panelRef = useRef(null);
+  const scrimRef = useRef(null);
   const dateKey = getDateKey(selectedDate);
   const saved = noteText(dailyNotes[dateKey]);
 
@@ -38,22 +38,24 @@ export default function NoteModal({
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
-    el.focus();
+    el.focus({ preventScroll: true });
     const len = el.value.length;
     el.setSelectionRange(len, len);
   }, []);
 
-  // Mobile: iOS lays the keyboard over the page instead of shrinking it, which would hide the
-  // footer (and its mic button) under the keys. Sit the sheet on top of the keyboard instead.
+  // Mobile: iOS lays the keyboard over the page instead of shrinking it, and may pan the page to
+  // show the caret. Pin the scrim to the visible part of the screen (the visual viewport) so the
+  // sheet always fills what can be seen and its footer, with the Speak button, rests on the keys.
   useEffect(() => {
     const vv = window.visualViewport;
-    const el = panelRef.current;
+    const el = scrimRef.current;
     if (isDesktop || !vv || !el) return;
     const fit = () => {
-      const keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      el.style.marginBottom = keyboard ? `${keyboard}px` : '';
-      el.style.maxHeight = keyboard ? `${vv.height - 24}px` : '';
-      el.classList.toggle('kb', keyboard > 0);
+      el.style.top = `${vv.offsetTop}px`;
+      el.style.height = `${vv.height}px`;
+      el.style.bottom = 'auto';
+      // Keys up: the sheet ends at them, so the home-indicator padding would only leave a gap
+      el.classList.toggle('kb', vv.height < window.screen.height * 0.75);
     };
     fit();
     vv.addEventListener('resize', fit);
@@ -88,8 +90,8 @@ export default function NoteModal({
   const words = localNote.trim() ? localNote.trim().split(/\s+/).length : 0;
 
   return (
-    <div className={`nm-scrim ${isDesktop ? 'desk' : 'mob'}`} onClick={onClose}>
-      <section ref={panelRef} className="nm-panel" role="dialog" aria-modal="true" aria-label={`Notes for ${longDate}`} onClick={(e) => e.stopPropagation()}>
+    <div ref={scrimRef} className={`nm-scrim ${isDesktop ? 'desk' : 'mob'}`} onClick={onClose}>
+      <section className="nm-panel" role="dialog" aria-modal="true" aria-label={`Notes for ${longDate}`} onClick={(e) => e.stopPropagation()}>
         {!isDesktop && <div className="nm-grabber" aria-hidden="true" />}
         <header className="nm-head">
           <div>

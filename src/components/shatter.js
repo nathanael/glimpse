@@ -13,7 +13,8 @@ const GRAD = 'linear-gradient(to bottom, rgba(8,9,10,.34) 0%, rgba(8,9,10,.78) 3
 const TARGETS = '.mn-top, .lr-head, .lr-ghead, .lr-row';
 const COLS = 6;           // tiles across each card
 const CHAOS = 1;          // scales the burst distance, spin and timing spread
-const BURST_MS = 400;
+const PACE = 2 / 3;       // every duration and delay below is scaled by this: 1.5× the original speed
+const BURST_MS = 400 * PACE;
 const EMPTY = '#131417';  // tint for a target with no background of its own
 
 let running = false;
@@ -88,7 +89,7 @@ const shuffleByY = (list) => list.map((t) => [t, t.y + t.x * 0.2 + rand(0, 260) 
 
 function fly(layer, photos, cells, toAdv, origin) {
   const P = shuffleByY(photos), S = shuffleByY(cells), N = Math.max(P.length, S.length);
-  const sp = springs.tile(), total = BURST_MS + sp.ms, off = BURST_MS / total, land = off + (1 - off) * 0.35;
+  const sp = springs.tile(), total = BURST_MS + sp.ms * PACE, off = BURST_MS / total, land = off + (1 - off) * 0.35;
   const anims = [];
   const frag = document.createDocumentFragment();
   for (let i = 0; i < N; i++) {
@@ -112,7 +113,7 @@ function fly(layer, photos, cells, toAdv, origin) {
     const k = rand(0.75, 1.25), bsx = (1 + ssx) / 2 * k, bsy = (1 + ssy) / 2 * k;
     const burst = tf(bx - p.w * bsx / 2 - p.x, by - p.h * bsy / 2 - p.y, rand(-80, 80) * CHAOS, rand(-80, 80) * CHAOS, rand(-200, 200) * CHAOS, bsx, bsy);
     // A shockwave: tiles nearer the button go first.
-    const o = { duration: total, delay: len * 0.45 + rand(0, 90) * CHAOS, fill: 'both' };
+    const o = { duration: total, delay: (len * 0.45 + rand(0, 90) * CHAOS) * PACE, fill: 'both' };
     anims.push(el.animate([
       { transform: toAdv ? atP : atS, easing: 'cubic-bezier(.1,.75,.25,1)' },
       { transform: burst, offset: off, easing: sp.easing },
@@ -128,7 +129,7 @@ function fly(layer, photos, cells, toAdv, origin) {
   ring.className = 'fx-ring';
   Object.assign(ring.style, { left: origin.x + 'px', top: origin.y + 'px' });
   layer.appendChild(ring);
-  ring.animate([{ transform: 'scale(0)', opacity: 0.9 }, { transform: 'scale(14)', opacity: 0 }], { duration: 520, easing: 'cubic-bezier(.1,.7,.3,1)', fill: 'forwards' });
+  ring.animate([{ transform: 'scale(0)', opacity: 0.9 }, { transform: 'scale(14)', opacity: 0 }], { duration: 520 * PACE, easing: 'cubic-bezier(.1,.7,.3,1)', fill: 'forwards' });
 
   return Promise.all(anims.map((a) => a.finished));
 }
@@ -151,7 +152,7 @@ function placeholders(layer, tiles) {
 async function land(layer) {
   root.classList.add('fx-reveal');
   root.classList.remove('fx-hold', 'fx-noface');
-  await layer.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: 'ease-out', fill: 'forwards' }).finished;
+  await layer.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240 * PACE, easing: 'ease-out', fill: 'forwards' }).finished;
   layer.remove();
   root.classList.remove('fx-reveal');
 }
@@ -167,7 +168,7 @@ export async function shatterSwitch({ toAdv, originEl, commit }) {
   try {
     if (toAdv) {
       root.classList.add('fx-noface');
-      const [photos] = await Promise.all([photoTiles(), wait(110)]);
+      const [photos] = await Promise.all([photoTiles(), wait(110 * PACE)]);
       mount(layer);
       placeholders(layer, photos);
       root.classList.add('fx-hold');
