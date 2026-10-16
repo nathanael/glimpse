@@ -10,6 +10,18 @@ const TABS = [
   { id: 'insights', label: 'Progress', icon: solar.progress },
 ];
 
+// iOS only raises the keyboard for a focus() made inside the tap itself, and the note sheet's
+// textarea mounts a render later. Focusing a throwaway input in the tap raises it; the textarea
+// then takes the focus over and the keyboard stays up.
+function primeKeyboard() {
+  const el = document.createElement('input');
+  el.setAttribute('aria-hidden', 'true');
+  el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px;border:0;padding:0';
+  document.body.appendChild(el);
+  el.focus();
+  setTimeout(() => el.remove(), 1000);
+}
+
 // Mobile dock: the destinations in a pill, plus one overflow button beside it
 export default function BottomNav({
   appMode,
@@ -33,7 +45,8 @@ export default function BottomNav({
   onMatchYesterday,
   onEditProtocol,
   onLogMeal,
-  onVoiceNote,
+  onHomeRapidEntry,
+  onHomeNote,
 }) {
   const activeTab = showInsights ? 'insights' : appMode === 'home' ? 'home' : appMode === 'symptoms' ? 'symptoms' : 'stack';
 
@@ -73,19 +86,28 @@ export default function BottomNav({
                 </button>
               ))}
             </div>
-            <button className="mn-layer mn-adv" tabIndex={easy ? 0 : -1} aria-hidden={!easy || undefined} onClick={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => goTo('symptoms') })}>
-              Advanced mode
+            <button className="mn-layer mn-adv" tabIndex={easy ? 0 : -1} aria-hidden={!easy || undefined} aria-label="Advanced mode" onClick={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => goTo('symptoms') })}>
+              <svg viewBox="0 0 24 24">{solar.tuning}</svg><span>Advanced</span>
             </button>
           </div>
-          {/* Home only. Always mounted so it can fold away with the tabs, like "Advanced mode" */}
+          {/* Home only: the two things used most. Always mounted so they can fold away with the tabs */}
           <button
-            className={`mn-note${easy ? ' easy' : ''}`}
+            className={`mn-quick mn-rapid${easy ? ' easy' : ''}`}
             tabIndex={easy ? 0 : -1}
             aria-hidden={!easy || undefined}
-            aria-label="Record a note"
-            onClick={onVoiceNote}
+            aria-label="Rapid entry: rate today's symptoms"
+            onClick={onHomeRapidEntry}
           >
-            <svg viewBox="0 0 24 24">{solar.mic}</svg><span>Note</span>
+            <svg viewBox="0 0 24 24">{solar.symptoms}</svg><span>Rate</span>
+          </button>
+          <button
+            className={`mn-quick mn-note${easy ? ' easy' : ''}`}
+            tabIndex={easy ? 0 : -1}
+            aria-hidden={!easy || undefined}
+            aria-label="Write a note"
+            onClick={() => { primeKeyboard(); onHomeNote(); }}
+          >
+            <svg viewBox="0 0 24 24">{solar.note}</svg><span>Note</span>
           </button>
           <button className={`mn-more ${showQuickActions ? 'on' : ''}`} aria-label="More actions" aria-haspopup="menu" onClick={() => setShowQuickActions(!showQuickActions)}>
             <svg viewBox="0 0 24 24">{solar.more}</svg>

@@ -1190,6 +1190,7 @@ function App() {
           setDailyNotes={setDailyNotes}
           onClose={() => setShowNoteModal(false)}
           isDesktop={isDesktop}
+          onVoice={isDesktop ? undefined : () => { setShowNoteModal(false); setShowVoiceNote(true); }}
         />
       )}
 
@@ -1585,7 +1586,8 @@ function App() {
           onMatchYesterday={protocolMatchYesterday}
           onEditProtocol={() => { setAppMode('stack'); setShowInsights(false); setProtocolEditMode(true); }}
           onLogMeal={() => setMealSheet({})}
-          onVoiceNote={() => setShowVoiceNote(true)}
+          onHomeRapidEntry={() => setShowRapidEntry(true)}
+          onHomeNote={() => setShowNoteModal(true)}
           symptoms={liveSymptoms}
           entries={deferredEntries}
           trackingMode={trackingMode}

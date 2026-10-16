@@ -33,6 +33,14 @@
 .nm-status.pending i { background: #6b7280; }
 .nm-foot kbd { font: inherit; font-size: 11px; color: #9ca3af; background: #374151; border-radius: 3px; padding: 1px 5px; }
 
+/* Mobile, today: switch to a voice note. Bottom right, where the right thumb rests above the keys */
+.nm-voice { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px 0 12px; border: 0; border-radius: 20px; background: linear-gradient(135deg, #7c3aed, #a855f7); color: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
+.nm-voice svg { width: 18px; height: 18px; fill: currentColor; }
+.nm-voice:active { filter: brightness(1.12); }
+.mob .nm-foot { padding: 8px 12px 10px 20px; min-height: 56px; box-sizing: border-box; }
+/* Keyboard up: the sheet ends at the keys, so the safe-area padding would only leave a gap */
+.mob .nm-panel.kb { padding-bottom: 0; }
+
 @keyframes nm-fade { from { opacity: 0; } }
 @keyframes nm-slide-in { from { transform: translateX(24px); opacity: 0; } }
 @keyframes nm-rise { from { transform: translateY(40px); opacity: 0; } }

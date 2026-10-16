@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import { getDateKey, noteText } from '../utils/helpers';
+import { solar } from './solarIcons';
 import './noteModal.css';
 
 // Write a note as a { text } record, or delete the key when the text is empty.
@@ -24,8 +25,10 @@ export default function NoteModal({
   setDailyNotes,
   onClose,
   isDesktop,
+  onVoice, // mobile, today only: switch to a voice note
 }) {
   const textareaRef = useRef(null);
+  const panelRef = useRef(null);
   const dateKey = getDateKey(selectedDate);
   const saved = noteText(dailyNotes[dateKey]);
 
@@ -39,6 +42,24 @@ export default function NoteModal({
     const len = el.value.length;
     el.setSelectionRange(len, len);
   }, []);
+
+  // Mobile: iOS lays the keyboard over the page instead of shrinking it, which would hide the
+  // footer (and its mic button) under the keys. Sit the sheet on top of the keyboard instead.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = panelRef.current;
+    if (isDesktop || !vv || !el) return;
+    const fit = () => {
+      const keyboard = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      el.style.marginBottom = keyboard ? `${keyboard}px` : '';
+      el.style.maxHeight = keyboard ? `${vv.height - 24}px` : '';
+      el.classList.toggle('kb', keyboard > 0);
+    };
+    fit();
+    vv.addEventListener('resize', fit);
+    vv.addEventListener('scroll', fit);
+    return () => { vv.removeEventListener('resize', fit); vv.removeEventListener('scroll', fit); };
+  }, [isDesktop]);
 
   // Track the latest note value for saving on unmount
   const localNoteRef = useRef(localNote);
@@ -68,7 +89,7 @@ export default function NoteModal({
 
   return (
     <div className={`nm-scrim ${isDesktop ? 'desk' : 'mob'}`} onClick={onClose}>
-      <section className="nm-panel" role="dialog" aria-modal="true" aria-label={`Notes for ${longDate}`} onClick={(e) => e.stopPropagation()}>
+      <section ref={panelRef} className="nm-panel" role="dialog" aria-modal="true" aria-label={`Notes for ${longDate}`} onClick={(e) => e.stopPropagation()}>
         {!isDesktop && <div className="nm-grabber" aria-hidden="true" />}
         <header className="nm-head">
           <div>
@@ -94,7 +115,15 @@ export default function NoteModal({
           <span className={`nm-status ${pending ? 'pending' : ''}`}>
             <i />{pending ? 'Saving…' : localNote.trim() ? 'Saved' : 'Nothing written yet'}
           </span>
-          <span>{words ? `${words} word${words === 1 ? '' : 's'}` : ''}{isDesktop && <kbd>Esc</kbd>}</span>
+          <span>
+            {words ? `${words} word${words === 1 ? '' : 's'}` : ''}{isDesktop && <kbd>Esc</kbd>}
+            {onVoice && isToday && (
+              // preventDefault on pointerdown keeps the textarea focused, so the keyboard doesn't drop first
+              <button className="nm-voice" aria-label="Speak instead" onPointerDown={(e) => e.preventDefault()} onClick={onVoice}>
+                <svg viewBox="0 0 24 24">{solar.mic}</svg>Speak
+              </button>
+            )}
+          </span>
         </footer>
       </section>
     </div>
