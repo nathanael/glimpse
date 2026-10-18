@@ -55,3 +55,6 @@
 .re-done p { margin: 0; color: #6b7280; font-size: 14px; }
 .re-done-actions { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 8px; margin-top: 18px; }
 .re-done-actions .dn-btn { height: 46px; justify-content: center; border-radius: 14px; font-size: 14.5px; }
+
+/* Wellbeing questions: the scale reads the other way, so say so above the name */
+.re-kind { font-size: 11.5px; letter-spacing: .3px; text-transform: uppercase; color: #2dd4bf; padding: 3px 9px; border-radius: 999px; background: rgba(45, 212, 191, .1); border: 1px solid rgba(45, 212, 191, .3); }

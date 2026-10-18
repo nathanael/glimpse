@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { isWellbeing } from '../utils/wellbeing';
 import { createPortal } from 'react-dom';
 import { haptic } from '../utils/helpers';
 import {
@@ -820,7 +821,7 @@ export default function ComparisonStudio({
   );
   const symptomPickerPanel = showSymptomPicker && (
     <SeriesPicker
-      title="Symptoms" noun="symptoms" isDesktop={isDesktop}
+      title="Symptoms & wellbeing" noun="items" isDesktop={isDesktop}
       items={activeSymptoms}
       selectedIds={selectedSymptoms}
       colors={SYMPTOM_STYLES.map(st => st.color)}
@@ -1111,22 +1112,22 @@ export default function ComparisonStudio({
   const fmtVal = (val, fixed) => (val === null || val === undefined || !isFinite(val))
     ? '--'
     : (fixed ? val.toFixed(1) : (Math.abs(val) >= 10 ? Math.round(val) : +val.toFixed(1))); // 1516 mg, not 1515.8
-  // Symptoms: down is good. Under a tenth of a point is "no change".
-  const deltaTag = (delta, title) => {
+  // Symptoms: down is good; wellbeing (`up`): up is good. Under a tenth of a point is "no change".
+  const deltaTag = (delta, title, up = false) => {
     if (delta === null || delta === undefined) return null;
     const flat = Math.abs(delta) < 0.1;
     return (
-      <span className={`delta ${flat ? '' : delta < 0 ? 'good' : 'bad'}`} title={title}>
+      <span className={`delta ${flat ? '' : (delta < 0) !== up ? 'good' : 'bad'}`} title={title}>
         {flat ? '–' : `${delta < 0 ? '▼' : '▲'}${Math.abs(delta).toFixed(1)}`}
       </span>
     );
   };
-  const seriesRow = ({ id, color, name, val, unit, delta, onRemove }) => (
+  const seriesRow = ({ id, color, name, val, unit, delta, up, onRemove }) => (
     <div key={id} className={`${isDesktop ? 'is-row' : 'is-pill'}${id === primarySeriesId ? ' on' : ''}`} onClick={() => makePrimary(id)}>
       <span className="dot" style={{ background: color }} />
       <span className="name">{name}</span>
       <span className="val">{val}{unit && val !== '--' && <small> {unit}</small>}</span>
-      {!crosshairData && deltaTag(delta, `vs previous ${timeframe} days`)}
+      {!crosshairData && deltaTag(delta, `vs previous ${timeframe} days`, up)}
       <button className="x" aria-label={`Remove ${name}`} onClick={(e) => { e.stopPropagation(); onRemove(); }}>&times;</button>
     </div>
   );
@@ -1161,6 +1162,7 @@ export default function ComparisonStudio({
           name: `${sym?.name ?? ''}${sym?.description ? ` (${sym.description})` : ''}`,
           val: fmtVal(legendVal(symId), true),
           delta: symptomDeltas[symId],
+          up: isWellbeing(sym),
           onRemove: () => removeSymptom(symId),
         });
       })}
@@ -1243,7 +1245,7 @@ export default function ComparisonStudio({
       : !markerEffect.score ? <span>Next day not logged</span>
       : <>
         <span>Next day <b>{markerEffect.score.next}%</b> {scoreTag(markerEffect.score.delta)} vs usual {Math.round(markerEffect.score.usual)}%</span>
-        {markerEffect.movers.slice(0, isDesktop ? 2 : 1).map(e => <b key={e.sym.id}>{e.sym.name} {deltaTag(e.delta)}</b>)}
+        {markerEffect.movers.slice(0, isDesktop ? 2 : 1).map(e => <b key={e.sym.id}>{e.sym.name} {deltaTag(e.delta, undefined, isWellbeing(e.sym))}</b>)}
       </>
   );
   const patternText = isEvent && markerEffect?.pattern && (
@@ -1264,7 +1266,7 @@ export default function ComparisonStudio({
               : markerEffect.status === 'crowded' ? <span>Too close to another change to tell</span>
               : markerEffect.movers.length === 0 ? <span>No clear change in any symptom</span>
               : markerEffect.movers.slice(0, isDesktop ? 3 : 2).map(e => (
-                <b key={e.sym.id}>{e.sym.name} {deltaTag(e.delta)}</b>
+                <b key={e.sym.id}>{e.sym.name} {deltaTag(e.delta, undefined, isWellbeing(e.sym))}</b>
               ))}
           </span>
           <span className="since">

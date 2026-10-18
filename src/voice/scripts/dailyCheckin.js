@@ -1,6 +1,7 @@
 import { NA_SEVERITY } from '../../utils/constants';
 import { getLastSeverity } from '../../utils/listHelpers';
 import { entryKey, listFor, otherIncomplete } from '../checkinQueue';
+import { isWellbeing } from '../../utils/wellbeing';
 
 import { GREETING, SHORT_GREETING, BARE_GREETING } from '../../../cloudflare/voice/src/dailyCheckinSpec.js';
 
@@ -50,6 +51,8 @@ export const matchSymptom = (symptoms, spoken) => {
 export const LINES = {
   // The first question of a fresh period, and of one being picked back up
   startWith: (symptom) => `Let's start with the first symptom, ${symptom}.`,
+  // Said before the first wellbeing signal of a period, where higher is better
+  wellbeingIntro: 'Now a few wellbeing questions, where zero is absent and five is excellent.',
   continueWith: (symptom) => `Let's continue with ${symptom}.`,
   // Every other question is just the symptom ("Anxiety, Physical."), followed by:
   lastTime: (rating) => `Last time was ${rating}.`, // rating: "zero", "a one" ... "a five"
@@ -139,16 +142,21 @@ export const createCheckin = (ctx) => {
   // long live session.
   const ask = (symptom, all) => {
     const last = getLastSeverity(all, symptom.id, period, ctx.selectedDate);
-    const lastTime = last === null ? '' : ` ${LINES.lastTime(last === 0 ? 'zero' : `a ${['one', 'two', 'three', 'four', 'five'][last - 1]}`)}`;
+    const lastTime = last === null || last < 0 ? '' : ` ${LINES.lastTime(last === 0 ? 'zero' : `a ${['one', 'two', 'three', 'four', 'five'][last - 1]}`)}`;
+    // The first wellbeing signal in the list gets the intro, so the flipped scale is said out loud once
+    const wellbeing = isWellbeing(symptom);
+    const firstWellbeing = wellbeing && listFor(ctx.symptoms, period).find(isWellbeing)?.id === symptom.id;
+    const intro = firstWellbeing && opened ? `${LINES.wellbeingIntro} ` : '';
     return {
       symptom_id: symptom.id,
       name: symptom.name,
+      ...(wellbeing ? { kind: 'wellbeing', scale: '0 absent to 5 excellent, higher is better' } : {}),
       ...(symptom.description ? { description: symptom.description } : {}),
       ...(last !== null ? { last_time: last } : {}),
       // The first question of a period says where in the list they are and names the period, so
       // they know which slot they are filling
       say: opened
-        ? `${spokenName(symptom)}.${lastTime}`
+        ? `${intro}${spokenName(symptom)}.${lastTime}`
         : `${(listFor(ctx.symptoms, period).some((s) => all[key(s.id)]) ? LINES.continueWith : LINES.startWith)(spokenName(symptom))}${lastTime} ${LINES.howAbout(spokenPeriod(period))}`,
     };
   };

@@ -6,6 +6,7 @@ import { severityColors, NA_SEVERITY } from '../utils/constants';
 import { getDateKey, getCurrentTimePeriod, formatDate } from '../utils/helpers';
 import { getLastSeverity } from '../utils/listHelpers';
 import * as queue from '../voice/checkinQueue';
+import { isWellbeing, colorIndex, WELLBEING_LABELS } from '../utils/wellbeing';
 
 // Full-screen, one-symptom-at-a-time logging. Rating jumps to the next unlogged symptom;
 // finishing a period offers the other one, then closes with confetti.
@@ -56,7 +57,7 @@ export default function RapidEntry({
       return;
     }
     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-    setCopyToastMessage('✓ All symptoms logged!');
+    setCopyToastMessage('✓ All logged!');
     setTimeout(() => setCopyToastMessage(''), 3000);
     onClose();
   };
@@ -140,7 +141,7 @@ export default function RapidEntry({
           {header}
           <div className="re-done">
             <span className="re-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg></span>
-            <h1>All {periodLabel} symptoms logged</h1>
+            <h1>All {periodLabel} ratings logged</h1>
             <p>{formatDate(selectedDate)} · {list.length} of {list.length}</p>
             <div className="re-done-actions">
               {otherIncomplete && <button className="dn-btn primary" onClick={() => switchPeriod(otherIncomplete.id)}>Continue to {otherIncomplete.label} · {otherIncomplete.left} left</button>}
@@ -172,10 +173,11 @@ export default function RapidEntry({
         </div>
 
         <div className="re-symptom">
+          {isWellbeing(current) && <span className="re-kind">Wellbeing · 0 absent, 5 excellent</span>}
           <h1>{current.name}</h1>
           <p>{current.description}</p>
           {lastSeverity !== null && currentSeverity === undefined && (
-            <span className="re-last">Last time <b style={{ color: severityColors[lastSeverity] }}>{lastSeverity}</b></span>
+            <span className="re-last">Last time <b style={{ color: severityColors[colorIndex(current, lastSeverity)] }}>{lastSeverity}</b></span>
           )}
         </div>
 
@@ -190,7 +192,8 @@ export default function RapidEntry({
               <button
                 key={severity}
                 className={`re-key ${currentSeverity === severity ? 'on' : lastSeverity === severity && currentSeverity === undefined ? 'last' : ''}`}
-                style={{ '--c': severityColors[severity] }}
+                style={{ '--c': severityColors[colorIndex(current, severity)] }}
+                title={isWellbeing(current) ? WELLBEING_LABELS[severity] : undefined}
                 onClick={() => rate(severity)}
               >
                 {severity}

@@ -283,3 +283,7 @@ body.lr-reordering .lr-row:hover { background: none; }
 .lr-hm-restore:hover { color: #fff; background: #2563eb; }
 .lr-dayacts button { font-family: inherit; cursor: pointer; white-space: nowrap; }
 .lr-dayacts button + button { border-left: 1px solid rgba(255,255,255,.1); }
+
+/* Wellbeing section: a reminder that its numbers read the other way */
+.lr-ghead .lr-ghint { color: #6b7280; font-size: 11px; letter-spacing: 0; text-transform: none; }
+.lr-toggle.kind, .lr.mobile .lr-toggle.kind { width: auto; padding: 0 12px; }

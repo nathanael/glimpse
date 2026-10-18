@@ -62,7 +62,7 @@ export default function QuickActionsMenu({
       <div className="mn-dim" onClick={onClose} />
       <div className="mn-sheet" role="menu">
         <h6>
-          {tab === 'insights' ? 'Progress' : tab === 'home' ? `Home · ${formatDate(selectedDate)}` : `${tab === 'symptoms' ? 'Symptoms' : 'Protocol'} · ${formatDate(selectedDate)}`}
+          {tab === 'insights' ? 'Progress' : tab === 'home' ? `Home · ${formatDate(selectedDate)}` : `${tab === 'symptoms' ? 'Tracking' : 'Protocol'} · ${formatDate(selectedDate)}`}
           <span>{currentVersion}</span>
         </h6>
         {tab === 'home' && <Item icon="refresh" label="Update app" onClick={updateApp} />}

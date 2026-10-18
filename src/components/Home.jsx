@@ -61,7 +61,7 @@ export default function Home({
       ],
     },
     {
-      id: 'symptoms', title: 'Log symptoms', art: symptomsArt, line: summary.symptoms,
+      id: 'symptoms', title: 'Log symptoms & wellbeing', art: symptomsArt, line: summary.symptoms,
       options: [
         { icon: 'bolt', label: 'Rapid entry', onClick: onRapidEntry },
         { icon: 'mic', label: 'Talk me through it', onClick: onTalkMode },

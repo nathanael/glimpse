@@ -15,6 +15,10 @@ import {
   formatSymptomChange,
 } from '../utils/symptomHistory';
 import { SEVERITIES, SEV_BG, SEV_FG, STRIP_COLOR } from './severityStyle';
+import { isWellbeing, colorIndex, WELLBEING } from '../utils/wellbeing';
+
+const SYMPTOMS_COLOR = '#fb7185';
+const WELLBEING_COLOR = '#2dd4bf';
 
 
 // Per-device view preferences (how the list is grouped, which groups are folded)
@@ -61,6 +65,7 @@ export default function SymptomRows({
   const [expandedId, setExpandedId] = useState(null);
   const [showHidden, setShowHidden] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [addingWellbeing, setAddingWellbeing] = useState(false);
 
   // Grouping: 'order' = the flat list, 'groups' = sections the person defined
   const [groupBy, setGroupByState] = useState(() => {
@@ -86,18 +91,24 @@ export default function SymptomRows({
   const [proposal, setProposal] = useState(null); // suggested grouping being previewed in Edit
 
   // What is on screen, in on-screen order. Rating, arrows and hover all walk this list.
-  const sections = useMemo(
-    () => (grouped ? groupSymptoms(activeSymptoms) : [{ name: undefined, rows: activeSymptoms }]),
-    [grouped, activeSymptoms]
-  );
+  // Symptoms (in the person's groups when grouped), then wellbeing signals in a section of their own
+  const symptomList = useMemo(() => activeSymptoms.filter((s) => !isWellbeing(s)), [activeSymptoms]);
+  const wellbeingList = useMemo(() => activeSymptoms.filter(isWellbeing), [activeSymptoms]);
+  const sections = useMemo(() => {
+    const out = grouped
+      ? groupSymptoms(symptomList).map((sec) => ({ ...sec, key: sec.name ?? '', label: sec.name ?? 'Ungrouped', color: groupColor(sec.name), head: true }))
+      : symptomList.length ? [{ name: undefined, rows: symptomList, key: '__symptoms', label: 'Symptoms', color: SYMPTOMS_COLOR, head: wellbeingList.length > 0 }] : [];
+    if (wellbeingList.length) out.push({ name: undefined, wellbeing: true, rows: wellbeingList, key: '__wellbeing', label: 'Wellbeing', color: WELLBEING_COLOR, head: true });
+    return out;
+  }, [grouped, symptomList, wellbeingList]);
   const rows = useMemo(
-    () => sections.flatMap((sec) => (grouped && collapsed.has(sec.name ?? '')) ? [] : sec.rows),
-    [sections, grouped, collapsed]
+    () => sections.flatMap((sec) => (sec.head && collapsed.has(sec.key)) ? [] : sec.rows),
+    [sections, collapsed]
   );
   // A group of the person's own gets a "flaring" badge when most of it is above its normal on the day viewed
   const thresholds = useMemo(
-    () => (grouped && !editing ? flareThresholds(activeSymptoms, entries, new Date()) : null),
-    [grouped, editing, activeSymptoms, entries]
+    () => (grouped && !editing ? flareThresholds(symptomList, entries, new Date()) : null),
+    [grouped, editing, symptomList, entries]
   );
 
   // Keep the focused period valid when tracking mode changes
@@ -219,6 +230,8 @@ export default function SymptomRows({
     () => symptoms.filter((s) => s.active).sort((a, b) => (a.order || 0) - (b.order || 0)),
     [symptoms]
   );
+  const orderedSymptoms = useMemo(() => orderedActive.filter((s) => !isWellbeing(s)), [orderedActive]);
+  const orderedWellbeing = useMemo(() => orderedActive.filter(isWellbeing), [orderedActive]);
   const hiddenSymptoms = useMemo(() => symptoms.filter((s) => !s.active), [symptoms]);
 
   // Search also finds hidden and deleted symptoms so they can be restored in place
@@ -299,7 +312,7 @@ export default function SymptomRows({
   };
   // Suggestion box: flare history first, names for the rest. Nothing changes until Apply.
   const openProposal = () => {
-    const active = symptoms.filter((s) => s.active).sort((a, b) => (a.order || 0) - (b.order || 0));
+    const active = symptoms.filter((s) => s.active && !isWellbeing(s)).sort((a, b) => (a.order || 0) - (b.order || 0));
     setProposal(suggestGrouping(active, entries, new Date(), availableGroups(symptoms, draftGroups)));
   };
   // replace = false files only what is still ungrouped; replace = true re-files everything the way the proposal has it
@@ -330,20 +343,22 @@ export default function SymptomRows({
   };
 
   // Nothing is written until a name is committed, so an abandoned row leaves no trace
-  const addSymptom = (raw) => {
+  const addSymptom = (raw, kind) => {
     setAdding(false);
+    setAddingWellbeing(false);
+    const wellbeing = kind === WELLBEING;
     const name = raw.trim();
     if (!name) return;
     const existing = symptoms.find((s) => s.name.toLowerCase() === name.toLowerCase());
     if (existing) {
       if (!existing.active) patchSymptom(existing.id, { active: true });
-      setLastAction(existing.active ? 'Symptom already exists' : 'Symptom restored');
+      setLastAction(existing.active ? `${existing.name} already exists` : `${existing.name} restored`);
       return;
     }
     const maxOrder = Math.max(-1, ...orderedActive.map((s) => s.order || 0));
-    const symptom = { id: makeId(name), name, active: true, order: maxOrder + 1 };
+    const symptom = { id: makeId(name), name, active: true, order: maxOrder + 1, ...(wellbeing ? { kind: WELLBEING } : {}) };
     // Once groups are in use, a new symptom is filed by its name. It is only a suggestion (marked ✦).
-    const suggestion = groupNames(symptoms).length > 0 ? suggestGroup(name, '', availableGroups(symptoms, draftGroups)) : null;
+    const suggestion = !wellbeing && groupNames(symptoms).length > 0 ? suggestGroup(name, '', availableGroups(symptoms, draftGroups)) : null;
     if (suggestion) {
       symptom.group = suggestion;
       symptom.groupOrder = groupOrderOf(suggestion);
@@ -352,7 +367,7 @@ export default function SymptomRows({
     }
     symptom.history = [createSymptomHistoryEntry(symptom)];
     setSymptoms((prev) => [...prev, symptom]);
-    setLastAction(suggestion ? `Symptom added to ${suggestion} (suggested)` : 'Symptom added');
+    setLastAction(wellbeing ? 'Wellbeing signal added' : suggestion ? `Symptom added to ${suggestion} (suggested)` : 'Symptom added');
   };
 
   const revertTo = (symptom, historyIndex) => {
@@ -365,6 +380,15 @@ export default function SymptomRows({
   // `order` is the list as it now looks on screen: symptom ids with `group:<name>` headers between
   const commitReorder = (fromId, toId, dragGroup, order) => {
     if (dragGroup === 'groups') { commitGroupReorder(fromId, toId); return; }
+    if (dragGroup === WELLBEING) {
+      // Wellbeing rows only move among themselves: hand their existing order slots out in the new sequence
+      const slots = orderedWellbeing.map((s) => s.order || 0);
+      setSymptoms((prev) => prev.map((s) => {
+        const i = order.indexOf(s.id);
+        return i === -1 || s.order === slots[i] ? s : { ...s, order: slots[i] };
+      }));
+      return;
+    }
     const isHeader = (id) => id.startsWith('group:');
     const at = order.indexOf(fromId);
     if (grouped) {
@@ -442,6 +466,15 @@ export default function SymptomRows({
       <button className="lr-link" onClick={() => { patchSymptom(symptom.id, { active: false }); setLastAction('Symptom hidden (history preserved)'); }}>Hide</button>
     );
     const toggleExpand = () => setExpandedId(expanded ? null : symptom.id);
+    const wellbeing = isWellbeing(symptom);
+    const reorderGroup = wellbeing ? WELLBEING : 'default';
+    // Which way the number reads. Switching keeps every rating; only its meaning and colour flip.
+    const kindToggle = (
+      <>
+        <button className={`lr-toggle kind ${wellbeing ? '' : 'on'}`} onClick={() => wellbeing && patchSymptom(symptom.id, { kind: 'symptom' })}>Symptom</button>
+        <button className={`lr-toggle kind ${wellbeing ? 'on' : ''}`} onClick={() => !wellbeing && patchSymptom(symptom.id, { kind: WELLBEING, group: null })}>Wellbeing</button>
+      </>
+    );
     const rowClass = [
       'lr-row lr-cols',
       hidden ? 'lr-hidden' : '',
@@ -450,12 +483,12 @@ export default function SymptomRows({
     ].join(' ');
 
     return (
-      <div key={symptom.id} className={rowClass} data-reorder-id={hidden ? undefined : symptom.id} data-reorder-group={hidden ? undefined : 'default'}>
-        {hidden ? <span /> : <span className="lr-grip" {...gripProps(symptom.id)}>⠿</span>}
+      <div key={symptom.id} className={rowClass} data-reorder-id={hidden ? undefined : symptom.id} data-reorder-group={hidden ? undefined : reorderGroup}>
+        {hidden ? <span /> : <span className="lr-grip" {...gripProps(symptom.id, reorderGroup)}>⠿</span>}
         {isDesktop ? (
           <>
             {fields}
-            {hidden ? <span /> : renderGroupSelect(symptom)}
+            {hidden || wellbeing ? <span /> : renderGroupSelect(symptom)}
             {toggles}
             <div className="lr-rowacts">
               <button className="lr-link" onClick={toggleExpand}>{expanded ? 'Close' : 'History'}</button>
@@ -472,7 +505,8 @@ export default function SymptomRows({
         {expanded && (
           <div className="lr-panel">
             {!isDesktop && fields}
-            {!isDesktop && !hidden && <div className="lr-prow"><span>Group</span>{renderGroupSelect(symptom)}</div>}
+            {!isDesktop && !hidden && !wellbeing && <div className="lr-prow"><span>Group</span>{renderGroupSelect(symptom)}</div>}
+            <div className="lr-prow"><span>Type</span>{kindToggle}</div>
             {!isDesktop && timePeriods.length > 1 && <div className="lr-prow"><span>Tracked in</span>{toggles}</div>}
             {renderLog(symptom)}
             {!isDesktop && <div className="lr-prow">{actions}</div>}
@@ -533,7 +567,7 @@ export default function SymptomRows({
       <span className="lr-spacer" />
       {isDesktop && !editing && hasEntriesToday && <button className="dn-btn ghost" onClick={onClearDay}>Clear day</button>}
       {isDesktop && !editing && <button className="dn-btn" onClick={onEditNote}>Notes</button>}
-      {(isDesktop || editing) && <button className={`dn-btn ${editing ? 'primary' : ''}`} onClick={toggleEdit}>{editing ? 'Done' : 'Edit symptoms'}</button>}
+      {(isDesktop || editing) && <button className={`dn-btn ${editing ? 'primary' : ''}`} onClick={toggleEdit}>{editing ? 'Done' : 'Edit list'}</button>}
     </>,
     barSlot
   ) : null;
@@ -551,7 +585,7 @@ export default function SymptomRows({
         )}
         {!isDesktop && groupByControl}
         {proposal && proposalPanel}
-        {grouped ? groupSymptoms(orderedActive, draftGroups).map((sec) => {
+        {grouped ? groupSymptoms(orderedSymptoms, draftGroups).map((sec) => {
           const key = sec.name ?? '';
           const draft = sec.name !== null && sec.rows.length === 0;
           return (
@@ -575,7 +609,7 @@ export default function SymptomRows({
               {sec.rows.map((s) => renderEditRow(s, false))}
             </div>
           );
-        }) : orderedActive.map((s) => renderEditRow(s, false))}
+        }) : orderedSymptoms.map((s) => renderEditRow(s, false))}
         {grouped && (addingGroup ? (
           <div className="lr-row lr-cols lr-add">
             <span className="lr-grip" style={{ cursor: 'default' }}>+</span>
@@ -600,6 +634,26 @@ export default function SymptomRows({
             <span className="lr-grip" style={{ cursor: 'pointer' }}>+</span><div>Add symptom</div>
           </div>
         )}
+        <div className="lr-ghead edit" style={{ '--c': WELLBEING_COLOR }}>
+          <span className="lr-ghead-in">
+            <span className="lr-grip" style={{ visibility: 'hidden' }}>⠿</span>
+            <i /><b>Wellbeing</b>
+            <small>Higher is better · {orderedWellbeing.length} signal{orderedWellbeing.length === 1 ? '' : 's'}</small>
+          </span>
+        </div>
+        {orderedWellbeing.map((s) => renderEditRow(s, false))}
+        {addingWellbeing ? (
+          <div className="lr-row lr-cols lr-add">
+            <span className="lr-grip" style={{ cursor: 'default' }}>+</span>
+            <div className="lr-fields">
+              <DraftInput className="lr-input name" value="" placeholder="New wellbeing signal" autoFocus onCommit={(v) => addSymptom(v, WELLBEING)} onAbandon={() => setAddingWellbeing(false)} />
+            </div>
+          </div>
+        ) : (
+          <div className="lr-row lr-cols lr-add" onClick={() => setAddingWellbeing(true)}>
+            <span className="lr-grip" style={{ cursor: 'pointer' }}>+</span><div>Add wellbeing signal</div>
+          </div>
+        )}
         {hiddenSymptoms.length > 0 && (
           <>
             <div className="lr-sec clickable" onClick={() => setShowHidden((v) => !v)}>
@@ -616,7 +670,7 @@ export default function SymptomRows({
     <div ref={rootRef} className={rootClass} style={rootStyle}>
       {bar}
       {activeSymptoms.length === 0 ? (
-        hiddenMatches.length ? null : <div className="lr-empty">{symptomSearch ? `No symptoms match "${symptomSearch}"` : 'No symptoms yet. Use Edit symptoms to add one.'}</div>
+        hiddenMatches.length ? null : <div className="lr-empty">{symptomSearch ? `No symptoms match "${symptomSearch}"` : 'Nothing tracked yet. Use Edit list to add a symptom or wellbeing signal.'}</div>
       ) : (
         <>
           {!isDesktop && hasGroups && groupByControl}
@@ -626,13 +680,14 @@ export default function SymptomRows({
             {timePeriods.map((p) => <div className="c" key={p.id}>{timePeriods.length > 1 ? p.label : 'TODAY'}</div>)}
           </div>
           {sections.map((sec) => {
-            const key = sec.name ?? '';
-            const folded = grouped && collapsed.has(key);
+            const key = sec.key;
+            const folded = sec.head && collapsed.has(key);
             const slots = sec.rows.filter((s) => isApplicable(s, focus.period));
             const badge = grouped && sec.name && thresholds ? flaringBadge(sec.rows, thresholds, entries, selectedDate) : null;
-            const header = grouped && (
-              <div key={`h-${key}`} className={`lr-ghead ${folded ? 'folded' : ''}`} style={{ '--c': groupColor(sec.name) }} onClick={() => toggleCollapsed(key)}>
-                <i /><b>{sec.name ?? 'Ungrouped'}</b>
+            const header = sec.head && (
+              <div key={`h-${key}`} className={`lr-ghead ${folded ? 'folded' : ''}`} style={{ '--c': sec.color }} onClick={() => toggleCollapsed(key)}>
+                <i /><b>{sec.label}</b>
+                {sec.wellbeing && <small className="lr-ghint">higher is better</small>}
                 {badge && <em className="lr-gbadge">{badge}</em>}
                 <span>{slots.filter((s) => entryFor(s, focus.period)).length}/{slots.length} logged</span>
                 <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" /></svg>
@@ -675,7 +730,7 @@ export default function SymptomRows({
                         <button
                           key={n}
                           className={`${n === NA_SEVERITY ? 'na' : ''} ${selected ? 'on' : lastSeverity === n ? 'last' : ''}`}
-                          style={n === NA_SEVERITY ? undefined : { '--c': STRIP_COLOR[n], '--bg': SEV_BG[n], '--fg': SEV_FG[n] }}
+                          style={n === NA_SEVERITY ? undefined : { '--c': STRIP_COLOR[colorIndex(symptom, n)], '--bg': SEV_BG[colorIndex(symptom, n)], '--fg': SEV_FG[colorIndex(symptom, n)] }}
                           title={selected ? 'Click again to clear' : lastSeverity === n ? 'Last time' : undefined}
                           onClick={() => (selected ? clearEntry(symptom, focus.period) : rate(symptom, focus.period, n, { stay: true }))}
                         >
@@ -688,7 +743,7 @@ export default function SymptomRows({
                 {isDesktop && !(open && isApplicable(symptom, focus.period)) && (
                   <div className="lr-strip sev" title="Open history" onClick={(e) => { e.stopPropagation(); onOpenGraph?.(symptom.id); }}>
                     {(strips[symptom.id] || []).map((v, i) => (
-                      <i key={i} className={v === null ? '' : 'v'} style={v === null ? undefined : { background: STRIP_COLOR[Math.round(v)] }} />
+                      <i key={i} className={v === null ? '' : 'v'} style={v === null ? undefined : { background: STRIP_COLOR[colorIndex(symptom, Math.round(v))] }} />
                     ))}
                   </div>
                 )}
@@ -700,7 +755,7 @@ export default function SymptomRows({
                   if (!entry) return <button key={p.id} className={`lr-pill empty${cur}`} onClick={select}>·</button>;
                   if (entry.severity === NA_SEVERITY) return <button key={p.id} className={`lr-pill na${cur}`} onClick={select}>N/A</button>;
                   return (
-                    <button key={p.id} className={`lr-pill${cur}`} style={{ background: SEV_BG[entry.severity], color: SEV_FG[entry.severity] }} onClick={select}>
+                    <button key={p.id} className={`lr-pill${cur}`} style={{ background: SEV_BG[colorIndex(symptom, entry.severity)], color: SEV_FG[colorIndex(symptom, entry.severity)] }} onClick={select}>
                       {entry.severity}
                     </button>
                   );
@@ -711,7 +766,7 @@ export default function SymptomRows({
                       <button
                         key={n}
                         className={`lr-key ${lastSeverity === n ? 'last' : ''}`}
-                        style={current?.severity === n ? { background: SEV_BG[n], color: SEV_FG[n], borderColor: 'transparent' } : lastSeverity === n ? { '--c': STRIP_COLOR[n] } : undefined}
+                        style={current?.severity === n ? { background: SEV_BG[colorIndex(symptom, n)], color: SEV_FG[colorIndex(symptom, n)], borderColor: 'transparent' } : lastSeverity === n ? { '--c': STRIP_COLOR[colorIndex(symptom, n)] } : undefined}
                         onClick={() => rate(symptom, focus.period, n)}
                       >
                         {n}

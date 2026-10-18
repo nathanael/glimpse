@@ -76,6 +76,7 @@ import NoteModal from './components/NoteModal';
 import VoiceNote from './components/VoiceNote';
 import { appendToNote } from './utils/voiceNote';
 import SymptomGraph from './components/SymptomGraph';
+import { isWellbeing, missingStarters, WELLBEING_LABELS } from './utils/wellbeing';
 import SupplementGraph from './components/SupplementGraph';
 
 function App() {
@@ -361,7 +362,9 @@ function App() {
       const search = symptomSearch.toLowerCase();
       active = active.filter(s => s.name.toLowerCase().includes(search));
     }
+    // Symptoms first, then wellbeing signals: one list for the tab, check-in and talk mode
     return active.sort((a, b) => {
+      if (isWellbeing(a) !== isWellbeing(b)) return isWellbeing(a) ? 1 : -1;
       const aPinned = pinnedSymptoms.has(a.id);
       const bPinned = pinnedSymptoms.has(b.id);
       if (aPinned && !bPinned) return -1;
@@ -539,6 +542,20 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebase.authLoading, firebase.user, sync.isReady]);
 
+  // Starter wellbeing signals, added once per account after state has settled (same gate as the purge)
+  const wellbeingSeedRef = useRef(false);
+  useEffect(() => {
+    if (wellbeingSeedRef.current || firebase.authLoading) return;
+    if (firebase.user && !sync.isReady) return;
+    wellbeingSeedRef.current = true;
+    try { if (localStorage.getItem('wellbeingSeeded')) return; localStorage.setItem('wellbeingSeeded', '1'); } catch { /* private mode */ }
+    setSymptoms(prev => {
+      const add = missingStarters(prev);
+      return add.length ? [...prev, ...add] : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebase.authLoading, firebase.user, sync.isReady]);
+
   // Protocol bulk actions: act immediately, undo restores the day exactly as it was
   const withProtocolUndo = (message, mutate) => {
     const dateKey = getDateKey(selectedDate);
@@ -685,7 +702,7 @@ function App() {
     const symptom = symptoms.find(s => s.id === symptomId);
     const period = timePeriods.find(p => p.id === timeId);
     haptic('light');
-    const severityLabel = severity === NA_SEVERITY ? 'N/A' : severity;
+    const severityLabel = severity === NA_SEVERITY ? 'N/A' : isWellbeing(symptom) ? `${severity} ${WELLBEING_LABELS[severity]}` : severity;
     setLastAction(`${symptom?.name}: ${severityLabel} (${period?.label || timeId})`);
   }, [selectedDate, timePeriods, symptoms]);
 

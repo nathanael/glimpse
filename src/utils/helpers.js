@@ -1,5 +1,6 @@
 import { trackingModes, severityColors, NA_SEVERITY, GARMIN_SYNC_ENABLED } from './constants';
 import { computeHealthScore } from './healthScore';
+import { isWellbeing } from './wellbeing';
 import { METRICS as SLEEP_METRICS, valueForRow } from './sleepMetrics';
 
 // A daily note is stored as { text, _t }. Legacy data may be a bare string.
@@ -325,7 +326,7 @@ export const generateAIDataExport = (days, entries, symptoms, stackItems, stackE
 
   // Health Score section
   output.push('## Health Score');
-  output.push('Daily score (0-100, higher is better) computed as 100 − (avg severity / 5 × 100) across logged active symptoms. Days with no logged symptoms are blank.\n');
+  output.push('Daily score (0-100, higher is better) computed as 100 − (avg severity / 5 × 100) across logged active symptoms. Wellbeing signals are not part of it. Days with no logged symptoms are blank.\n');
   output.push('| Date | Score |');
   output.push('| ---- | ----- |');
   for (let i = 0; i < days; i++) {
@@ -337,15 +338,18 @@ export const generateAIDataExport = (days, entries, symptoms, stackItems, stackE
   }
   output.push('');
 
-  // Symptoms table
-  output.push('### Symptoms');
-  output.push('Scale: 0 (none) to 5 (extreme). "-" = not recorded. "N/A" = not applicable.\n');
   const headers = ['Date', ...timePeriods.map(p => p.label)];
-
-  // Get symptom data for each symptom
   const activeSymptoms = symptoms.filter(s => s.active);
+  // Symptoms read lower-is-better and wellbeing higher-is-better, so each gets its own section and scale
+  const sections = [
+    ['Symptoms', 'Scale: 0 (none) to 5 (extreme), lower is better.', activeSymptoms.filter(s => !isWellbeing(s))],
+    ['Wellbeing', 'Scale: 0 (absent) to 5 (excellent), higher is better.', activeSymptoms.filter(isWellbeing)],
+  ].filter(([, , list]) => list.length > 0);
 
-  activeSymptoms.forEach(symptom => {
+  sections.forEach(([title, scale, list]) => {
+  output.push(`### ${title}`);
+  output.push(`${scale} "-" = not recorded. "N/A" = not applicable.\n`);
+  list.forEach(symptom => {
     const desc = symptom.description ? ` — ${symptom.description}` : '';
     output.push(`\n### ${symptom.name}${desc}`);
     output.push('| ' + headers.join(' | ') + ' |');
@@ -370,6 +374,7 @@ export const generateAIDataExport = (days, entries, symptoms, stackItems, stackE
 
       output.push('| ' + row.join(' | ') + ' |');
     }
+  });
   });
 
   // Supplement list with descriptions
@@ -699,8 +704,8 @@ export const getInsights = (windowDays, entries, symptoms) => {
     const thisWeekAvg = thisWeekEntries.reduce((sum, e) => sum + e.severity, 0) / thisWeekEntries.length;
     const previousAvg = previousEntries.reduce((sum, e) => sum + e.severity, 0) / previousEntries.length;
 
-    // Absolute change (positive = improving, negative = worsening)
-    const absoluteChange = previousAvg - thisWeekAvg;
+    // Absolute change (positive = improving, negative = worsening). Wellbeing improves upwards.
+    const absoluteChange = (isWellbeing(symptom) ? -1 : 1) * (previousAvg - thisWeekAvg);
 
     // Skip if change is too small (< 0.3 pts)
     if (Math.abs(absoluteChange) < 0.3) return;
@@ -709,7 +714,7 @@ export const getInsights = (windowDays, entries, symptoms) => {
     const daysThisWeek = new Set(thisWeekEntries.map(e => e.date)).size;
 
     // Best and worst days (across entire window)
-    const sortedBySeverity = [...symptomEntries].sort((a, b) => a.severity - b.severity);
+    const sortedBySeverity = [...symptomEntries].sort((a, b) => (isWellbeing(symptom) ? b.severity - a.severity : a.severity - b.severity));
     const bestEntry = sortedBySeverity[0];
     const worstEntry = sortedBySeverity[sortedBySeverity.length - 1];
 

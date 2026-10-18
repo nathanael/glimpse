@@ -1,5 +1,6 @@
 import { getDailyValue } from './chartHelpers';
 import { SLEEP_ENABLED } from './constants';
+import { isWellbeing } from './wellbeing';
 
 const SLEEP_WEIGHT = 0.10; // sleep score is 10% of health score when available
 
@@ -25,7 +26,8 @@ function getSleepScoreForDate(dateStr) {
  * Returns { score: number|null, loggedCount: number, totalActive: number }
  */
 export function computeHealthScore(symptoms, entries, dateStr, trackingMode) {
-  const active = symptoms.filter(s => s.active);
+  // Symptoms only: wellbeing signals run the other way and are never blended into this score
+  const active = symptoms.filter(s => s.active && !isWellbeing(s));
   const totalActive = active.length;
 
   let sum = 0;

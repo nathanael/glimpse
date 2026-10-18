@@ -5,7 +5,7 @@ import { getScoreColor } from '../utils/healthScore';
 import { useHealthScore } from '../hooks/useHealthScore';
 
 const TABS = [
-  { id: 'symptoms', label: 'Symptoms' },
+  { id: 'symptoms', label: 'Tracking' },
   { id: 'stack', label: 'Protocol' },
   { id: 'insights', label: 'Progress' },
 ];
