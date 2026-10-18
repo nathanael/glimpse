@@ -26,6 +26,14 @@
 .mob .nm-text { font-size: 16px; } /* 16px stops iOS zooming on focus */
 .nm-text::placeholder { color: #6b7280; }
 
+/* Notes saved from ChatGPT (Glimpse Health MCP): read-only, labeled AI vs. reported by you */
+.nm-ai { flex: none; max-height: 40%; overflow-y: auto; border-top: 1px solid rgba(255, 255, 255, .06); padding: 12px 20px; display: flex; flex-direction: column; gap: 10px; }
+.nm-ai-note { background: rgba(255, 255, 255, .03); border: 1px solid rgba(255, 255, 255, .06); border-radius: 8px; padding: 10px 12px; }
+.nm-ai-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: #6b7280; margin-bottom: 4px; }
+.nm-ai-label .ai { color: #a78bfa; font-weight: 600; }
+.nm-ai-label .you { color: #34d399; font-weight: 600; }
+.nm-ai-note p { margin: 0; color: #d1d5db; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+
 .nm-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px 14px; border-top: 1px solid rgba(255, 255, 255, .06); font-size: 12px; color: #6b7280; flex: none; }
 .nm-foot > span:last-child { display: inline-flex; align-items: center; gap: 10px; }
 .nm-status { display: inline-flex; align-items: center; gap: 6px; }

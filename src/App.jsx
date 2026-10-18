@@ -20,6 +20,7 @@ import {
   STORAGE_KEY_INPUT_ITEMS,
   STORAGE_KEY_INPUT_ENTRIES,
   STORAGE_KEY_MEALS,
+  STORAGE_KEY_AI_NOTES,
   severityColors,
   NA_SEVERITY,
   trackingModes,
@@ -134,6 +135,8 @@ function App() {
     (data) => syncNotifyRef.current?.('meals', data),
     isApplyingCloudRef
   );
+  // Written only by the Glimpse Health MCP; the app reads them and never edits them, so no onChange.
+  const [aiNotes, setAiNotes] = useLocalStorage(STORAGE_KEY_AI_NOTES, {});
   const [copyDays, setCopyDays] = useLocalStorage(STORAGE_KEY_COPY_DAYS, 7);
   const [talkEngine, setTalkEngine] = useLocalStorage(STORAGE_KEY_TALK_ENGINE, 'gemini');
   const [talkShowCost, setTalkShowCost] = useLocalStorage(STORAGE_KEY_TALK_SHOW_COST, true);
@@ -182,6 +185,7 @@ function App() {
       inputItems: setInputItems,
       inputEntries: setInputEntries,
       meals: setMeals,
+      aiNotes: setAiNotes,
     },
     isApplyingCloudRef
   );
@@ -1188,6 +1192,7 @@ function App() {
           selectedDate={selectedDate}
           dailyNotes={dailyNotes}
           setDailyNotes={setDailyNotes}
+          aiNotes={aiNotes}
           onClose={() => setShowNoteModal(false)}
           isDesktop={isDesktop}
           onVoice={isDesktop ? undefined : () => { setShowNoteModal(false); setShowVoiceNote(true); }}

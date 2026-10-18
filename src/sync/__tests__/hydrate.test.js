@@ -27,6 +27,16 @@ describe('assembleDomainsFromDocs', () => {
     expect(shadow.dailyNotes['2026-05-01'].text).toBe('hi');
   });
 
+  it('assembles aiNotes from its own month-doc field, never into dailyNotes', () => {
+    const months = [{ id: '2026-10', data: {
+      notes: { '2026-10-01': { text: 'mine', _t: 1 } },
+      aiNotes: { '2026-10-01-ai-0123456789abcdef': { text: 'from chat', kind: 'hypothesis', _t: 2 } },
+    } }];
+    const { domains } = assembleDomainsFromDocs({}, months);
+    expect(domains.dailyNotes).toEqual({ '2026-10-01': { text: 'mine', _t: 1 } });
+    expect(domains.aiNotes['2026-10-01-ai-0123456789abcdef'].text).toBe('from chat');
+  });
+
   it('flattens stackEntries and inputEntries across months too', () => {
     const monthDocs = [
       { id: '2026-04', data: { stackEntries: { '2026-04-01-s': { v: 1 } }, inputEntries: { '2026-04-01-i': { v: 2 } } } },

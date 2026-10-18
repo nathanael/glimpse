@@ -18,11 +18,32 @@ function writeNote(setDailyNotes, dateKey, value) {
   });
 }
 
+const AI_KIND_LABELS = {
+  observation: 'AI observation',
+  treatment_response: 'AI · treatment response',
+  hypothesis: 'AI hypothesis',
+  patient_report: 'You said',
+};
+
+// Notes the Glimpse Health MCP saved for this day, oldest first. Read-only here.
+function aiNotesFor(aiNotes, dateKey) {
+  if (!aiNotes || typeof aiNotes !== 'object') return [];
+  return Object.entries(aiNotes)
+    .filter(([key, n]) => key.startsWith(`${dateKey}-ai-`) && n && typeof n.text === 'string')
+    .map(([key, n]) => ({
+      key, text: n.text, kind: n.kind, origin: n.origin,
+      time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : '',
+      at: n.createdAt || '',
+    }))
+    .sort((a, b) => a.at.localeCompare(b.at));
+}
+
 // Notes: a side panel on desktop, a bottom sheet on mobile
 export default function NoteModal({
   selectedDate,
   dailyNotes,
   setDailyNotes,
+  aiNotes,
   onClose,
   isDesktop,
   onVoice, // mobile, today only: switch to a voice note
@@ -88,6 +109,7 @@ export default function NoteModal({
   const longDate = selectedDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   const pending = localNote.trim() !== saved.trim();
   const words = localNote.trim() ? localNote.trim().split(/\s+/).length : 0;
+  const notesFromChat = aiNotesFor(aiNotes, dateKey);
 
   return (
     <div ref={scrimRef} className={`nm-scrim ${isDesktop ? 'desk' : 'mob'}`} onClick={onClose}>
@@ -113,6 +135,19 @@ export default function NoteModal({
           placeholder="How was the day? Food, sleep, stress, activity, anything that might matter…"
           enterKeyHint="enter"
         />
+        {notesFromChat.length > 0 && (
+          <div className="nm-ai" aria-label="Notes from ChatGPT">
+            {notesFromChat.map((n) => (
+              <article key={n.key} className="nm-ai-note">
+                <div className="nm-ai-label">
+                  <span className={n.origin === 'patient_reported' ? 'you' : 'ai'}>{AI_KIND_LABELS[n.kind] || 'AI note'}</span>
+                  <span>via ChatGPT{n.time ? ` · ${n.time}` : ''}</span>
+                </div>
+                <p>{n.text}</p>
+              </article>
+            ))}
+          </div>
+        )}
         <footer className="nm-foot">
           <span className={`nm-status ${pending ? 'pending' : ''}`}>
             <i />{pending ? 'Saving…' : localNote.trim() ? 'Saved' : 'Nothing written yet'}
