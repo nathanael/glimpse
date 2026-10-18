@@ -61,7 +61,7 @@ export default function Home({
       ],
     },
     {
-      id: 'symptoms', title: 'Log symptoms & wellbeing', art: symptomsArt, line: summary.symptoms,
+      id: 'symptoms', title: 'Log symptoms\n& wellbeing', art: symptomsArt, line: summary.symptoms,
       options: [
         { icon: 'bolt', label: 'Rapid entry', onClick: onRapidEntry },
         { icon: 'mic', label: 'Talk me through it', onClick: onTalkMode },
@@ -193,7 +193,7 @@ export default function Home({
             type="button"
             className="hm-hit"
             aria-expanded={open === card.id}
-            aria-label={`${card.title} — show options`}
+            aria-label={`${card.title.replace('\n', ' ')} — show options`}
             onClick={() => show(card.id)}
           />
           <div className="hm-face">

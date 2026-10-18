@@ -61,16 +61,21 @@
    unfold, so the tabs get the full width back. */
 .mn-quick { flex: none; width: 0; height: 56px; margin-left: -10px; padding: 0; overflow: hidden; border: 0; border-radius: 22px; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 15px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; opacity: 0; pointer-events: none; transition: width .21s cubic-bezier(.22,1,.36,1), margin .21s cubic-bezier(.22,1,.36,1), opacity .12s ease; }
 .mn-quick.easy { width: calc((100% - 144px) / 2); margin-left: 0; opacity: 1; pointer-events: auto; transition-delay: .11s; }
+/* Check-in has the longer label, so it takes more of the shared width than Note */
+.mn-rapid.easy { width: calc((100% - 144px) * .57); }
+.mn-note.easy { width: calc((100% - 144px) * .43); }
 .mn-quick svg { width: 20px; height: 20px; }
 .mn-quick:active { filter: brightness(1.12); }
 .mn-rapid { background: linear-gradient(135deg, #4f46e5, #7c3aed); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 10px 30px rgba(79,70,229,.35); }
 .mn-note { background: linear-gradient(135deg, #7c3aed, #a855f7); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 10px 30px rgba(124,58,237,.35); }
-/* 320pt phones: Check-in and Note get about 79px each */
+/* 320pt phones: Check-in gets about 90px, Note about 68px */
 @media (max-width: 359px) {
   .mn-dock-in { gap: 8px; }
   .mn-quick { margin-left: -8px; gap: 4px; font-size: 13.5px; letter-spacing: -.02em; }
   .mn-tabs.easy { margin-right: 2px; }
   .mn-quick.easy { width: calc((100% - 136px) / 2); margin-left: 0; }
+  .mn-rapid.easy { width: calc((100% - 136px) * .57); }
+  .mn-note.easy { width: calc((100% - 136px) * .43); }
   .mn-quick svg { width: 18px; height: 18px; }
 }
 @media (prefers-reduced-motion: reduce) {
