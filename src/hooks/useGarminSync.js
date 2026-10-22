@@ -79,9 +79,12 @@ export function useGarminSync(user) {
     const records = await res.json();
     if (!records.length) return;
 
-    // 2. Query Firestore for what's already stored
+    // 2. Query Firestore for what's already stored, only from the oldest night
+    //    in this batch: reading the whole collection on every 10-minute
+    //    auto-sync cost one read per stored night and drained the daily quota
     const collection = db.collection('users').doc(user.uid).collection('garminSleep');
-    const snap = await collection.get();
+    const oldest = records.reduce((min, r) => (r.calendarDate && (!min || r.calendarDate < min) ? r.calendarDate : min), null);
+    const snap = await (oldest ? collection.where('date', '>=', oldest) : collection).get();
     const existing = new Map(snap.docs.map(d => [d.data().date, d.data()]));
 
     // 3. Keep new nights, plus nights whose metrics changed since the last

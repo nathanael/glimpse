@@ -26,9 +26,14 @@ import { isRestorePending, clearRestorePending } from './restoreFlag';
 // callback). The heartbeat detects a stall (no snapshot for too long) and
 // catches up via a one-shot re-read; the poll covers the case where the
 // listener NEVER delivers (channel blocked) so we still get data.
+// Every catch-up re-read costs one Firestore read per month doc, and a quiet
+// listener is the normal state when nothing changes, so both timers only fire
+// while the page is visible and back off: a 2-minute heartbeat re-reading every
+// open tab in the background exhausted the free 50k reads/day quota.
 export const HEARTBEAT_INTERVAL_MS = 60000;  // how often we check liveness
-export const HEARTBEAT_DEAD_MS = 120000;     // stall threshold → force refresh
-export const POLL_INTERVAL_MS = 30000;       // poll cadence until first deliver
+export const HEARTBEAT_DEAD_MS = 900000;     // 15 min stall threshold → force refresh
+export const POLL_INTERVAL_MS = 30000;       // poll tick until first deliver
+export const POLL_MAX_BACKOFF_MS = 600000;   // poll re-reads back off to every 10 min
 // A key we wrote within this window is protected from remote-delete detection:
 // a snapshot (or a server read) can momentarily lag our own just-written record
 // — especially after a REST-fallback write, which bypasses the SDK listener's
@@ -153,6 +158,9 @@ export default class SyncEngineV2 {
     this._listenerDelivered = false;
     this._heartbeatTimer = null;
     this._pollTimer = null;
+    // Poll backoff: next allowed poll re-read time and the current gap.
+    this._nextPollAt = 0;
+    this._pollBackoff = POLL_INTERVAL_MS;
     // `${domain} ${key}` -> ms timestamp of our most recent local write to
     // that record. Used to protect freshly-written keys from spurious remote
     // deletes when a snapshot/read lags our own write. Pruned on access.
@@ -1642,7 +1650,7 @@ export default class SyncEngineV2 {
   // force a catch-up re-fetch (fire-and-forget; it refreshes activity on
   // success). A method so tests can invoke it deterministically.
   _checkHeartbeat() {
-    if (this._destroyed) return;
+    if (this._destroyed || this._isHidden()) return;
     if (this._now() - this._lastActivity >= HEARTBEAT_DEAD_MS) {
       this.refreshFromCloud();
     }
@@ -1652,10 +1660,18 @@ export default class SyncEngineV2 {
   // blocked), re-fetch the cloud directly. Once a snapshot has arrived this
   // no-ops. A method so tests can invoke it deterministically.
   _pollTick() {
-    if (this._destroyed) return;
-    if (!this._listenerDelivered) {
-      this.refreshFromCloud();
-    }
+    if (this._destroyed || this._listenerDelivered || this._isHidden()) return;
+    const now = this._now();
+    if (now < this._nextPollAt) return;
+    this._nextPollAt = now + this._pollBackoff;
+    this._pollBackoff = Math.min(this._pollBackoff * 2, POLL_MAX_BACKOFF_MS);
+    this.refreshFromCloud();
+  }
+
+  // True when the page is in the background. Timer-driven re-reads skip hidden
+  // pages; the hook's visibility handler catches up when the page returns.
+  _isHidden() {
+    return typeof document !== 'undefined' && document.visibilityState === 'hidden';
   }
 
   /**

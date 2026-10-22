@@ -44,7 +44,7 @@ vi.mock('../../utils/firebase', () => ({
   getFirebaseDb: () => mockDbValue,
 }));
 
-import SyncEngineV2 from '../SyncEngineV2';
+import SyncEngineV2, { HEARTBEAT_DEAD_MS, POLL_INTERVAL_MS } from '../SyncEngineV2';
 
 function monthsSnap(docs) {
   return { docs: docs.map((d) => ({ id: d.id, data: () => d.data })) };
@@ -104,7 +104,7 @@ describe('SyncEngineV2 — resilience (heartbeat + poll + refresh)', () => {
     setCloud({ entries: { A: { v: 1, _t: 100 }, K: { v: 9, _t: 200 } } });
 
     // Advance the clock past the dead threshold without any activity.
-    nowMs += 120_000;
+    nowMs += HEARTBEAT_DEAD_MS;
     await engine._checkHeartbeat();
     // Allow the fire-and-forget refresh promise to settle.
     await Promise.resolve();
@@ -196,5 +196,45 @@ describe('SyncEngineV2 — resilience (heartbeat + poll + refresh)', () => {
     vi.spyOn(engine, '_readCloud').mockRejectedValue(new Error('read boom'));
     await expect(engine.refreshFromCloud()).resolves.toBeUndefined();
     expect(engine.syncError).toBe('read boom');
+  });
+  it('Test 7: heartbeat and poll skip re-reads while the page is hidden', async () => {
+    await initWith({ entries: { A: { v: 1, _t: 100 } } });
+    const refreshSpy = vi.spyOn(engine, 'refreshFromCloud');
+    const doc = { visibilityState: 'hidden' };
+    vi.stubGlobal('document', doc);
+
+    nowMs += HEARTBEAT_DEAD_MS;
+    engine._checkHeartbeat();
+    engine._pollTick();
+    expect(refreshSpy).not.toHaveBeenCalled();
+
+    doc.visibilityState = 'visible';
+    engine._checkHeartbeat();
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('Test 8: poll re-reads back off instead of firing every tick', async () => {
+    await initWith({ entries: { A: { v: 1, _t: 100 } } });
+    const refreshSpy = vi.spyOn(engine, 'refreshFromCloud');
+
+    engine._pollTick();
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+
+    // Next tick inside the backoff window does nothing.
+    nowMs += POLL_INTERVAL_MS - 1;
+    engine._pollTick();
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+
+    // After the first gap it reads again, then the gap doubles.
+    nowMs += 1;
+    engine._pollTick();
+    expect(refreshSpy).toHaveBeenCalledTimes(2);
+    nowMs += POLL_INTERVAL_MS;
+    engine._pollTick();
+    expect(refreshSpy).toHaveBeenCalledTimes(2);
+    nowMs += POLL_INTERVAL_MS;
+    engine._pollTick();
+    expect(refreshSpy).toHaveBeenCalledTimes(3);
   });
 });

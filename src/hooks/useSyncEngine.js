@@ -11,6 +11,9 @@ import { MAP_DOMAINS } from '../sync/domains';
 // Definition id-array domains arrive as APP-shape arrays and live in React as
 // arrays; merge them by id+`_t`.
 const ID_ARRAY_DOMAINS = ['symptoms', 'stackItems', 'inputItems'];
+// A return to the foreground re-reads the cloud only if it was last heard from
+// longer ago than this.
+const VISIBLE_REFRESH_MIN_MS = 60000;
 
 /**
  * React hook that bridges SyncEngineV2 to component state.
@@ -189,7 +192,11 @@ export function useSyncEngine(uid, firebaseReady, stateSetters, isApplyingCloudR
       if (document.visibilityState === 'hidden') {
         engine.flushNow();
       } else if (document.visibilityState === 'visible') {
-        engine.refreshFromCloud();
+        // Skip the full re-read when the cloud was heard from in the last
+        // minute (quick app switches would otherwise re-read every month doc).
+        if (engine._now() - engine._lastActivity >= VISIBLE_REFRESH_MIN_MS) {
+          engine.refreshFromCloud();
+        }
       }
     };
     const handleUnload = () => engine.flushNow();
