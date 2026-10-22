@@ -93,14 +93,9 @@ export function useGarminSleep(user) {
   }, [user && user.uid]);
 
   useEffect(() => {
-    const handler = () => {
-      // Reset state so refetch does a full query instead of incremental
-      setDays([]);
-      setLastPushedAt(null);
-      daysRef.current = [];
-      lastPushedAtRef.current = null;
-      refetch();
-    };
+    // Incremental: the bridge stamps syncedAt on every night it writes, so
+    // syncedAt > lastPushedAt picks them up without re-reading every night.
+    const handler = () => refetch();
     window.addEventListener('garmin-sleep-synced', handler);
     return () => window.removeEventListener('garmin-sleep-synced', handler);
   }, [refetch]);
