@@ -1,3 +1,5 @@
+import { useRef } from 'react';
+import { CloseButton, useRiseIn } from './overlay';
 import { generateAIDataExport, exportCSV, haptic } from '../utils/helpers';
 
 export default function Export({
@@ -27,6 +29,8 @@ export default function Export({
     onClose();
   };
 
+  const panelRef = useRef(null);
+  useRiseIn(panelRef);
   return (
     <div
       onClick={onClose}
@@ -50,6 +54,7 @@ export default function Export({
       }}
     >
       <div
+        ref={panelRef}
         onClick={(e) => e.stopPropagation()}
         style={isDesktop ? {
           maxWidth: '600px',
@@ -75,19 +80,7 @@ export default function Export({
           <h2 style={{ color: '#f8fafc', fontSize: '28px', fontWeight: '700', margin: 0, letterSpacing: '-0.5px' }}>
             Export
           </h2>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#8b5cf6',
-              fontSize: '17px',
-              cursor: 'pointer',
-              padding: '8px',
-            }}
-          >
-            Done
-          </button>
+          <CloseButton label="Close export" onClick={onClose} />
         </div>
 
         {/* Copy to Clipboard Section */}

@@ -5,9 +5,10 @@
 // supplement graphs are unaffected. No undo toast either — a mistap is undone by tapping the
 // row again, which is faster than reaching for a toast.
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { getDateKey, isScheduledForDate, haptic, formatDate } from '../utils/helpers';
 import './simpleProtocol.css';
+import { CloseButton, useRiseIn, useDragDismiss } from './overlay';
 
 export default function SimpleProtocol({
   stackItems,
@@ -17,6 +18,10 @@ export default function SimpleProtocol({
   onFullDetail,
   onClose,
 }) {
+  const rootRef = useRef(null);
+  useRiseIn(rootRef);
+  const dragDismiss = useDragDismiss(rootRef, onClose);
+
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
@@ -43,14 +48,12 @@ export default function SimpleProtocol({
   };
 
   return (
-    <div className="sck">
+    <div className="sck" ref={rootRef}>
       <div className="sck-in">
-        <div className="sck-bar">
-          <button className="sck-close" onClick={onClose} aria-label="Close">
-            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
-          </button>
+        <div className="sck-bar ui-drag" {...dragDismiss}>
           <h2>{formatDate(selectedDate)}</h2>
           {due.length > 0 && <span>{taken} of {due.length}</span>}
+          <CloseButton label="Close checklist" onClick={onClose} />
         </div>
 
         <div className="sck-list">

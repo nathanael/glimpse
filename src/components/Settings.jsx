@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import './desktopNav.css';
 import './settings.css';
+import { CloseButton, useRiseIn } from './overlay';
 import { isDeleted, liveItems, countEntriesFor, daysUntilPurge, RETENTION_DAYS } from '../utils/softDelete';
 import { trackingModes, GARMIN_SYNC_ENABLED } from '../utils/constants';
 import { isStandalone, getDateKey, haptic, generateAIDataExport, updateApp } from '../utils/helpers';
@@ -106,6 +107,8 @@ export default function Settings({
   const [page, setPage] = useState('main'); // mobile drill-in: main | data | recovery
   const [activeSection, setActiveSection] = useState('st-general');
   const bodyRef = useRef(null);
+  const rootRef = useRef(null);
+  useRiseIn(rootRef);
   const railLock = useRef(null);
 
   const refreshSnapshots = () => setSnapshots(listSnapshots());
@@ -681,14 +684,14 @@ export default function Settings({
     ['st-data', 'Data', <><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></>],
   ].filter(([id]) => GARMIN_SYNC_ENABLED || id !== 'st-integrations');
   const pageTitle = { main: 'Settings', data: 'Data', recovery: 'Recovery tools' }[page];
-  const onBack = () => (isDesktop || page === 'main' ? setShowSettings(false) : setPage('main'));
 
   return (
-    <div className={`st ${isDesktop ? 'desktop' : 'mobile'}`}>
+    <div ref={isDesktop ? undefined : rootRef} className={`st ${isDesktop ? 'desktop' : 'mobile'}`}>
       {/* Scope left, status + the one primary right */}
       <div className="st-bar">
         <div className="dn-wrap">
-          <button className="st-back" aria-label="Back" onClick={onBack}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg></button>
+          {/* Back goes up one page; the X always leaves Settings */}
+          {!isDesktop && page !== 'main' && <button className="st-back" aria-label="Back" onClick={() => setPage('main')}><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg></button>}
           <h2>{isDesktop ? 'Settings' : pageTitle}</h2>
           {user && !firebaseError && page === 'main' && (
             <>
@@ -707,6 +710,7 @@ export default function Settings({
               </button>
             </>
           )}
+          <CloseButton label="Close settings" onClick={() => setShowSettings(false)} />
         </div>
       </div>
 

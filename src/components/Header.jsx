@@ -3,10 +3,12 @@ import './mobileNav.css';
 import { formatDate } from '../utils/helpers';
 import { getScoreColor } from '../utils/healthScore';
 import { useHealthScore } from '../hooks/useHealthScore';
+import { CloseButton } from './overlay';
 
 const Chevron = ({ points }) => <svg viewBox="0 0 24 24"><polyline points={points} /></svg>;
 
-// Mobile top bar: scope on the left (date, or the Insights view switch), score on the right.
+// Mobile top bar: scope on the left (date, or the Insights view switch), score on the right,
+// then Home's X when the tab was opened from a Home card.
 // Row two is filled by the active list: progress left, its one primary action right.
 export default function Header({
   selectedDate,
@@ -19,6 +21,7 @@ export default function Header({
   trackingMode,
   showInsights,
   slotRef,
+  onClose,     // set when the tab was opened from a Home card: the X goes back there
 }) {
   const { score, delta, rollingAvg } = useHealthScore(selectedDate, { symptoms, entries, trackingMode });
   const scoreValue = score !== null ? score : rollingAvg;
@@ -69,6 +72,7 @@ export default function Header({
             )}
           </div>
         )}
+        {onClose && <CloseButton label="Back to Home" onClick={onClose} />}
       </div>
       {!showInsights && <div className="mn-r2 dn-slot" ref={slotRef} />}
     </div>

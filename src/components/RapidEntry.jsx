@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import './desktopNav.css';
 import './rapidEntry.css';
+import { CloseButton, useRiseIn, useDragDismiss } from './overlay';
 import { severityColors, NA_SEVERITY } from '../utils/constants';
 import { getDateKey, getCurrentTimePeriod, formatDate } from '../utils/helpers';
 import { getLastSeverity } from '../utils/listHelpers';
@@ -19,7 +20,6 @@ export default function RapidEntry({
   timePeriods,
   quickLog,
   setCopyToastMessage,
-  fromHome,   // launched from the Home screen, so closing lands back there — say so on the button
   onClose,
 }) {
   const dateKey = getDateKey(selectedDate);
@@ -33,6 +33,9 @@ export default function RapidEntry({
 
   const [index, setIndex] = useState(() => Math.max(0, list.findIndex((s) => !isLogged(s))));
   const [done, setDone] = useState(() => list.every(isLogged));
+  const rootRef = useRef(null);
+  useRiseIn(rootRef);
+  const dragDismiss = useDragDismiss(rootRef, onClose);
   const current = list[Math.min(index, list.length - 1)];
   const periodLabel = timePeriods.length > 1 ? timePeriods.find((p) => p.id === period)?.label : '';
   const otherIncomplete = queue.otherIncomplete(symptoms, entries, dateKey, timePeriods, period);
@@ -119,10 +122,7 @@ export default function RapidEntry({
   );
 
   const header = (
-    <div className="re-bar">
-      {fromHome
-        ? <button className="re-home" onClick={onClose}><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>Home</button>
-        : <button className="re-close" aria-label="Close rapid entry" onClick={onClose}><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg></button>}
+    <div className="re-bar ui-drag" {...dragDismiss}>
       <h2>Rapid entry</h2>
       {timePeriods.length > 1 && (
         <div className="dn-seg sm">
@@ -131,12 +131,13 @@ export default function RapidEntry({
           ))}
         </div>
       )}
+      <CloseButton label="Close rapid entry" onClick={onClose} />
     </div>
   );
 
   if (done || !current) {
     return (
-      <div className="re">
+      <div className="re" ref={rootRef}>
         <div className="re-in">
           {header}
           <div className="re-done">
@@ -158,7 +159,7 @@ export default function RapidEntry({
   const loggedCount = list.filter(isLogged).length;
 
   return (
-    <div className="re">
+    <div className="re" ref={rootRef}>
       <div className="re-in">
         {header}
 

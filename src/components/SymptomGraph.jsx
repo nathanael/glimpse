@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import './desktopNav.css';
 import './listUi.css';
+import { CloseButton, useRiseIn } from './overlay';
 import { haptic } from '../utils/helpers';
 import {
   TIMEFRAMES, COLORS, SMOOTH_WINDOWS,
@@ -155,6 +156,8 @@ export default function SymptomGraph({
     });
   };
 
+  const panelRef = useRef(null);
+  useRiseIn(panelRef);
   return (
     <div
       style={isDesktop ? {
@@ -178,6 +181,7 @@ export default function SymptomGraph({
       onClick={isDesktop ? onClose : undefined}
     >
       <div
+        ref={panelRef}
         style={isDesktop ? {
           maxWidth: '800px',
           width: '100%',
@@ -193,27 +197,9 @@ export default function SymptomGraph({
         }}
         onClick={isDesktop ? (e) => e.stopPropagation() : undefined}
       >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: '#9ca3af',
-            fontSize: '16px',
-            cursor: 'pointer',
-            padding: '8px 0',
-            marginBottom: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Back
-        </button>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', margin: '-6px -6px 6px 0' }}>
+          <CloseButton label="Close graph" onClick={onClose} />
+        </div>
 
         {/* Title with prev/next navigation */}
         {(() => {

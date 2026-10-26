@@ -8,10 +8,10 @@
 /* Header: scope left, status + the one primary right */
 .st-bar { flex: none; background: #0e0f11; border-bottom: 1px solid rgba(255,255,255,.07); }
 .st-bar .dn-wrap { height: 52px; }
-.st-bar h2 { margin: 0; font-size: 14px; font-weight: 600; }
+.st-bar h2 { flex: 1; min-width: 0; margin: 0; font-size: 14px; font-weight: 600; }
 .st-back { width: 32px; height: 32px; border: 0; border-radius: 9px; background: none; color: #9ca3af; display: grid; place-items: center; margin-left: -8px; }
 .st-back:hover { background: rgba(255,255,255,.06); color: #f3f4f6; }
-.st-status { margin-left: auto; display: flex; align-items: center; gap: 7px; font-size: 12px; color: #9ca3af; white-space: nowrap; }
+.st-status { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #9ca3af; white-space: nowrap; }
 .st-status i { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 3px rgba(74,222,128,.15); }
 .st-status.busy i { background: #fbbf24; box-shadow: 0 0 0 3px rgba(251,191,36,.15); }
 .st-status.err i { background: #f87171; box-shadow: 0 0 0 3px rgba(248,113,113,.15); }
@@ -81,9 +81,9 @@
 .st-table tr.loss { color: #f87171; }
 
 /* Mobile: one grouped list, drill-in pages, bigger targets */
-.st.mobile .st-bar .dn-wrap { height: 48px; padding: 0 12px 0 8px; gap: 6px; }
+.st.mobile .st-bar .dn-wrap { height: 48px; padding: 0 8px 0 16px; gap: 6px; }
 .st.mobile .st-bar h2 { font-size: 16px; }
-.st.mobile .st-back { width: 40px; height: 40px; margin-left: 0; }
+.st.mobile .st-back { width: 40px; height: 40px; margin-left: -10px; }
 .st.mobile .st-grid { display: block; padding: 4px 12px calc(40px + env(safe-area-inset-bottom)); }
 .st.mobile .st-section { margin-bottom: 0; }
 .st.mobile .st-section > h3 { margin: 20px 6px 8px; font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: #6b7280; }

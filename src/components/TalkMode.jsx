@@ -4,6 +4,7 @@ import './desktopNav.css';
 import './rapidEntry.css';
 import './listUi.css';
 import './talkMode.css';
+import { CloseButton, useRiseIn, useDragDismiss } from './overlay';
 import { NA_SEVERITY } from '../utils/constants';
 import { isApplicable, getLastSeverity } from '../utils/listHelpers';
 import { SEVERITIES, SEV_BG, SEV_FG, STRIP_COLOR } from './severityStyle';
@@ -43,7 +44,6 @@ export default function TalkMode({
   engineKind, // 'gemini' | 'realtime'
   onCost, // called with the conversation's cost stats when it ends (omit to not report)
   setCopyToastMessage,
-  fromHome,   // launched from the Home screen, so stopping lands back there — say so on the button
   onClose,
 }) {
   const dateKey = getDateKey(selectedDate);
@@ -149,6 +149,10 @@ export default function TalkMode({
   const complete = !loading && list.length > 0 && loggedCount === list.length;
   live.current.complete = complete;
   const stop = () => session.current?.engine.stop();
+  const rootRef = useRef(null);
+  useRiseIn(rootRef);
+  // A drag that lands the sheet off screen must close it even before a session has started
+  const dragDismiss = useDragDismiss(rootRef, () => (session.current ? stop() : onClose()));
   const speechProgress = () => session.current?.engine.speechProgress?.() ?? null;
 
   // The open row trails the conversation by a moment, so a rating is seen landing in its slot
@@ -180,14 +184,12 @@ export default function TalkMode({
   const lastSeverity = shown && settled ? getLastSeverity(entries, shown, period, selectedDate) : null;
 
   return (
-    <div className={`re tm${loading ? ' loading' : ''}`}>
+    <div className={`re tm${loading ? ' loading' : ''}`} ref={rootRef}>
       <div className="re-in">
-        <div className="re-bar">
-          {fromHome
-            ? <button className="re-home" onClick={stop}><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6" /></svg>Home</button>
-            : <button className="re-close" aria-label="Stop talk mode" onClick={stop}><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg></button>}
+        <div className="re-bar ui-drag" {...dragDismiss}>
           <h2>Talk me through it</h2>
           {!loading && <span className="tm-count">{formatDate(selectedDate)} · <b>{loggedCount}</b> of {list.length}</span>}
+          <CloseButton label="Stop talk mode" onClick={stop} />
         </div>
 
         {/* The same list as the Symptoms tab, filled in as she goes: the row being asked is open with its keys, the answer lands in its slot, the list moves on */}

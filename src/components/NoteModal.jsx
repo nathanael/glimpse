@@ -2,6 +2,7 @@ import { useRef, useEffect, useState } from 'react';
 import { getDateKey, noteText } from '../utils/helpers';
 import { solar } from './solarIcons';
 import './noteModal.css';
+import { CloseButton, useDragDismiss } from './overlay';
 
 // Write a note as a { text } record, or delete the key when the text is empty.
 // The sync engine stamps `_t`; the app never sets it. Deleting an empty note
@@ -50,6 +51,8 @@ export default function NoteModal({
 }) {
   const textareaRef = useRef(null);
   const scrimRef = useRef(null);
+  const panelRef = useRef(null);
+  const dragDismiss = useDragDismiss(panelRef, onClose);
   const dateKey = getDateKey(selectedDate);
   const saved = noteText(dailyNotes[dateKey]);
 
@@ -113,19 +116,15 @@ export default function NoteModal({
 
   return (
     <div ref={scrimRef} className={`nm-scrim ${isDesktop ? 'desk' : 'mob'}`} onClick={onClose}>
-      <section className="nm-panel" role="dialog" aria-modal="true" aria-label={`Notes for ${longDate}`} onClick={(e) => e.stopPropagation()}>
+      <section ref={panelRef} className="nm-panel" role="dialog" aria-modal="true" aria-label={`Notes for ${longDate}`} onClick={(e) => e.stopPropagation()}>
         {!isDesktop && <div className="nm-grabber" aria-hidden="true" />}
-        <header className="nm-head">
+        <header className={`nm-head${isDesktop ? '' : ' ui-drag'}`} {...(isDesktop ? {} : dragDismiss)}>
           <div>
             <div className="nm-eyebrow">Notes</div>
             <h2 className="nm-title">{isToday ? 'Today' : longDate}</h2>
             {isToday && <div className="nm-sub">{longDate}</div>}
           </div>
-          <button className="nm-close" onClick={onClose} aria-label="Close notes">
-            {isDesktop
-              ? <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
-              : 'Done'}
-          </button>
+          <CloseButton label="Close notes" onClick={onClose} />
         </header>
         <textarea
           ref={textareaRef}

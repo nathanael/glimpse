@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './voiceNote.css';
+import { CloseButton, useRiseIn } from './overlay';
 import { createDictation, dictationErrorMessage, transcriptText } from '../voice/dictation';
 import { createDemoDictation } from '../voice/demoDictation';
 import { noteTime, stripBars } from '../utils/voiceNote';
@@ -30,6 +31,8 @@ export default function VoiceNote({ onSave, onClose, onTypeInstead }) {
   const [seconds, setSeconds] = useState(0);
   const [bars, setBars] = useState([]);
   const levelRef = useRef(0);
+  const rootRef = useRef(null);
+  useRiseIn(rootRef);
   // Read from callbacks that outlive a render
   const live = useRef({ phase: 'connecting', items: [], history: [], startedAt: 0 });
   const dictation = useRef(null);
@@ -131,6 +134,13 @@ export default function VoiceNote({ onSave, onClose, onTypeInstead }) {
     if (hasText && (phase === 'listening' || phase === 'review')) setConfirming(true);
     else discard();
   };
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') closeRef.current(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const confirmRow = (keepLabel) => (
     <div className="vn-confirm">
@@ -147,19 +157,17 @@ export default function VoiceNote({ onSave, onClose, onTypeInstead }) {
   const now = new Date();
 
   return createPortal(
-    <div className={`vn ${phase}`} role="dialog" aria-modal="true" aria-label="Voice note">
+    <div ref={rootRef} className={`vn ${phase}`} role="dialog" aria-modal="true" aria-label="Voice note">
       <div className="vn-top">
-        <button type="button" className="vn-x" aria-label="Close" onClick={close}>
-          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
-        </button>
-        <div className="vn-when">
-          <b>{phase === 'review' ? 'Review note' : "Today's note"}</b>
-          <small>{now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</small>
-        </div>
         <div className={`vn-timer${phase === 'listening' ? ' on' : ''}`}>
           {phase === 'listening' && <i />}
           {phase !== 'connecting' && phase !== 'error' && clock(seconds)}
         </div>
+        <div className="vn-when">
+          <b>{phase === 'review' ? 'Review note' : "Today's note"}</b>
+          <small>{now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</small>
+        </div>
+        <CloseButton onClick={close} />
       </div>
 
       {phase === 'error' && (

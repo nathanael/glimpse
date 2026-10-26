@@ -4,12 +4,9 @@
 .sck-in { flex: 1; min-height: 0; width: 100%; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; }
 .sck button { font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
-.sck-bar { flex: none; display: flex; align-items: center; gap: 6px; height: 48px; padding: 0 16px 0 8px; background: #0e0f11; border-bottom: 1px solid rgba(255,255,255,.07); }
-.sck-bar h2 { margin: 0; font-size: 16px; font-weight: 600; }
-.sck-bar span { margin-left: auto; color: #9ca3af; font-size: 13px; }
-.sck-close { width: 40px; height: 40px; border: 0; border-radius: 11px; background: none; color: #9ca3af; display: grid; place-items: center; }
-.sck-close:active { background: rgba(255,255,255,.06); }
-.sck-close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.sck-bar { flex: none; display: flex; align-items: center; gap: 6px; height: 48px; padding: 0 8px 0 16px; background: #0e0f11; border-bottom: 1px solid rgba(255,255,255,.07); }
+.sck-bar h2 { flex: 1; min-width: 0; margin: 0; font-size: 16px; font-weight: 600; }
+.sck-bar span { margin-right: 4px; color: #9ca3af; font-size: 13px; }
 
 .sck-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
 .sck-empty { margin: 32px 0; text-align: center; color: #6b7280; font-size: 14.5px; }

@@ -10,6 +10,7 @@ import { analyzeMeal } from '../food/mealApi';
 import { shrinkImage } from '../food/shrinkImage';
 import { solar } from './solarIcons';
 import './mealCapture.css';
+import { CloseButton, useRiseIn, useDragDismiss } from './overlay';
 
 const pad = (n) => String(n).padStart(2, '0');
 const timeValue = (date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -34,6 +35,9 @@ export default function MealCapture({ existing, startManual, onSave, onDelete, o
 
   const fileRef = useRef(null);
   const previewRef = useRef(null);
+  const rootRef = useRef(null);
+  useRiseIn(rootRef);
+  const dragDismiss = useDragDismiss(rootRef, onClose);
   previewRef.current = preview;
 
   // Open the picker as soon as the sheet mounts: on a phone that is the camera, one tap in.
@@ -98,7 +102,7 @@ export default function MealCapture({ existing, startManual, onSave, onDelete, o
   };
 
   return (
-    <div className="mc-root" role="dialog" aria-label="Log a meal">
+    <div className="mc-root" role="dialog" aria-label="Log a meal" ref={rootRef}>
       <input
         ref={fileRef}
         type="file"
@@ -108,10 +112,9 @@ export default function MealCapture({ existing, startManual, onSave, onDelete, o
         onChange={pick}
       />
 
-      <header className="mc-head">
-        <button className="mc-x" onClick={onClose} aria-label="Cancel">✕</button>
+      <header className="mc-head ui-drag" {...dragDismiss}>
         <h4>{existing ? 'Edit meal' : 'Log a meal'}</h4>
-        {stage === 'review' && <button className="mc-save" onClick={save} disabled={!canSave}>Save</button>}
+        <CloseButton label="Cancel" onClick={onClose} />
       </header>
 
       {stage === 'capture' && (
@@ -175,6 +178,12 @@ export default function MealCapture({ existing, startManual, onSave, onDelete, o
               Delete this meal
             </button>
           )}
+        </div>
+      )}
+
+      {stage === 'review' && (
+        <div className="mc-foot">
+          <button className="mc-primary" onClick={save} disabled={!canSave}>Save</button>
         </div>
       )}
     </div>

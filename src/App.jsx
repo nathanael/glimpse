@@ -52,6 +52,7 @@ import { summaryLines } from './utils/homeSummary';
 // Components
 import Header from './components/Header';
 import Home from './components/Home';
+import { shatterSwitch } from './components/shatter';
 import BottomNav from './components/BottomNav';
 import DesktopToolbar from './components/DesktopToolbar';
 import RapidEntry from './components/RapidEntry';
@@ -259,6 +260,15 @@ function App() {
   // Home shows no date stepper, so it always means today: arriving on it from a day the user had
   // stepped back to on another tab snaps the date forward rather than logging to a hidden day.
   const onHome = !isDesktop && appMode === 'home' && !showInsights;
+
+  // A tab opened from one of Home's cards (Full list, Full detail, Today's meals) is a detail of
+  // Home, so its header gets Home's X back. Any other way of reaching or leaving the tab drops it.
+  const [homeDeep, setHomeDeep] = useState(null);
+  const openFromHome = (mode) => { setHomeDeep(mode); setAppMode(mode); };
+  useEffect(() => {
+    if (homeDeep && (appMode !== homeDeep || showInsights)) setHomeDeep(null);
+  }, [appMode, showInsights, homeDeep]);
+  const closeToHome = (e) => shatterSwitch({ toAdv: false, originEl: e.currentTarget, commit: () => { setAppMode('home'); setShowInsights(false); } });
   useEffect(() => {
     if (onHome && getDateKey(selectedDate) !== getDateKey(new Date())) setSelectedDate(new Date());
   }, [onHome, selectedDate]);
@@ -903,6 +913,7 @@ function App() {
           trackingMode={trackingMode}
           showInsights={showInsights}
           slotRef={setNavSlot}
+          onClose={homeDeep ? closeToHome : undefined}
         />
       )}
 
@@ -1030,13 +1041,13 @@ function App() {
             })}
             onRapidEntry={() => setShowRapidEntry(true)}
             onTalkMode={() => openTalkMode()}
-            onSymptomList={() => setAppMode('symptoms')}
+            onSymptomList={() => openFromHome('symptoms')}
             onPhotoMeal={() => setMealSheet({})}
             onTypeMeal={() => setMealSheet({ startManual: true })}
-            onTodaysMeals={() => { setScrollToMeals(true); setAppMode('stack'); }}
+            onTodaysMeals={() => { setScrollToMeals(true); openFromHome('stack'); }}
             onMatchYesterday={() => protocolMatchYesterday()}
             onSimpleChecklist={() => setShowSimpleProtocol(true)}
-            onProtocolDetail={() => setAppMode('stack')}
+            onProtocolDetail={() => openFromHome('stack')}
           />
         </div>
       ) : (
@@ -1148,7 +1159,6 @@ function App() {
           timePeriods={timePeriods}
           quickLog={quickLog}
           setCopyToastMessage={setCopyToastMessage}
-          fromHome={appMode === 'home'}
           onClose={() => setShowRapidEntry(false)}
         />
       )}
@@ -1160,7 +1170,7 @@ function App() {
           stackEntries={stackEntries}
           setStackEntries={setStackEntries}
           selectedDate={selectedDate}
-          onFullDetail={() => { setShowSimpleProtocol(false); setAppMode('stack'); }}
+          onFullDetail={() => { setShowSimpleProtocol(false); if (appMode === 'home') openFromHome('stack'); else setAppMode('stack'); }}
           onClose={() => setShowSimpleProtocol(false)}
         />
       )}
@@ -1178,7 +1188,6 @@ function App() {
           engineKind={talkEngine}
           onCost={talkShowCost ? setTalkCost : undefined}
           setCopyToastMessage={setCopyToastMessage}
-          fromHome={appMode === 'home'}
           onClose={() => setShowTalkMode(false)}
         />
       )}
