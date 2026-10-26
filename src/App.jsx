@@ -79,6 +79,8 @@ import { appendToNote } from './utils/voiceNote';
 import SymptomGraph from './components/SymptomGraph';
 import { isWellbeing, missingStarters, WELLBEING_LABELS } from './utils/wellbeing';
 import SupplementGraph from './components/SupplementGraph';
+import AddFlow from './components/AddFlow';
+import ItemPage from './components/ItemPage';
 
 function App() {
   // App mode: 'home' (the easy-mode landing screen), 'symptoms' or 'stack'
@@ -248,7 +250,8 @@ function App() {
   const [protocolEditMode, setProtocolEditMode] = useState(false);
   // One-shot: Home's "Add symptom" / "Add supplement" opens the list in edit mode with its new
   // row's name field already open; the list clears this once it has opened the row.
-  const [addOnOpen, setAddOnOpen] = useState(null);   // 'symptom' | 'supplement' | null
+  const [addFlow, setAddFlow] = useState(null);     // 'supplement' | 'symptom' | null: the step-by-step add
+  const [itemPage, setItemPage] = useState(null);   // { kind, id }: one item's full-screen settings
 
   // Desktop mode
   const isDesktop = useDesktopMode();
@@ -828,6 +831,27 @@ function App() {
     };
   }, [deferredEntries, deferredStackEntries, liveStackItems, liveSymptoms, selectedDate]);
 
+  // Mobile Protocol and Tracking: the day's two main actions and the list's +, in a bar above the
+  // tabs. The + sits right above the ⋯ on both tabs, so adding is always in the same spot.
+  const listBar = isDesktop || showInsights ? null
+    : appMode === 'stack' && !protocolEditMode ? {
+      buttons: [
+        { label: 'Match yesterday', onClick: () => protocolMatchYesterday() },
+        { label: 'Check all', onClick: () => protocolCheckAll(), primary: true },
+      ],
+      onAdd: () => setAddFlow('supplement'),
+      addLabel: 'Add supplement',
+    }
+    : appMode === 'symptoms' && !symptomEditMode ? {
+      buttons: [
+        { label: 'Talk it through', onClick: () => openTalkMode() },
+        { label: 'Rapid entry', onClick: () => setShowRapidEntry(true), primary: true },
+      ],
+      onAdd: () => setAddFlow('symptom'),
+      addLabel: 'Add symptom',
+    }
+    : null;
+
   // Get symptom entries for a given symptom
   // Main render
   return (
@@ -983,10 +1007,9 @@ function App() {
                 onClearDay={protocolClearDay}
                 onMatchYesterday={protocolMatchYesterday}
                 onDeleteItem={(item, kind) => softDeleteItem(kind, item)}
+                onEditItem={(item) => setItemPage({ kind: 'supplement', id: item.id })}
                 editing={protocolEditMode}
                 setEditing={setProtocolEditMode}
-                startAdding={addOnOpen === 'supplement'}
-                onStartedAdding={() => setAddOnOpen(null)}
                 keyboardEnabled={listKeyboardEnabled}
                 isDesktop={isDesktop}
                 barSlot={navSlot}
@@ -1019,10 +1042,9 @@ function App() {
                 onEditNote={() => setShowNoteModal(true)}
                 onClearDay={clearSymptomDay}
                 onDeleteSymptom={(symptom) => softDeleteItem('symptom', symptom)}
+                onEditItem={(symptom) => setItemPage({ kind: 'symptom', id: symptom.id })}
                 editing={symptomEditMode}
                 setEditing={setSymptomEditMode}
-                startAdding={addOnOpen === 'symptom'}
-                onStartedAdding={() => setAddOnOpen(null)}
                 keyboardEnabled={listKeyboardEnabled}
                 isDesktop={isDesktop}
                 barSlot={navSlot}
@@ -1047,11 +1069,11 @@ function App() {
             })}
             onSimpleChecklist={() => setShowSimpleProtocol(true)}
             onMatchYesterday={() => protocolMatchYesterday()}
-            onAddSupplement={() => { setProtocolEditMode(true); setAddOnOpen('supplement'); openFromHome('stack'); }}
+            onAddSupplement={() => setAddFlow('supplement')}
             onProtocolDetail={() => openFromHome('stack')}
             onRapidEntry={() => setShowRapidEntry(true)}
             onTalkMode={() => openTalkMode()}
-            onAddSymptom={() => { setSymptomEditMode(true); setAddOnOpen('symptom'); openFromHome('symptoms'); }}
+            onAddSymptom={() => setAddFlow('symptom')}
             onSymptomList={() => openFromHome('symptoms')}
             onNote={() => setShowNoteModal(true)}
             onMeal={() => setMealSheet({})}
@@ -1065,7 +1087,7 @@ function App() {
           flex: 1,
           overflowY: 'auto',
           overflowX: 'hidden',
-          paddingBottom: '110px',
+          paddingBottom: listBar ? '176px' : '110px',
           WebkitOverflowScrolling: 'touch',
         }}>
           <div style={{
@@ -1109,10 +1131,9 @@ function App() {
                 onEditNote={() => setShowNoteModal(true)}
                 onClearDay={clearSymptomDay}
                 onDeleteSymptom={(symptom) => softDeleteItem('symptom', symptom)}
+                onEditItem={(symptom) => setItemPage({ kind: 'symptom', id: symptom.id })}
                 editing={symptomEditMode}
                 setEditing={setSymptomEditMode}
-                startAdding={addOnOpen === 'symptom'}
-                onStartedAdding={() => setAddOnOpen(null)}
                 keyboardEnabled={listKeyboardEnabled}
                 isDesktop={isDesktop}
                 barSlot={navSlot}
@@ -1139,10 +1160,9 @@ function App() {
                 onClearDay={protocolClearDay}
                 onMatchYesterday={protocolMatchYesterday}
                 onDeleteItem={(item, kind) => softDeleteItem(kind, item)}
+                onEditItem={(item) => setItemPage({ kind: 'supplement', id: item.id })}
                 editing={protocolEditMode}
                 setEditing={setProtocolEditMode}
-                startAdding={addOnOpen === 'supplement'}
-                onStartedAdding={() => setAddOnOpen(null)}
                 keyboardEnabled={listKeyboardEnabled}
                 isDesktop={isDesktop}
                 barSlot={navSlot}
@@ -1177,6 +1197,34 @@ function App() {
       )}
 
       {/* Simplified supplement checklist */}
+      {addFlow && (
+        <AddFlow
+          kind={addFlow}
+          stackItems={stackItems}
+          setStackItems={setStackItems}
+          symptoms={symptoms}
+          setSymptoms={setSymptoms}
+          setLastAction={setLastAction}
+          onClose={() => setAddFlow(null)}
+        />
+      )}
+
+      {itemPage && (
+        <ItemPage
+          kind={itemPage.kind}
+          id={itemPage.id}
+          stackItems={stackItems}
+          setStackItems={setStackItems}
+          stackEntries={stackEntries}
+          symptoms={symptoms}
+          setSymptoms={setSymptoms}
+          entries={entries}
+          onDelete={(item) => softDeleteItem(itemPage.kind, item)}
+          setLastAction={setLastAction}
+          onClose={() => setItemPage(null)}
+        />
+      )}
+
       {showSimpleProtocol && (
         <SimpleProtocol
           stackItems={liveStackItems}
@@ -1629,6 +1677,7 @@ function App() {
           onClear={protocolClearDay}
           onEditProtocol={() => { setAppMode('stack'); setShowInsights(false); setProtocolEditMode(true); }}
           onLogMeal={() => setMealSheet({})}
+          actions={listBar}
           symptoms={liveSymptoms}
           entries={deferredEntries}
           trackingMode={trackingMode}
