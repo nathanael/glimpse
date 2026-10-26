@@ -257,8 +257,8 @@ export default function Home({
 
       <div className="hm-grid">
         {actions.map((a) => (
-          <button key={a.id} type="button" className="hm-act" onClick={a.onClick}>
-            <i className={a.tone ? `t-${a.tone}` : ''}><svg viewBox="0 0 24 24">{solar[a.icon]}</svg></i>
+          <button key={a.id} type="button" className={`hm-act${a.tone ? ` t-${a.tone}` : ''}`} onClick={a.onClick}>
+            <svg viewBox="0 0 24 24">{solar[a.icon]}</svg>
             <span>{a.label}</span>
           </button>
         ))}
