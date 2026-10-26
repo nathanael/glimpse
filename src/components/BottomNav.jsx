@@ -4,7 +4,7 @@ import { solar } from './solarIcons';
 import { shatterSwitch } from './shatter';
 
 const TABS = [
-  { id: 'home', label: 'Home', icon: solar.home },
+  { id: 'home', label: 'Simple', icon: solar.transfer },
   { id: 'symptoms', label: 'Tracking', icon: solar.symptoms },
   { id: 'stack', label: 'Protocol', icon: solar.protocol },
   { id: 'insights', label: 'Progress', icon: solar.progress },
@@ -49,7 +49,7 @@ export default function BottomNav({
   };
 
   // Home has no dock: its own grid holds Advanced and More. Leaving Home the dock rises into
-  // place; coming back it drops away. Tapping the Home tab plays the shatter back to the photos.
+  // place; coming back it drops away. Tapping the Simple tab plays the shatter back to the photos.
   const away = appMode === 'home' && !showInsights;
   const onTab = (tab, e) => {
     if (tab === 'home') shatterSwitch({ toAdv: false, originEl: e.currentTarget, commit: () => goTo('home') });

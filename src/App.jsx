@@ -246,6 +246,9 @@ function App() {
   const [symptomEditMode, setSymptomEditMode] = useState(false);
   const [undoToast, setUndoToast] = useState(null);
   const [protocolEditMode, setProtocolEditMode] = useState(false);
+  // One-shot: Home's "Add symptom" / "Add supplement" opens the list in edit mode with its new
+  // row's name field already open; the list clears this once it has opened the row.
+  const [addOnOpen, setAddOnOpen] = useState(null);   // 'symptom' | 'supplement' | null
 
   // Desktop mode
   const isDesktop = useDesktopMode();
@@ -982,6 +985,8 @@ function App() {
                 onDeleteItem={(item, kind) => softDeleteItem(kind, item)}
                 editing={protocolEditMode}
                 setEditing={setProtocolEditMode}
+                startAdding={addOnOpen === 'supplement'}
+                onStartedAdding={() => setAddOnOpen(null)}
                 keyboardEnabled={listKeyboardEnabled}
                 isDesktop={isDesktop}
                 barSlot={navSlot}
@@ -1016,6 +1021,8 @@ function App() {
                 onDeleteSymptom={(symptom) => softDeleteItem('symptom', symptom)}
                 editing={symptomEditMode}
                 setEditing={setSymptomEditMode}
+                startAdding={addOnOpen === 'symptom'}
+                onStartedAdding={() => setAddOnOpen(null)}
                 keyboardEnabled={listKeyboardEnabled}
                 isDesktop={isDesktop}
                 barSlot={navSlot}
@@ -1038,10 +1045,14 @@ function App() {
               stackEntries: deferredStackEntries,
               date: selectedDate,
             })}
-            onSupplements={() => openFromHome('stack')}
-            onTracking={() => openFromHome('symptoms')}
-            onCheckIn={() => setShowRapidEntry(true)}
-            onPills={() => setShowSimpleProtocol(true)}
+            onSimpleChecklist={() => setShowSimpleProtocol(true)}
+            onMatchYesterday={() => protocolMatchYesterday()}
+            onAddSupplement={() => { setProtocolEditMode(true); setAddOnOpen('supplement'); openFromHome('stack'); }}
+            onProtocolDetail={() => openFromHome('stack')}
+            onRapidEntry={() => setShowRapidEntry(true)}
+            onTalkMode={() => openTalkMode()}
+            onAddSymptom={() => { setSymptomEditMode(true); setAddOnOpen('symptom'); openFromHome('symptoms'); }}
+            onSymptomList={() => openFromHome('symptoms')}
             onNote={() => setShowNoteModal(true)}
             onMeal={() => setMealSheet({})}
             onAdvanced={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => { setAppMode('symptoms'); setShowInsights(false); setShowQuickActions(false); } })}
@@ -1100,6 +1111,8 @@ function App() {
                 onDeleteSymptom={(symptom) => softDeleteItem('symptom', symptom)}
                 editing={symptomEditMode}
                 setEditing={setSymptomEditMode}
+                startAdding={addOnOpen === 'symptom'}
+                onStartedAdding={() => setAddOnOpen(null)}
                 keyboardEnabled={listKeyboardEnabled}
                 isDesktop={isDesktop}
                 barSlot={navSlot}
@@ -1128,6 +1141,8 @@ function App() {
                 onDeleteItem={(item, kind) => softDeleteItem(kind, item)}
                 editing={protocolEditMode}
                 setEditing={setProtocolEditMode}
+                startAdding={addOnOpen === 'supplement'}
+                onStartedAdding={() => setAddOnOpen(null)}
                 keyboardEnabled={listKeyboardEnabled}
                 isDesktop={isDesktop}
                 barSlot={navSlot}

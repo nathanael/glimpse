@@ -6,11 +6,11 @@
 .hm button { font-family: inherit; cursor: pointer; }
 
 /* A photograph is one button: tap anywhere on it to open its tab. */
-.hm-card { position: relative; flex: 1 1 0; min-height: 84px; display: flex; align-items: center; border: 0; padding: 0 22px; border-radius: 22px; overflow: hidden; background-size: cover; background-position: center; background-color: #17191c; color: #f3f4f6; text-align: left; transition: transform .2s; }
+.hm-card { position: relative; flex: 1 1 0; min-height: 84px; display: flex; align-items: center; border: 0; padding: 0 22px; border-radius: 22px; overflow: hidden; background-size: cover; background-position: center; background-color: #17191c; color: #f3f4f6; text-align: left; }
 /* Darkest through the middle band, where the title sits, lighter at the top and bottom edges so
    the photograph still reads. shatter.js copies this gradient into its tiles. */
 .hm-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(8,9,10,.34) 0%, rgba(8,9,10,.78) 34%, rgba(8,9,10,.78) 78%, rgba(8,9,10,.5) 100%); }
-.hm-card:active { transform: scale(.97); }
+.hm-card:active { transform: scale(.97); transition-duration: .2s; }
 .hm-card:focus-visible { outline: 2px solid #a78bfa; outline-offset: -4px; }
 .hm-face { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 6px; transition: opacity .3s; }
 .hm-title { font-size: 28px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
@@ -33,6 +33,42 @@
   .hm-title { font-size: 25px; }
 }
 
+/* The open card's tile stays in the layout, invisible, as the place the panel folds back into.
+   Everything else sinks back behind the panel while it grows. */
+.hm-card.hide { visibility: hidden; }
+.hm-card, .hm-grid { transition: transform .55s cubic-bezier(.22,1,.36,1), filter .55s; }
+.hm.recede .hm-card:not(.hide), .hm.recede .hm-grid { transform: scale(.93); filter: brightness(.45); }
+
+/* The open panel: fills the whole Home area (the same box as .hm's padding), grid included. */
+.hm-xp { position: absolute; z-index: 5; top: 14px; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom)); transform-origin: 50% 25%; touch-action: none; color: #f3f4f6; }
+.hm-xp-bg { position: absolute; left: 0; top: 0; width: 100%; height: 100%; border-radius: 22px; overflow: hidden; background: #17191c center / cover no-repeat; }
+.hm-xp-bg i { position: absolute; inset: 0; }
+.hm-xp-bg .g1 { background: linear-gradient(to bottom, rgba(8,9,10,.34) 0%, rgba(8,9,10,.78) 34%, rgba(8,9,10,.78) 78%, rgba(8,9,10,.5) 100%); }
+/* Open: dark behind the header at the top and the options at the bottom. */
+.hm-xp-bg .g2 { background: linear-gradient(to bottom, rgba(8,9,10,.72) 0%, rgba(8,9,10,.4) 26%, rgba(8,9,10,.5) 40%, rgba(8,9,10,.9) 62%, rgba(8,9,10,.97) 100%); }
+.hm-xp-head { position: absolute; left: 22px; right: 60px; top: 44px; pointer-events: none; }
+.hm-xp-head h2 { display: inline-block; margin: 0; font-size: 36px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; transform-origin: 0 0; text-shadow: 0 2px 24px rgba(0,0,0,.45); }
+.hm-xp-head small { display: block; margin-top: 10px; color: #cbd5e1; font-size: 15px; font-weight: 600; }
+.hm-xp-x { position: absolute; z-index: 2; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 50%; border: 0; padding: 0; background: rgba(255,255,255,.16); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.hm-xp-x svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+
+/* Options: the ways of logging are full-width frosted bars; the door into the full tab is plain
+   text below them, with the same full-size tap area. */
+.hm-opts { position: absolute; left: 14px; right: 14px; bottom: 18px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.hm-opts button {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%; border: 0; cursor: pointer;
+  color: #fff; font-family: inherit; font-size: 20px; font-weight: 700; letter-spacing: -.015em;
+  padding: 19px 20px; line-height: 26px; border-radius: 18px; background: rgba(255,255,255,.14);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  transition: transform .15s, background .15s;
+}
+.hm-opts button svg { width: 1em; height: 1em; flex: none; fill: currentColor; color: #fff; }
+.hm-opts button:active { transform: scale(.97); background: rgba(255,255,255,.24); }
+.hm-opts button.deep { background: none; backdrop-filter: none; -webkit-backdrop-filter: none; font-size: 16px; font-weight: 500; letter-spacing: 0; color: #cbd5e1; }
+.hm-opts button.deep svg { width: 1.2em; height: 1.2em; color: #94a3b8; }
+.hm-opts button.deep:active { background: rgba(255,255,255,.1); }
+
 /* Advanced-mode shatter (shatter.js): the tiles fly on a layer over everything but the sheets,
    swallowing taps; the screen underneath is held invisible until they land, then fades in. */
 .fx-layer { position: fixed; inset: 0; z-index: 150; perspective: 900px; }
@@ -44,5 +80,5 @@ html.fx-hold .hm, html.fx-hold .mn-main, html.fx-hold .mn-top { opacity: 0; }
 html.fx-reveal .hm, html.fx-reveal .mn-main, html.fx-reveal .mn-top { transition: opacity .28s ease-out; }
 
 @media (prefers-reduced-motion: reduce) {
-  .hm-card, .hm-act { transition: none; }
+  .hm-card, .hm-act, .hm-grid { transition: none; }
 }

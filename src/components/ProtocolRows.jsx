@@ -66,6 +66,8 @@ export default function ProtocolRows({
   keyboardEnabled,
   isDesktop,
   barSlot,
+  startAdding,        // Home's "Add …": open the new row's name field once the edit list is up
+  onStartedAdding,
   mealsSlot,
 }) {
   const dateKey = getDateKey(selectedDate);
@@ -77,6 +79,11 @@ export default function ProtocolRows({
   const [scheduleDraft, setScheduleDraft] = useState(null);
   const [showAllHidden, setShowAllHidden] = useState(false);
   const [adding, setAdding] = useState(null); // 'supplement' | 'factor'
+  useEffect(() => {
+    if (!startAdding || !editing) return;
+    setAdding('supplement');
+    onStartedAdding?.();
+  }, [startAdding, editing]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
   useEffect(() => setScheduleDraft(null), [expandedId]);

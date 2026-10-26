@@ -54,6 +54,8 @@ export default function SymptomRows({
   keyboardEnabled,
   isDesktop,
   barSlot,
+  startAdding,        // Home's "Add …": open the new row's name field once the edit list is up
+  onStartedAdding,
 }) {
   const dateKey = getDateKey(selectedDate);
   const rootRef = useRef(null);
@@ -65,6 +67,11 @@ export default function SymptomRows({
   const [expandedId, setExpandedId] = useState(null);
   const [showHidden, setShowHidden] = useState(true);
   const [adding, setAdding] = useState(false);
+  useEffect(() => {
+    if (!startAdding || !editing) return;
+    setAdding(true);
+    onStartedAdding?.();
+  }, [startAdding, editing]); // eslint-disable-line react-hooks/exhaustive-deps
   const [addingWellbeing, setAddingWellbeing] = useState(false);
 
   // Grouping: 'order' = the flat list, 'groups' = sections the person defined
