@@ -3,7 +3,6 @@
 
 import { useEffect, useRef } from 'react';
 import { mealDateKey, compareMealKeys } from '../food/mealKey';
-import { solar } from './solarIcons';
 
 const timeLabel = (iso) => {
   const date = new Date(iso);
@@ -64,9 +63,9 @@ export default function MealList({ meals, dateKey, onOpen, onAdd, scrollIntoView
           </div>
         );
       })}
-      <div className="lr-row lr-cols lr-add" onClick={onAdd}>
-        <svg viewBox="0 0 24 24" width="18" height="18">{solar.camera}</svg>
-        <div className="lr-fields">Log a meal</div>
+      <div className="lr-row lr-add lr-addline" onClick={onAdd}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+        Log a meal
       </div>
     </>
   );

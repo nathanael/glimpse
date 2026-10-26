@@ -13,11 +13,18 @@ import { availableGroups, nextGroupOrder } from '../utils/symptomGroups';
 import { isWellbeing, colorIndex } from '../utils/wellbeing';
 import { timeLabel } from '../utils/timeOfDay';
 import { STRIP_COLOR } from './severityStyle';
-import { useRiseIn } from './overlay';
-import { Back, DosePicker, WhenPicker, DECAY, scheduleText } from './AddFlow';
+import { CloseButton, useRiseIn } from './overlay';
+import { DosePicker, WhenPicker, DECAY, scheduleText, useFlowViewport, useFocusOnMount } from './AddFlow';
 import './flow.css';
 
 const shortDate = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+// A sheet's text field, focused as the sheet opens without the page jumping to it
+function SheetInput(props) {
+  const ref = useRef(null);
+  useFocusOnMount(ref);
+  return <input ref={ref} enterKeyHint="done" {...props} />;
+}
 
 function Sheet({ title, onClose, onSave, children }) {
   return (
@@ -35,6 +42,7 @@ function Sheet({ title, onClose, onSave, children }) {
 export default function ItemPage({ kind, id, stackItems, setStackItems, stackEntries, symptoms, setSymptoms, entries, onDelete, setLastAction, onClose }) {
   const rootRef = useRef(null);
   useRiseIn(rootRef);
+  useFlowViewport(rootRef);
   const isSupp = kind === 'supplement';
   const item = (isSupp ? stackItems : symptoms).find((i) => i.id === id);
   const [sheet, setSheet] = useState(null);   // which setting is being changed
@@ -111,7 +119,7 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
   return (
     <div className={`fl ${isSupp ? '' : 'sym'}`} ref={rootRef} role="dialog" aria-label={item.name}>
       <div className="fl-in">
-        <div className="fl-top"><Back onClick={onClose} /><span style={{ marginLeft: 'auto', fontSize: 14, color: '#9ca3af' }}>Saves as you go</span></div>
+        <div className="fl-top"><span style={{ marginRight: 'auto', fontSize: 14, color: '#9ca3af' }}>Saves as you go</span><CloseButton onClick={onClose} /></div>
         <div className="fl-body">
           <h1 style={{ margin: '22px 0 4px' }}>{item.name}</h1>
           <p className="fl-sub" style={{ margin: 0 }}>
@@ -130,7 +138,7 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
             {isSupp && <button type="button" className="fl-field" onClick={() => open('dose')}><span>Dose</span><b>{item.defaultDose ? `${item.defaultDose} ${item.unit}` : 'No set dose'}</b><i /></button>}
             {isSupp && <button type="button" className="fl-field" onClick={() => open('when')}><span>When</span><b>{scheduleText(item.schedule)}{item.timeOfDay ? ` · ${timeLabel(item.timeOfDay)}` : ''}</b><i /></button>}
             {!isSupp && !isWellbeing(item) && <button type="button" className="fl-field" onClick={() => open('group')}><span>Group</span><b>{item.group || 'None'}</b><i /></button>}
-            <button type="button" className="fl-field" onClick={() => open('note')}><span>Note</span><b style={item.description ? undefined : { color: '#6b7280' }}>{item.description || 'Add a note'}</b><i /></button>
+            <button type="button" className="fl-field" onClick={() => open('note')}><span>Description</span><b style={item.description ? undefined : { color: '#6b7280' }}>{item.description || 'Add a description'}</b><i /></button>
             {isSupp && (
               <label className="fl-field">
                 <span>Decay rate</span>
@@ -158,12 +166,12 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
 
       {sheet === 'name' && (
         <Sheet title="Name" onClose={() => setSheet(null)} onSave={save}>
-          <input className="fl-input big" autoFocus value={draft.name} onChange={(e) => set('name')(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') save(); }} />
+          <SheetInput className="fl-input big" value={draft.name} onChange={(e) => set('name')(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') save(); }} />
         </Sheet>
       )}
       {sheet === 'note' && (
-        <Sheet title="Note" onClose={() => setSheet(null)} onSave={save}>
-          <input className="fl-input" autoFocus value={draft.note} placeholder="e.g. with dinner, for sleep" onChange={(e) => set('note')(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') save(); }} />
+        <Sheet title="Description" onClose={() => setSheet(null)} onSave={save}>
+          <SheetInput className="fl-input" value={draft.note} placeholder="e.g. with dinner, for sleep" onChange={(e) => set('note')(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') save(); }} />
         </Sheet>
       )}
       {sheet === 'dose' && (

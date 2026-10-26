@@ -6,7 +6,7 @@
 .fl button, .fl input, .fl select { font-family: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
 .fl button { cursor: pointer; touch-action: manipulation; }
 
-.fl-top { display: flex; align-items: center; gap: 14px; flex: none; }
+.fl-top { display: flex; align-items: center; gap: 14px; flex: none; min-height: 40px; }
 .fl-x { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 0; padding: 0; background: rgba(255,255,255,.12); display: grid; place-items: center; }
 .fl-x svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .fl-bars { flex: 1; display: flex; gap: 6px; }
@@ -85,8 +85,8 @@
 .fl-strip i.y { background: var(--ac); }
 .fl-strip i.skip { background: none; border: 1px dashed #2b3038; box-sizing: border-box; }
 .fl-strip-l { display: flex; justify-content: space-between; font-size: 12px; color: #9ca3af; }
-.fl-sheet-dim { position: fixed; inset: 0; z-index: 280; background: rgba(0,0,0,.55); }
-.fl-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 281; max-width: 500px; margin: 0 auto; background: #17191c; border-radius: 26px 26px 0 0; border-top: 1px solid rgba(255,255,255,.1); padding: 10px 20px calc(22px + env(safe-area-inset-bottom)); box-sizing: border-box; display: flex; flex-direction: column; max-height: 90dvh; overflow-y: auto; }
+.fl-sheet-dim { position: absolute; inset: 0; z-index: 280; background: rgba(0,0,0,.55); }
+.fl-sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 281; max-width: 500px; margin: 0 auto; background: #17191c; border-radius: 26px 26px 0 0; border-top: 1px solid rgba(255,255,255,.1); padding: 10px 20px calc(22px + env(safe-area-inset-bottom)); box-sizing: border-box; display: flex; flex-direction: column; max-height: 90dvh; overflow-y: auto; }
 .fl-sheet::before { content: ''; align-self: center; width: 40px; height: 5px; border-radius: 3px; background: #4b5563; margin-bottom: 14px; flex: none; }
 .fl-sheet h2 { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
 .fl-sheet .fl-opts button:not(.on), .fl-sheet .fl-chips button:not(.on), .fl-sheet .fl-times button:not(.on), .fl-sheet .fl-days button:not(.on), .fl-sheet .fl-every button, .fl-sheet .fl-pm, .fl-sheet .fl-input { background: #23262b; }

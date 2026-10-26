@@ -18,7 +18,7 @@ import { WELLBEING } from '../utils/wellbeing';
 import { isDeleted } from '../utils/softDelete';
 import { TIMES, timeLabel } from '../utils/timeOfDay';
 import { formatSchedule } from './SchedulePicker';
-import { useRiseIn } from './overlay';
+import { CloseButton, useRiseIn } from './overlay';
 import './flow.css';
 
 export const UNITS = ['mg', 'mcg', 'g', 'IU', 'ml', 'drops', 'caps'];
@@ -37,15 +37,71 @@ export const doseStep = (d) => (d >= 1000 ? 250 : d >= 100 ? 50 : d >= 10 ? 5 : 
 const FIRST_DOSE = { mg: 100, mcg: 100, g: 1, IU: 1000, ml: 1, drops: 1, caps: 1 };
 export const scheduleText = (s) => formatSchedule(s) || 'Every day';
 
-export const Back = ({ onClick, close }) => (
-  <button type="button" className="fl-x" aria-label={close ? 'Close' : 'Back'} onClick={onClick}>
-    {close
-      ? <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
-      : <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" /></svg>}
+export const Back = ({ onClick }) => (
+  <button type="button" className="fl-x" aria-label="Back" onClick={onClick}>
+    <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" /></svg>
   </button>
 );
 
-export function DosePicker({ dose, setDose, unit, setUnit }) {
+// iOS slides the whole page up when the keyboard opens, dragging a full-screen flow halfway off
+// the top. Pin the flow to what is visible instead: its top follows the visual viewport and its
+// height shrinks to what the keyboard leaves, so the title stays put and the main button sits
+// just above the keyboard. The page underneath is held still while the flow is open.
+export function useFlowViewport(ref) {
+  useEffect(() => {
+    const vv = window.visualViewport, el = ref.current, html = document.documentElement;
+    const overflow = html.style.overflow;
+    html.style.overflow = 'hidden';
+    const fit = () => {
+      if (!vv || !el) return;
+      el.style.top = `${vv.offsetTop}px`;
+      el.style.height = `${vv.height}px`;
+      el.style.bottom = 'auto';
+    };
+    fit();
+    vv?.addEventListener('resize', fit);
+    vv?.addEventListener('scroll', fit);
+    return () => {
+      html.style.overflow = overflow;
+      vv?.removeEventListener('resize', fit);
+      vv?.removeEventListener('scroll', fit);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+// Props for a text field whose keyboard should move the flow on: Return goes to the next step, and
+// so does the check mark above the iOS keyboard, which only blurs the field. A blur that comes
+// from tapping something on screen, from leaving the app, or from the field going away is not
+// that check mark, so it is left alone.
+export function useDoneKey(rootRef) {
+  const pressedAt = useRef(0);
+  useEffect(() => {
+    const el = rootRef.current;
+    const mark = () => { pressedAt.current = Date.now(); };
+    el?.addEventListener('pointerdown', mark, true);
+    return () => el?.removeEventListener('pointerdown', mark, true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (go, hint = 'next') => ({
+    enterKeyHint: hint,
+    onKeyDown: (e) => { if (e.key === 'Enter') { e.preventDefault(); go(); } },
+    onBlur: (e) => {
+      const field = e.currentTarget;
+      if (Date.now() - pressedAt.current < 700) return;
+      setTimeout(() => {
+        if (!field.isConnected || !document.hasFocus() || document.activeElement === field) return;
+        if (document.activeElement && document.activeElement !== document.body) return;
+        go();
+      }, 0);
+    },
+  });
+}
+
+// Focus a field once it is on screen, without the browser scrolling to it
+export function useFocusOnMount(ref, when = true) {
+  useEffect(() => { if (when) ref.current?.focus({ preventScroll: true }); }, [when]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+export function DosePicker({ dose, setDose, unit, setUnit, inputProps }) {
   const n = parseFloat(dose) || 0;
   const step = (dir) => {
     if (!n && dir > 0) return setDose(String(FIRST_DOSE[unit] || 1));
@@ -58,7 +114,7 @@ export function DosePicker({ dose, setDose, unit, setUnit }) {
         <button type="button" className="fl-pm" aria-label="Less" onClick={() => step(-1)}>−</button>
         <div>
           <input className="fl-num" inputMode="decimal" aria-label="Dose" value={dose}
-            onChange={(e) => setDose(e.target.value.replace(/[^0-9.]/g, ''))} onFocus={(e) => e.target.select()} />
+            onChange={(e) => setDose(e.target.value.replace(/[^0-9.]/g, ''))} onFocus={(e) => e.target.select()} {...inputProps} />
           <div className="fl-unit">{unit}</div>
         </div>
         <button type="button" className="fl-pm" aria-label="More" onClick={() => step(1)}>+</button>
@@ -115,10 +171,16 @@ export function WhenPicker({ schedule, setSchedule, time, setTime }) {
 
 export default function AddFlow({ kind, stackItems, setStackItems, symptoms, setSymptoms, setLastAction, onClose }) {
   const rootRef = useRef(null);
+  const nameRef = useRef(null);
   useRiseIn(rootRef);
+  useFlowViewport(rootRef);
+  const doneKey = useDoneKey(rootRef);
   const isSupp = kind === 'supplement';
   const steps = isSupp ? 4 : 2;
   const [step, setStep] = useState(0);
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  useFocusOnMount(nameRef);
 
   const [name, setName] = useState('');
   const [dose, setDose] = useState('');
@@ -177,7 +239,7 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
 
   const addSymptom = () => {
     const order = Math.max(-1, ...symptoms.filter((s) => s.active).map((s) => s.order || 0)) + 1;
-    const symptom = { id: makeId(trimmed), name: trimmed, active: true, order, ...(wellbeing ? { kind: WELLBEING } : {}) };
+    const symptom = { id: makeId(trimmed), name: trimmed, active: true, order, ...(wellbeing ? { kind: WELLBEING } : {}), ...(note.trim() ? { description: note.trim() } : {}) };
     if (chosenGroup) {
       const member = symptoms.find((s) => s.group === chosenGroup && typeof s.groupOrder === 'number');
       symptom.group = chosenGroup;
@@ -197,6 +259,7 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
     if (!last) return setStep(step + 1);
     if (isSupp) addSupplement(); else addSymptom();
   };
+  const nextFrom = (s) => () => { if (stepRef.current === s) next(); };
   const nextLabel = step === 0 && exact && !exact.active ? `Bring back ${exact.name}`
     : last ? (isSupp ? 'Add to protocol' : 'Add to tracking') : 'Next';
 
@@ -208,8 +271,9 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
     <div className={`fl ${isSupp ? '' : 'sym'}`} ref={rootRef} role="dialog" aria-label={isSupp ? 'Add supplement' : 'Add symptom'}>
       <div className="fl-in">
         <div className="fl-top">
-          <Back close={step === 0} onClick={step === 0 ? onClose : () => setStep(step - 1)} />
+          {step > 0 && <Back onClick={() => setStep(step - 1)} />}
           <div className="fl-bars">{Array.from({ length: steps }, (_, i) => <i key={i} className={i <= step ? 'on' : ''} />)}</div>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="fl-body">
@@ -217,9 +281,9 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
             <>
               <h1>{isSupp ? 'What are you adding?' : 'What do you want to track?'}</h1>
               <label className="fl-label" htmlFor="fl-name">{isSupp ? 'Supplement name' : 'Symptom name'}</label>
-              <input id="fl-name" className="fl-input big" autoFocus autoComplete="off" value={name}
+              <input id="fl-name" ref={nameRef} className="fl-input big" autoComplete="off" autoCapitalize="words" value={name}
                 placeholder={isSupp ? 'e.g. Magnesium glycinate' : 'e.g. Brain fog'}
-                onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') next(); }} />
+                onChange={(e) => setName(e.target.value)} {...doneKey(nextFrom(0))} />
               {matches.length > 0 && (
                 <>
                   <div className="fl-lbl">ALREADY IN YOUR LISTS</div>
@@ -238,7 +302,7 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
             <>
               <h1>How much?</h1>
               <p className="fl-sub">{trimmed}, each time</p>
-              <DosePicker dose={dose} setDose={setDose} unit={unit} setUnit={setUnit} />
+              <DosePicker dose={dose} setDose={setDose} unit={unit} setUnit={setUnit} inputProps={doneKey(nextFrom(1))} />
             </>
           )}
 
@@ -261,8 +325,9 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
                   {DECAY.map((d) => <option key={d.value} value={d.value}>{d.value ? d.label : `Auto (${autoDecay || 'moderate'})`}</option>)}
                 </select>
               </label>
-              <label className="fl-label" htmlFor="fl-note" style={{ marginTop: 22 }}>Note (optional)</label>
-              <input id="fl-note" className="fl-input" value={note} placeholder="e.g. with dinner, for sleep" onChange={(e) => setNote(e.target.value)} />
+              <label className="fl-label" htmlFor="fl-note" style={{ marginTop: 22 }}>Description (optional)</label>
+              <input id="fl-note" className="fl-input" value={note} placeholder="e.g. with dinner, for sleep" onChange={(e) => setNote(e.target.value)} enterKeyHint="done" />
+              <p className="fl-hint">Shows under the name in your list.</p>
             </>
           )}
 
@@ -291,6 +356,10 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
                   <p className="fl-hint">{suggested && group === undefined ? 'Suggested from the name. ' : ''}{groupNames(symptoms).length ? 'Change it any time.' : 'Groups are optional.'}</p>
                 </>
               )}
+              <label className="fl-label" htmlFor="fl-note" style={{ marginTop: 24 }}>Description (optional)</label>
+              <input id="fl-note" className="fl-input" value={note} placeholder={wellbeing ? 'e.g. Up for normal activity' : 'e.g. Behind the eyes, throbbing'}
+                onChange={(e) => setNote(e.target.value)} enterKeyHint="done" />
+              <p className="fl-hint">Shows under the name in your list.</p>
             </>
           )}
         </div>
