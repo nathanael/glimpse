@@ -674,17 +674,16 @@ export default function ComparisonStudio({
         unit: m?.unit || '',
       });
     });
+    // A day with no score keeps its slot ('--'), so the readout doesn't reflow mid-scrub
     if (healthScoreVisible && hsInspectValues) {
       const hsVal = hsInspectValues[touchX];
-      if (hsVal !== null && hsVal !== undefined) {
-        items.push({
-          id: '__healthScore__',
-          name: 'Health Score',
-          color: HEALTH_SCORE_COLOR,
-          val: Math.round(hsVal),
-          unit: '%',
-        });
-      }
+      items.push({
+        id: '__healthScore__',
+        name: 'Health Score',
+        color: HEALTH_SCORE_COLOR,
+        val: hsVal !== null && hsVal !== undefined ? Math.round(hsVal) : null,
+        unit: '%',
+      });
     }
     const firstSuppPts = suppPointSets[0];
     const x = firstSuppPts ? firstSuppPts[touchX]?.x : padLeft + (touchX / Math.max(1, dates.length - 1)) * chartW;
@@ -1030,8 +1029,8 @@ export default function ComparisonStudio({
         />
       )}
 
-      {/* Protocol changes: a flag on the time axis; the picked one carries its label */}
-      {chartMarkers.map((m) => {
+      {/* Protocol changes: a flag on the time axis; the picked one carries its label. Desktop only: on a phone they got in the way. */}
+      {isDesktop && chartMarkers.map((m) => {
         const x = padLeft + (m.idx / Math.max(1, dates.length - 1)) * chartW;
         const active = activeMarker?.key === m.key;
         const color = m.kind === 'event' ? EVENT_COLOR : MARKER_COLOR;
@@ -1366,18 +1365,15 @@ export default function ComparisonStudio({
               onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}
               onTouchStart={e => { e.preventDefault(); const t = e.touches[0]; setTouchX(getSnappedIndex(t.clientX)); }}
               onTouchMove={e => { e.preventDefault(); const t = e.touches[0]; setTouchX(getSnappedIndex(t.clientX)); }}
-              onTouchEnd={() => {
-                const near = chartMarkers.find(m => Math.abs(m.idx - touchX) <= Math.max(1, Math.round(dates.length / 40)));
-                if (near) { setPickedMarkerKey(near.key); haptic('light'); }
-                setTouchX(null);
-              }}
+              onTouchEnd={() => setTouchX(null)}
               style={{ display: 'block' }}
             >
               {chartSVGContent}
             </svg>
           </div>
           {seriesChips}
-          {mobileRange}
+          {/* Pinned above the dock, out of the scrolling page (a transformed ancestor would unpin a fixed child) */}
+          {createPortal(mobileRange, document.body)}
         </div>
       )}
     </div>

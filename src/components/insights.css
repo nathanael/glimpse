@@ -110,8 +110,9 @@
 .is-tile b { font-size: 24px; font-weight: 600; line-height: 1.1; color: var(--c); font-variant-numeric: tabular-nums; }
 .is-tile b small { font-size: 12px; font-weight: 400; }
 .is-tile .sub { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #9ca3af; white-space: nowrap; font-variant-numeric: tabular-nums; }
-/* Mobile range controls sit last, by the thumb: step back, timeframe, step forward. A step is a whole window. */
-.is-mfoot { display: flex; gap: 8px; margin-top: 14px; }
+/* Mobile range controls are pinned just above the dock, by the thumb: step back, timeframe, step forward. A step is a whole window. */
+.is-mfoot { position: fixed; left: 0; right: 0; bottom: calc(92px + env(safe-area-inset-bottom)); z-index: 199; display: flex; gap: 8px; max-width: 700px; margin: 0 auto; padding: 12px 12px 6px; background: linear-gradient(to top, #08090a 70%, transparent); }
+.is:not(.desktop) { padding-bottom: 64px; } /* the last pills scroll clear of the pinned controls */
 .is-mfoot .dn-seg { flex: 1; height: 44px; border-radius: 12px; }
 .is-mfoot .dn-seg button { flex: 1; padding: 0; font-size: 14px; }
 .is-arrow { flex: none; width: 48px; height: 44px; display: grid; place-items: center; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); background: none; color: #d1d5db; }
