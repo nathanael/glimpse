@@ -128,6 +128,39 @@ describe('SyncEngineV2 — durable offline outbox', () => {
     expect(listOps()).toHaveLength(0);
   });
 
+  it('Test 2b: a save that failed once is pushed by the next successful flush, no reload needed', async () => {
+    makeEngine({ entries: {} });
+    writeFieldUpdates.mockImplementation(() => Promise.resolve({ ok: false, error: 'boom' }));
+    engine.notifyLocalChange('entries', { '2026-03-15-a': { v: 1 } });
+    await engine.flush();
+    expect(listOps()).toHaveLength(1);
+
+    // Network back: an unrelated later edit flushes, and the parked op follows.
+    writeFieldUpdates.mockImplementation(() => Promise.resolve({ ok: true, via: 'sdk' }));
+    engine.notifyLocalChange('stackEntries', { '2026-03-16-x': { on: true } });
+    await engine.flush();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(listOps()).toHaveLength(0);
+    expect(engine._shadow.entries['2026-03-15-a']).toEqual({ v: 1, _t: FIXED_NOW });
+  });
+
+  it('Test 2c: retryOutbox replays only when something is queued', async () => {
+    makeEngine({ entries: {} });
+    const replaySpy = vi.spyOn(engine, 'replayOutbox');
+    engine.retryOutbox();
+    expect(replaySpy).not.toHaveBeenCalled();
+
+    writeFieldUpdates.mockImplementation(() => Promise.resolve({ ok: false, error: 'boom' }));
+    engine.notifyLocalChange('entries', { '2026-03-15-a': { v: 1 } });
+    await engine.flush();
+    writeFieldUpdates.mockImplementation(() => Promise.resolve({ ok: true, via: 'sdk' }));
+    engine.retryOutbox();
+    expect(replaySpy).toHaveBeenCalledTimes(1);
+    await replaySpy.mock.results[0].value;
+    expect(listOps()).toHaveLength(0);
+  });
+
   it('Test 3: _t-guard on replay drops a fieldPath the shadow already has same-or-newer', async () => {
     makeEngine({ entries: {} });
     // Seed an op directly in the outbox: update for key K with _t=5.

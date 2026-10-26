@@ -29,11 +29,16 @@ import { isRestorePending, clearRestorePending } from './restoreFlag';
 // Every catch-up re-read costs one Firestore read per month doc, and a quiet
 // listener is the normal state when nothing changes, so both timers only fire
 // while the page is visible and back off: a 2-minute heartbeat re-reading every
-// open tab in the background exhausted the free 50k reads/day quota.
+// open tab in the background exhausted the free 50k reads/day quota. Visible-only
+// is what saves the quota; 15 minutes left a desktop tab stale for too long.
 export const HEARTBEAT_INTERVAL_MS = 60000;  // how often we check liveness
-export const HEARTBEAT_DEAD_MS = 900000;     // 15 min stall threshold → force refresh
+export const HEARTBEAT_DEAD_MS = 300000;     // 5 min stall threshold → force refresh
 export const POLL_INTERVAL_MS = 30000;       // poll tick until first deliver
 export const POLL_MAX_BACKOFF_MS = 600000;   // poll re-reads back off to every 10 min
+// A listener error (quota exhausted, auth expiry, permission) ENDS the Firestore
+// listener for good; we re-subscribe after this delay, doubling to the max.
+export const RESUBSCRIBE_MIN_MS = 30000;
+export const RESUBSCRIBE_MAX_MS = 600000;
 // A key we wrote within this window is protected from remote-delete detection:
 // a snapshot (or a server read) can momentarily lag our own just-written record
 // — especially after a REST-fallback write, which bypasses the SDK listener's
@@ -161,6 +166,11 @@ export default class SyncEngineV2 {
     // Poll backoff: next allowed poll re-read time and the current gap.
     this._nextPollAt = 0;
     this._pollBackoff = POLL_INTERVAL_MS;
+    // Re-subscribe after a listener error (see RESUBSCRIBE_MIN_MS).
+    this._resubscribeTimer = null;
+    this._resubscribeDelay = RESUBSCRIBE_MIN_MS;
+    // True while replayOutbox() runs, so overlapping triggers don't double-write.
+    this._replaying = false;
     // `${domain} ${key}` -> ms timestamp of our most recent local write to
     // that record. Used to protect freshly-written keys from spurious remote
     // deletes when a snapshot/read lags our own write. Pruned on access.
@@ -532,6 +542,7 @@ export default class SyncEngineV2 {
     const pending = this._pending;
     this._pending = {};
     this._inflight = pending;
+    let wroteOk = false;
 
     try {
       for (const path of paths) {
@@ -585,6 +596,7 @@ export default class SyncEngineV2 {
         if (result && result.ok) {
           this._applyShadow(entry);
           this.lastSynced = new Date();
+          wroteOk = true;
         } else {
           // Failure: persist to the DURABLE outbox instead of re-queuing in
           // memory. The outbox survives reload; replayOutbox() retries it on
@@ -605,6 +617,9 @@ export default class SyncEngineV2 {
     // If new edits (or re-queues) arrived, schedule another flush.
     if (Object.keys(this._pending).length > 0) {
       this._scheduleFlush();
+    } else if (wroteOk) {
+      // The network works again: push anything an earlier failure parked.
+      this.retryOutbox();
     }
   }
 
@@ -721,8 +736,36 @@ export default class SyncEngineV2 {
    */
   async replayOutbox() {
     const db = getFirebaseDb();
-    if (!db || this._destroyed) return;
+    if (!db || this._destroyed || this._replaying) return;
+    this._replaying = true;
+    try {
+      await this._replayOps();
+    } finally {
+      this._replaying = false;
+    }
+  }
 
+  /**
+   * Replay the outbox only when it holds something. Called on every trigger
+   * that suggests the network is back (a successful flush, a return to the
+   * foreground, the browser's `online` event, the heartbeat). Before this, the
+   * outbox replayed only at boot, and an iPhone PWA can stay alive for days:
+   * a save that failed once never reached the cloud, so other devices never saw
+   * it. Fire-and-forget; never throws.
+   */
+  retryOutbox() {
+    if (this._destroyed || !this._ready || this._replaying) return;
+    let ops;
+    try {
+      ops = listOps();
+    } catch {
+      return;
+    }
+    if (!ops || ops.length === 0) return;
+    this.replayOutbox();
+  }
+
+  async _replayOps() {
     let ops;
     try {
       ops = listOps();
@@ -1461,6 +1504,33 @@ export default class SyncEngineV2 {
     // Capture and never throw — a listener error must not crash the app.
     this.syncError = err && err.message ? err.message : String(err);
     this._notifyStatus();
+    // Firestore ENDS a listener after its error callback; it never recovers on
+    // its own. Drop both (they are re-created as a pair), let the poll re-read
+    // the cloud until a new listener delivers, and re-subscribe after a backoff.
+    if (this._destroyed) return;
+    this._stopListening();
+    this._listenerDelivered = false;
+    this._nextPollAt = 0;
+    this._pollBackoff = POLL_INTERVAL_MS;
+    if (!this._resubscribeTimer) {
+      const delay = this._resubscribeDelay;
+      this._resubscribeDelay = Math.min(delay * 2, RESUBSCRIBE_MAX_MS);
+      this._resubscribeTimer = setTimeout(() => {
+        this._resubscribeTimer = null;
+        this._startListening();
+      }, delay);
+    }
+  }
+
+  _stopListening() {
+    if (this._unsubMonths) {
+      try { this._unsubMonths(); } catch { /* already ended */ }
+      this._unsubMonths = null;
+    }
+    if (this._unsubDefs) {
+      try { this._unsubDefs(); } catch { /* already ended */ }
+      this._unsubDefs = null;
+    }
   }
 
   /**
@@ -1492,6 +1562,7 @@ export default class SyncEngineV2 {
     // A real (server-confirmed) snapshot arrived: the streaming listener is
     // alive and delivering authoritative data.
     this._listenerDelivered = true;
+    this._resubscribeDelay = RESUBSCRIBE_MIN_MS;
 
     // 1. Update the relevant raw cache.
     if (source === 'months') {
@@ -1651,6 +1722,7 @@ export default class SyncEngineV2 {
   // success). A method so tests can invoke it deterministically.
   _checkHeartbeat() {
     if (this._destroyed || this._isHidden()) return;
+    this.retryOutbox();
     if (this._now() - this._lastActivity >= HEARTBEAT_DEAD_MS) {
       this.refreshFromCloud();
     }
@@ -1729,13 +1801,10 @@ export default class SyncEngineV2 {
       clearInterval(this._pollTimer);
       this._pollTimer = null;
     }
-    if (this._unsubMonths) {
-      this._unsubMonths();
-      this._unsubMonths = null;
+    if (this._resubscribeTimer) {
+      clearTimeout(this._resubscribeTimer);
+      this._resubscribeTimer = null;
     }
-    if (this._unsubDefs) {
-      this._unsubDefs();
-      this._unsubDefs = null;
-    }
+    this._stopListening();
   }
 }

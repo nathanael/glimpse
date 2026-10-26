@@ -44,7 +44,7 @@ vi.mock('../../utils/firebase', () => ({
   getFirebaseDb: () => mockDbValue,
 }));
 
-import SyncEngineV2, { HEARTBEAT_DEAD_MS, POLL_INTERVAL_MS } from '../SyncEngineV2';
+import SyncEngineV2, { HEARTBEAT_DEAD_MS, POLL_INTERVAL_MS, RESUBSCRIBE_MIN_MS } from '../SyncEngineV2';
 
 function monthsSnap(docs) {
   return { docs: docs.map((d) => ({ id: d.id, data: () => d.data })) };
@@ -236,5 +236,53 @@ describe('SyncEngineV2 — resilience (heartbeat + poll + refresh)', () => {
     nowMs += POLL_INTERVAL_MS;
     engine._pollTick();
     expect(refreshSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('Test 9: a listener error re-subscribes after a backoff, and the poll covers the gap', async () => {
+    vi.useFakeTimers();
+    try {
+      await initWith({ entries: { A: { v: 1, _t: 100 } } });
+      listeners.months.cb(monthsSnap([{ id: '2026-03', data: { entries: { A: { v: 1, _t: 100 } } } }]));
+      expect(engine._listenerDelivered).toBe(true);
+      const firstMonths = listeners.months;
+
+      firstMonths.errCb(new Error('Quota exceeded.'));
+      expect(engine.syncError).toBe('Quota exceeded.');
+      expect(firstMonths.unsub).toHaveBeenCalled();
+      expect(engine._unsubMonths).toBeNull();
+      // Poll re-reads again until a new listener delivers.
+      expect(engine._listenerDelivered).toBe(false);
+
+      vi.advanceTimersByTime(RESUBSCRIBE_MIN_MS);
+      expect(listeners.months).not.toBe(firstMonths);
+      expect(engine._unsubMonths).not.toBeNull();
+
+      // The new listener delivers cloud changes made meanwhile.
+      listeners.months.cb(monthsSnap([{ id: '2026-03', data: {
+        entries: { A: { v: 1, _t: 100 }, K: { v: 3, _t: 500 } },
+      } }]));
+      expect(cloudUpdates.at(-1).domains.entries.K).toEqual({ v: 3, _t: 500 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Test 10: repeated listener errors back off; destroy cancels a pending re-subscribe', async () => {
+    vi.useFakeTimers();
+    try {
+      await initWith({ entries: { A: { v: 1, _t: 100 } } });
+      listeners.months.errCb(new Error('boom'));
+      vi.advanceTimersByTime(RESUBSCRIBE_MIN_MS);
+      const second = listeners.months;
+      second.errCb(new Error('boom'));
+      // Second gap is doubled.
+      vi.advanceTimersByTime(RESUBSCRIBE_MIN_MS);
+      expect(listeners.months).toBe(second);
+      engine.destroy();
+      vi.advanceTimersByTime(RESUBSCRIBE_MIN_MS * 4);
+      expect(listeners.months).toBe(second);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

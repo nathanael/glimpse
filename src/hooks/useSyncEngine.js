@@ -192,6 +192,9 @@ export function useSyncEngine(uid, firebaseReady, stateSetters, isApplyingCloudR
       if (document.visibilityState === 'hidden') {
         engine.flushNow();
       } else if (document.visibilityState === 'visible') {
+        // Push any save that failed while we were away (cheap: no-op when the
+        // outbox is empty).
+        engine.retryOutbox();
         // Skip the full re-read when the cloud was heard from in the last
         // minute (quick app switches would otherwise re-read every month doc).
         if (engine._now() - engine._lastActivity >= VISIBLE_REFRESH_MIN_MS) {
@@ -200,12 +203,16 @@ export function useSyncEngine(uid, firebaseReady, stateSetters, isApplyingCloudR
       }
     };
     const handleUnload = () => engine.flushNow();
+    // Back online: push saves that failed while offline.
+    const handleOnline = () => engine.retryOutbox();
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('online', handleOnline);
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('online', handleOnline);
       engine.flushNow();
       engine.destroy();
       if (engineRef.current === engine) {
