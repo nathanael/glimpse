@@ -30,7 +30,6 @@ export default function BottomNav({
   onClearSymptoms,
   onRapidEntry,
   onClear,
-  onMatchYesterday,
   onEditProtocol,
   onLogMeal,
 }) {
@@ -88,7 +87,6 @@ export default function BottomNav({
           onClearSymptoms={onClearSymptoms}
           onRapidEntry={onRapidEntry}
           onClear={onClear}
-          onMatchYesterday={onMatchYesterday}
           onEditProtocol={onEditProtocol}
           onLogMeal={onLogMeal}
           onOpenSettings={() => {

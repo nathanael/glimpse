@@ -31,7 +31,6 @@ export default function QuickActionsMenu({
   onRapidEntry,
   // Stack page actions
   onClear,
-  onMatchYesterday,
   onEditProtocol,
   onLogMeal,
   // Common
@@ -74,7 +73,6 @@ export default function QuickActionsMenu({
         {tab === 'protocol' && (
           <>
             <Item icon="list" label="Edit protocol" onClick={onEditProtocol} />
-            <Item icon="yesterday" label="Match yesterday" onClick={onMatchYesterday} />
             <Item icon="camera" label="Log a meal" onClick={onLogMeal} />
           </>
         )}

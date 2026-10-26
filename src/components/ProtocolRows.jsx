@@ -435,16 +435,10 @@ export default function ProtocolRows({
   const rootClass = `lr lr-protocol ${isDesktop ? 'desktop' : 'mobile'} ${editing ? 'edit' : ''}`;
 
   // Scope + actions live in the nav's context bar (desktop) or the second row of the mobile top bar
-  const totalCount = dueItems.length + factors.length;
   // Desktop bar mirrors Symptoms: nothing on the left, actions on the right with Edit last
   const bar = barSlot ? createPortal(
     <>
-      {editing ? <span className="dn-progress"><b>{activeSupplements.length + activeFactors.length}</b> active</span> : !isDesktop && (
-        <span className="dn-progress">
-          Logged <b>{takenCount + loggedCount}/{totalCount}</b>
-          <i style={{ '--p': `${totalCount ? ((takenCount + loggedCount) / totalCount) * 100 : 0}%` }} />
-        </span>
-      )}
+      {editing && <span className="dn-progress"><b>{activeSupplements.length + activeFactors.length}</b> active</span>}
       <span className="lr-spacer" />
       {/* Clear day, Match yesterday and Check all all set the day's checkmarks, so desktop shows them as one control */}
       {isDesktop && !editing && (
@@ -454,6 +448,7 @@ export default function ProtocolRows({
           <button onClick={onCheckAll}>Check all</button>
         </span>
       )}
+      {!isDesktop && !editing && <button className="dn-btn" onClick={onMatchYesterday}>Match yesterday</button>}
       {!isDesktop && !editing && <button className="dn-btn primary" onClick={onCheckAll}>Check all</button>}
       {(isDesktop || editing) && <button className={`dn-btn ${editing ? 'primary' : ''}`} onClick={() => { setEditing(!editing); setExpandedId(null); }}>{editing ? 'Done' : 'Edit protocol'}</button>}
     </>,

@@ -1627,7 +1627,6 @@ function App() {
           // Stack page actions
           onCheckAll={protocolCheckAll}
           onClear={protocolClearDay}
-          onMatchYesterday={protocolMatchYesterday}
           onEditProtocol={() => { setAppMode('stack'); setShowInsights(false); setProtocolEditMode(true); }}
           onLogMeal={() => setMealSheet({})}
           symptoms={liveSymptoms}
