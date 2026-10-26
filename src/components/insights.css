@@ -30,26 +30,6 @@
 .is-score .delta small { display: block; margin-top: 1px; font-size: 10px; font-weight: 400; color: #6b7280; }
 .is-score .delta { text-align: right; line-height: 1.2; }
 
-
-/* Mobile: the health score leads the tab at hero size, right under the range controls */
-.is:not(.desktop) .is-score { gap: 16px; padding: 14px 16px; border-radius: 12px; margin-bottom: 10px; }
-.is:not(.desktop) .is-score .num { font-size: 40px; line-height: 1; letter-spacing: -.02em; }
-.is:not(.desktop) .is-score .body { gap: 8px; }
-.is:not(.desktop) .is-score .cap { flex-direction: column; gap: 1px; font-size: 12px; white-space: nowrap; }
-.is:not(.desktop) .is-score .cap span { letter-spacing: 0; color: #9ca3af; }
-.is:not(.desktop) .is-score .cap span.on { color: #f3f4f6; }
-.is:not(.desktop) .is-score .delta { font-size: 15px; }
-.is:not(.desktop) .is-score .delta small { font-size: 10.5px; }
-.is:not(.desktop) .is-score .bar { height: 6px; border-radius: 6px; }
-.is:not(.desktop) .is-score .bar i { border-radius: 6px; }
-
-/* Mobile range controls: same segmented control + date stepper as desktop, stretched full width */
-.is-mhead { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.is-mhead .dn-seg, .is-mhead .dn-step { display: flex; height: 36px; }
-.is-mhead .dn-seg button { flex: 1; padding: 0; }
-.is-mhead .dn-step button { padding: 0 12px; }
-.is-mhead .dn-step .dn-date { flex: 1; min-width: 0; }
-.is-mhead svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .is:not(.desktop) .is-row { min-height: 44px; font-size: 14px; }
 /* Mobile: series are compact pills in one wrapping row under the chart; the add buttons are dashed pills at the end */
 .is-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -115,16 +95,25 @@
 .is-effect .next { flex: none; width: 48px; display: grid; place-items: center; border-left: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.03); color: #d1d5db; }
 .is-effect:not(:disabled):hover .next, .is-effect:active .next { background: rgba(255,255,255,.08); }
 .is-effect .next svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-/* Mobile: the card sits between the health score and the chart */
-.is:not(.desktop) .is-effect { margin: 0; }
-.is:not(.desktop) .is-effect .movers { font-size: 15px; }
-.is:not(.desktop) .is-effect .since { font-size: 12.5px; }
-.is:not(.desktop) .is-effect .next { width: 56px; }
-.is:not(.desktop) .is-effect .next svg { width: 24px; height: 24px; }
 
-/* Mobile scrub readout, directly above the chart where the thumb can't cover it */
-.is-scrub { display: flex; align-items: center; gap: 12px; min-height: 32px; margin-top: 12px; padding: 0 2px; font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; }
-.is-scrub b { margin-right: auto; font-size: 14px; font-weight: 600; color: #f3f4f6; }
-.is-scrub span { display: inline-flex; align-items: center; gap: 5px; color: #d1d5db; font-weight: 500; }
-.is-scrub i { width: 6px; height: 6px; border-radius: 50%; }
 .is-effect.event .mark { background: #fbbf24; }
+
+/* Mobile: the window, or the day under the thumb, heads the tab */
+.is-mdate { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 4px 2px 12px; }
+.is-mdate b { font-size: 26px; font-weight: 600; letter-spacing: -.02em; color: #f3f4f6; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.is-mdate span { font-size: 12px; color: #9ca3af; white-space: nowrap; }
+/* One tile per series: the window's average and its change, or the scrubbed day's value and the average */
+.is-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 14px; }
+.is-tile { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); color: #d1d5db; text-align: left; }
+.is-tile.on { border-color: color-mix(in srgb, var(--c) 50%, transparent); background: color-mix(in srgb, var(--c) 10%, transparent); }
+.is-tile .name { max-width: 100%; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.is-tile b { font-size: 24px; font-weight: 600; line-height: 1.1; color: var(--c); font-variant-numeric: tabular-nums; }
+.is-tile b small { font-size: 12px; font-weight: 400; }
+.is-tile .sub { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #9ca3af; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Mobile range controls sit last, by the thumb: step back, timeframe, step forward. A step is a whole window. */
+.is-mfoot { display: flex; gap: 8px; margin-top: 14px; }
+.is-mfoot .dn-seg { flex: 1; height: 44px; border-radius: 12px; }
+.is-mfoot .dn-seg button { flex: 1; padding: 0; font-size: 14px; }
+.is-arrow { flex: none; width: 48px; height: 44px; display: grid; place-items: center; border-radius: 12px; border: 1px solid rgba(255,255,255,.1); background: none; color: #d1d5db; }
+.is-arrow:disabled { color: #4b5563; border-color: rgba(255,255,255,.05); }
+.is-arrow svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

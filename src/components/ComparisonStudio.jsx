@@ -678,6 +678,7 @@ export default function ComparisonStudio({
       const hsVal = hsInspectValues[touchX];
       if (hsVal !== null && hsVal !== undefined) {
         items.push({
+          id: '__healthScore__',
           name: 'Health Score',
           color: HEALTH_SCORE_COLOR,
           val: Math.round(hsVal),
@@ -690,9 +691,8 @@ export default function ComparisonStudio({
     return { dateLabel, items, x };
   }, [touchX, dates, suppDoseSeries, suppPointSets, suppItems, selectedSupplements, symptomTransformed, symptoms, selectedSymptoms, selectedSleepMetrics, sleepTransformed, timeframe, chartW, healthScoreVisible, hsInspectValues, padLeft]);
 
-  // Legend: show crosshair values when hovering, averages otherwise
-  const legendItems = useMemo(() => {
-    if (crosshairData) return crosshairData;
+  // Each series' average over the window; the legend shows these unless a day is being read off the chart
+  const averageItems = useMemo(() => {
     const avg = (arr) => {
       const valid = arr.filter(v => v !== null);
       return valid.length > 0 ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
@@ -740,6 +740,7 @@ export default function ComparisonStudio({
       const vals = healthScoreTransformed.values.filter(v => v !== null);
       const hsAvg = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
       items.push({
+        id: '__healthScore__',
         name: 'Health Score',
         color: HEALTH_SCORE_COLOR,
         val: hsAvg !== null ? Math.round(hsAvg) : null,
@@ -747,7 +748,8 @@ export default function ComparisonStudio({
       });
     }
     return { dateLabel: 'Average', items, x: null };
-  }, [crosshairData, suppTransformedSeries, suppItems, selectedSupplements, symptomTransformed, symptoms, selectedSymptoms, selectedSleepMetrics, sleepTransformed, healthScoreVisible, healthScoreTransformed]);
+  }, [suppTransformedSeries, suppItems, selectedSupplements, symptomTransformed, symptoms, selectedSymptoms, selectedSleepMetrics, sleepTransformed, healthScoreVisible, healthScoreTransformed]);
+  const legendItems = crosshairData || averageItems;
 
   // Max offset: based on earliest data point across selected symptoms/supplement/health score
   const maxOffset = useMemo(() => {
@@ -1056,16 +1058,6 @@ export default function ComparisonStudio({
       {crosshairData && (
         <>
           <line x1={crosshairData.x} y1={padTop} x2={crosshairData.x} y2={padTop + chartH} stroke="rgba(255,255,255,0.3)" strokeWidth={(isDesktop ? 0.5 : 1) * s} />
-          {!isDesktop && scrubDate && (() => {
-            const w = (scrubDate.length * 6.6 + 16) * s, h = 20 * s;
-            const x = Math.max(padLeft, Math.min(crosshairData.x - w / 2, W - padRight - w));
-            return (
-              <g pointerEvents="none">
-                <rect x={x} y={padTop - h - 4 * s} width={w} height={h} rx={6 * s} fill="#f3f4f6" />
-                <text x={x + w / 2} y={padTop - 4 * s - h / 2 + 4 * s} textAnchor="middle" fill="#08090a" fontSize={11.5 * s} fontWeight="600" fontFamily="inherit">{scrubDate}</text>
-              </g>
-            );
-          })()}
           {isDesktop && mouseY !== null && (() => {
             const tooltipW = 140 * s;
             const tooltipH = (28 + crosshairData.items.length * 20) * s;
@@ -1126,8 +1118,8 @@ export default function ComparisonStudio({
     <div key={id} className={`${isDesktop ? 'is-row' : 'is-pill'}${id === primarySeriesId ? ' on' : ''}`} onClick={() => makePrimary(id)}>
       <span className="dot" style={{ background: color }} />
       <span className="name">{name}</span>
-      <span className="val">{val}{unit && val !== '--' && <small> {unit}</small>}</span>
-      {!crosshairData && deltaTag(delta, `vs previous ${timeframe} days`, up)}
+      {isDesktop && <span className="val">{val}{unit && val !== '--' && <small> {unit}</small>}</span>}
+      {isDesktop && !crosshairData && deltaTag(delta, `vs previous ${timeframe} days`, up)}
       <button className="x" aria-label={`Remove ${name}`} onClick={(e) => { e.stopPropagation(); onRemove(); }}>&times;</button>
     </div>
   );
@@ -1189,8 +1181,10 @@ export default function ComparisonStudio({
   );
 
   // ── Range controls: timeframe + date window (context bar on desktop, above the chart on mobile) ──
-  const stepBack = () => { setStartOffset(prev => Math.min(prev + Math.round(timeframe / 2), maxOffset)); haptic('light'); };
-  const stepForward = () => { setStartOffset(prev => Math.max(prev - Math.round(timeframe / 2), 0)); haptic('light'); };
+  // Desktop steps half a window; mobile a whole one (M steps a month)
+  const step = isDesktop ? Math.round(timeframe / 2) : timeframe;
+  const stepBack = () => { setStartOffset(prev => Math.min(prev + step, maxOffset)); haptic('light'); };
+  const stepForward = () => { setStartOffset(prev => Math.max(prev - step, 0)); haptic('light'); };
   const rangeControls = (
     <>
       <div className="dn-step">
@@ -1208,20 +1202,6 @@ export default function ComparisonStudio({
 
   const valuesCaption = (
     <div className={`is-cap${scrubDate ? ' on' : ''}`}>{scrubDate || `${timeframe}-day average${selectedSymptoms.length > 0 ? ` · change vs previous ${timeframe}` : ''}`}</div>
-  );
-
-  // Mobile: the thumb hides the crosshair, so the day and its values read out above the chart
-  const scrubReadout = (
-    <div className="is-scrub">
-      {scrubDate ? (
-        <>
-          <b>{scrubDate}</b>
-          {crosshairData?.items.map((item, i) => (
-            <span key={i}><i style={{ background: item.color }} />{fmtVal(item.val, item.unit === '/5')}{item.unit === '%' ? '%' : ''}</span>
-          ))}
-        </>
-      ) : 'Drag across the chart to read a day'}
-    </div>
   );
 
   // One line under the chart. For a protocol change: which symptoms clearly moved since. For a one-off day (alcohol,
@@ -1302,6 +1282,50 @@ export default function ComparisonStudio({
     />
   );
 
+  // ── Mobile: the window (or the scrubbed day) on top, one tile per series, range controls at the bottom by the thumb ──
+  const mobileHead = (
+    <div className={`is-mdate${scrubDate ? ' on' : ''}`}>
+      <b>{scrubDate || dateWindowLabel}</b>
+      <span>{scrubDate ? dateWindowLabel : `${timeframe}-day avg`}</span>
+    </div>
+  );
+  const tileUnit = (unit) => (unit === '/5' ? '' : unit === '%' ? '%' : unit ? ` ${unit}` : '');
+  const readoutTiles = legendItems.items.length > 0 && (
+    <div className="is-tiles">
+      {legendItems.items.map((it) => {
+        const fixed = it.unit === '/5';
+        const avgVal = averageItems.items.find(a => a.id === it.id)?.val ?? null;
+        const sym = selectedSymptoms.includes(it.id) ? activeSymptoms.find(x => x.id === it.id) : null;
+        const isHs = it.id === '__healthScore__';
+        const val = fmtVal(it.val, fixed);
+        let sub;
+        if (scrubDate) sub = <>avg {fmtVal(avgVal, fixed)}{tileUnit(it.unit)}</>;
+        else if (sym && symptomDeltas[it.id] !== null && symptomDeltas[it.id] !== undefined) sub = <>{deltaTag(symptomDeltas[it.id], undefined, isWellbeing(sym))} vs prev</>;
+        else if (isHs && healthScoreDelta !== null) sub = <>{scoreTag(healthScoreDelta)} vs prev</>;
+        else sub = 'average';
+        return (
+          <button key={it.id} className={`is-tile${it.id === primarySeriesId ? ' on' : ''}`} style={{ '--c': it.color }} onClick={() => makePrimary(it.id)}>
+            <span className="name">{it.name}</span>
+            <b>{val}{val !== '--' && tileUnit(it.unit) && <small>{tileUnit(it.unit)}</small>}</b>
+            <span className="sub">{sub}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+  const chevron = (d) => <svg viewBox="0 0 24 24"><path d={d} /></svg>;
+  const mobileRange = (
+    <div className="is-mfoot">
+      <button className="is-arrow" onClick={stepBack} disabled={startOffset >= maxOffset} aria-label="Earlier">{chevron('M15 18l-6-6 6-6')}</button>
+      <div className="dn-seg">
+        {TIMEFRAMES.map(tf => (
+          <button key={tf.days} className={timeframe === tf.days ? 'on' : ''} onClick={() => { setTimeframe(tf.days); haptic('light'); }}>{tf.label}</button>
+        ))}
+      </div>
+      <button className="is-arrow" onClick={stepForward} disabled={startOffset === 0} aria-label="Later">{chevron('M9 18l6-6-6-6')}</button>
+    </div>
+  );
+
   // ── Render ──
 
   return (
@@ -1335,10 +1359,8 @@ export default function ComparisonStudio({
       ) : (
         /* ── Mobile: vertical stack ── */
         <div style={{ marginBottom: '16px' }}>
-          <div className="is-mhead">{rangeControls}</div>
-          {healthScoreTile}
-          {markerChip}
-          {scrubReadout}
+          {mobileHead}
+          {readoutTiles}
           <div style={{ touchAction: 'none' }}>
             <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`}
               onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}
@@ -1355,6 +1377,7 @@ export default function ComparisonStudio({
             </svg>
           </div>
           {seriesChips}
+          {mobileRange}
         </div>
       )}
     </div>
