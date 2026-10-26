@@ -32,54 +32,14 @@
 .mn-tablist button svg { width: 20px; height: 20px; }
 .mn-tablist button.on { background: rgba(255,255,255,.08); color: #f3f4f6; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
 
-/* Home folds the tabs into one "Advanced mode" button. Both layers share one grid cell. Folding,
-   the tabs gather toward the centre and fade, then the label appears; unfolding, the label goes
-   at once and the tabs fan back out one after another. */
-.mn-layer { grid-area: 1 / 1; min-width: 0; }
-.mn-tablist { display: flex; }
-.mn-tablist button { transition: opacity .16s ease, transform .24s cubic-bezier(.22,1,.36,1), background .2s, color .2s; transition-delay: calc(var(--i) * 23ms + 40ms); }
-.mn-tabs.easy .mn-tablist { pointer-events: none; }
-.mn-tabs.easy .mn-tablist button { opacity: 0; transform: translateX(calc((1.5 - var(--i)) * 22px)) scale(.8); transition-delay: 0s; }
-.mn-adv { height: 46px; border: 0; border-radius: 18px; background: none; color: #e5e7eb; display: grid; place-items: center; opacity: 0; transform: scale(.94); pointer-events: none; transition: opacity .12s ease, transform .21s cubic-bezier(.22,1,.36,1); }
-.mn-adv svg { width: 22px; height: 22px; }
-/* On Home the round-transfer icon is the button itself: the pill's own surface drops away and the
-   icon's circle (20 of its 24 units) is drawn 54px across, the size of ⋯ beside it */
-.mn-tabs { transition: background .21s, border-color .21s, box-shadow .21s, margin .21s cubic-bezier(.22,1,.36,1); }
-.mn-tabs.easy { margin-right: 4px; background: transparent; border-color: transparent; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
-.mn-tabs.easy .mn-adv svg { width: 64.8px; height: 64.8px; margin: -9.4px; color: #e5e7eb; filter: drop-shadow(0 10px 30px rgba(0,0,0,.5)); }
-/* The icon's disc wears the ⋯ button's surface and 1px edge (0.37 units at this size) */
-.mn-adv .disc { fill: rgba(23,25,28,.94); opacity: 1; stroke: rgba(255,255,255,.12); stroke-width: .37; }
-/* ...and its arrows are drawn at 56%, about the centre, leaving the disc its full size */
-.mn-tabs.easy .mn-adv .arrows { transform: scale(.56); transform-origin: 12px 12px; }
-.mn-tabs.easy .mn-adv:active { background: none; opacity: .85; }
-.mn-tabs.easy .mn-adv { opacity: 1; transform: none; pointer-events: auto; transition-delay: .11s; }
-.mn-adv:active { background: rgba(255,255,255,.08); }
-/* Home: Check-in (rapid entry) and Note pills between Advanced and ⋯, the same height and corners
-   as the Advanced pill. Advanced is an icon only, 56px wide (46px button + the pill's padding and
-   border) plus 4px of breathing room, and Check-in and Note share what it, ⋯ and the three 10px
-   gaps leave. They collapse to nothing (width, the dock's gap via the margin, opacity) when the tabs
-   unfold, so the tabs get the full width back. */
-.mn-quick { flex: none; width: 0; height: 56px; margin-left: -10px; padding: 0; overflow: hidden; border: 0; border-radius: 22px; color: #fff; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 15px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; opacity: 0; pointer-events: none; transition: width .21s cubic-bezier(.22,1,.36,1), margin .21s cubic-bezier(.22,1,.36,1), opacity .12s ease; }
-.mn-quick.easy { width: calc((100% - 144px) / 2); margin-left: 0; opacity: 1; pointer-events: auto; transition-delay: .11s; }
-/* Check-in has the longer label, so it takes more of the shared width than Note */
-.mn-rapid.easy { width: calc((100% - 144px) * .57); }
-.mn-note.easy { width: calc((100% - 144px) * .43); }
-.mn-quick svg { width: 20px; height: 20px; }
-.mn-quick:active { filter: brightness(1.12); }
-.mn-rapid { background: linear-gradient(135deg, #4f46e5, #7c3aed); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 10px 30px rgba(79,70,229,.35); }
-.mn-note { background: linear-gradient(135deg, #7c3aed, #a855f7); box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 10px 30px rgba(124,58,237,.35); }
-/* 320pt phones: Check-in gets about 90px, Note about 68px */
-@media (max-width: 359px) {
-  .mn-dock-in { gap: 8px; }
-  .mn-quick { margin-left: -8px; gap: 4px; font-size: 13.5px; letter-spacing: -.02em; }
-  .mn-tabs.easy { margin-right: 2px; }
-  .mn-quick.easy { width: calc((100% - 136px) / 2); margin-left: 0; }
-  .mn-rapid.easy { width: calc((100% - 136px) * .57); }
-  .mn-note.easy { width: calc((100% - 136px) * .43); }
-  .mn-quick svg { width: 18px; height: 18px; }
-}
+.mn-tablist { display: flex; flex: 1; min-width: 0; }
+/* Home has no dock (its grid holds the same actions): it drops out of sight there and springs
+   back up on every other screen. */
+.mn-dock { transition: transform .45s cubic-bezier(.34,1.45,.64,1), opacity .2s; }
+.mn-dock.away { transform: translateY(110%); opacity: 0; pointer-events: none; transition: transform .25s ease-in, opacity .2s; }
+.mn-dock.away .mn-dock-in { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
-  .mn-tablist button, .mn-adv, .mn-quick { transition: none; }
+  .mn-dock, .mn-dock.away { transition: none; }
 }
 .mn-more { width: 54px; height: 54px; flex: none; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); background: rgba(23,25,28,.94); color: #9ca3af; display: grid; place-items: center; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
 .mn-more svg { width: 24px; height: 24px; }

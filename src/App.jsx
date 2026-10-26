@@ -1029,7 +1029,6 @@ function App() {
           minHeight: 0,
           display: 'flex',
           flexDirection: 'column',
-          paddingBottom: '68px', // the dock pill's height plus its bottom margin; .hm's own 12px is the gap
         }}>
           <Home
             summary={summaryLines({
@@ -1039,15 +1038,14 @@ function App() {
               stackEntries: deferredStackEntries,
               date: selectedDate,
             })}
-            onRapidEntry={() => setShowRapidEntry(true)}
-            onTalkMode={() => openTalkMode()}
-            onSymptomList={() => openFromHome('symptoms')}
-            onPhotoMeal={() => setMealSheet({})}
-            onTypeMeal={() => setMealSheet({ startManual: true })}
-            onTodaysMeals={() => { setScrollToMeals(true); openFromHome('stack'); }}
-            onMatchYesterday={() => protocolMatchYesterday()}
-            onSimpleChecklist={() => setShowSimpleProtocol(true)}
-            onProtocolDetail={() => openFromHome('stack')}
+            onSupplements={() => openFromHome('stack')}
+            onTracking={() => openFromHome('symptoms')}
+            onCheckIn={() => setShowRapidEntry(true)}
+            onPills={() => setShowSimpleProtocol(true)}
+            onNote={() => setShowNoteModal(true)}
+            onMeal={() => setMealSheet({})}
+            onAdvanced={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => { setAppMode('symptoms'); setShowInsights(false); setShowQuickActions(false); } })}
+            onMore={() => setShowQuickActions(true)}
           />
         </div>
       ) : (
@@ -1617,8 +1615,6 @@ function App() {
           onMatchYesterday={protocolMatchYesterday}
           onEditProtocol={() => { setAppMode('stack'); setShowInsights(false); setProtocolEditMode(true); }}
           onLogMeal={() => setMealSheet({})}
-          onHomeRapidEntry={() => setShowRapidEntry(true)}
-          onHomeNote={() => setShowNoteModal(true)}
           symptoms={liveSymptoms}
           entries={deferredEntries}
           trackingMode={trackingMode}
