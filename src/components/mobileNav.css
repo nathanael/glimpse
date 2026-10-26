@@ -45,6 +45,17 @@
 .mn-more svg { width: 24px; height: 24px; }
 .mn-more.on { color: #f3f4f6; background: rgba(139,92,246,.25); border-color: rgba(139,92,246,.5); }
 
+/* The list's bar above the tabs: day actions in one card, + right above the ⋯ (same size and x) */
+.mn-acts { margin-bottom: 10px; }
+.mn-dock:has(.mn-acts) { background: linear-gradient(to top, #08090a 78%, transparent); }
+.mn-acts-in { flex: 1; min-width: 0; display: flex; gap: 6px; padding: 4px; border-radius: 20px; background: rgba(23,25,28,.94); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+.mn-acts-in button { flex: 1; min-width: 0; height: 44px; border: 0; border-radius: 16px; background: rgba(255,255,255,.08); color: #f3f4f6; font-size: 14.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 8px; }
+.mn-acts-in button.primary { background: #2563eb; color: #fff; }
+.mn-acts-in button:active { filter: brightness(1.15); }
+.mn-add { width: 54px; height: 54px; flex: none; border-radius: 50%; border: 0; padding: 0; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; display: grid; place-items: center; box-shadow: 0 10px 26px rgba(124,58,237,.45); }
+.mn-dock .mn-add svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.mn-add:active { transform: scale(.94); }
+
 /* Action sheet: this tab's actions, then app-level, then destructive */
 .mn-dim { position: fixed; inset: 0; z-index: 199; background: rgba(0,0,0,.55); }
 .mn-sheet { position: fixed; left: 8px; right: 8px; bottom: calc(82px + env(safe-area-inset-bottom)); z-index: 201; max-width: 484px; margin: 0 auto; padding: 6px; border-radius: 22px; background: #17191c; border: 1px solid rgba(255,255,255,.12); box-shadow: 0 20px 50px rgba(0,0,0,.7); animation: mnSheetIn .16s ease-out; }

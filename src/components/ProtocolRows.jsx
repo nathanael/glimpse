@@ -22,6 +22,8 @@ import {
 import { matchSupplementCategory } from '../utils/supplementLookup';
 import SchedulePicker, { formatSchedule } from './SchedulePicker';
 import { isTyping, DraftInput, useReorderDrag, ChangeLog } from './listParts';
+import SwipeRow, { swipeIcons } from './SwipeRow';
+import { groupByTime } from '../utils/timeOfDay';
 
 const UNITS = ['mg', 'mcg', 'g', 'IU', 'ml', 'drops', 'caps'];
 const VERDICTS = [
@@ -66,8 +68,7 @@ export default function ProtocolRows({
   keyboardEnabled,
   isDesktop,
   barSlot,
-  startAdding,        // Home's "Add …": open the new row's name field once the edit list is up
-  onStartedAdding,
+  onEditItem,         // mobile: a row's swipe Edit opens the item's full-screen page
   mealsSlot,
 }) {
   const dateKey = getDateKey(selectedDate);
@@ -79,12 +80,6 @@ export default function ProtocolRows({
   const [scheduleDraft, setScheduleDraft] = useState(null);
   const [showAllHidden, setShowAllHidden] = useState(false);
   const [adding, setAdding] = useState(null); // 'supplement' | 'factor'
-  useEffect(() => {
-    if (!startAdding || !editing) return;
-    setAdding('supplement');
-    onStartedAdding?.();
-  }, [startAdding, editing]); // eslint-disable-line react-hooks/exhaustive-deps
-
 
   useEffect(() => setScheduleDraft(null), [expandedId]);
 
@@ -131,6 +126,8 @@ export default function ProtocolRows({
   }, [isDesktop, navRows, focusId]);
 
   const takenCount = dueItems.filter((i) => stackEntries[`${dateKey}-${i.id}`]).length;
+  // Mobile groups the day's supplements by time of day (one plain section when none has a time)
+  const timeSections = useMemo(() => (isDesktop ? [{ id: 'all', label: null, items: dueItems }] : groupByTime(dueItems)), [isDesktop, dueItems]);
   const loggedCount = factors.filter((i) => inputEntries[`${dateKey}-${i.id}`]).length;
   const hasAnyToday = takenCount + loggedCount > 0;
 
@@ -448,8 +445,6 @@ export default function ProtocolRows({
           <button onClick={onCheckAll}>Check all</button>
         </span>
       )}
-      {!isDesktop && !editing && <button className="dn-btn" onClick={onMatchYesterday}>Match yesterday</button>}
-      {!isDesktop && !editing && <button className="dn-btn primary" onClick={onCheckAll}>Check all</button>}
       {(isDesktop || editing) && <button className={`dn-btn ${editing ? 'primary' : ''}`} onClick={() => { setEditing(!editing); setExpandedId(null); }}>{editing ? 'Done' : 'Edit protocol'}</button>}
     </>,
     barSlot
@@ -491,7 +486,29 @@ export default function ProtocolRows({
     </div>
   );
 
-  const renderSupplementRow = (item, due) => {
+  // Mobile: swipe a row left for Edit (the item's own page) and Hide
+  const swipeActions = (item, kind) => (isDesktop ? null : [
+    ...(onEditItem && kind === 'supplement' ? [{ label: 'Edit', icon: swipeIcons.edit, onClick: () => onEditItem(item) }] : []),
+    { label: 'Hide', icon: swipeIcons.hide, tone: 'warn', onClick: () => { patch(kind, item.id, { active: false }); setLastAction(`${item.name} hidden (history kept)`); } },
+  ]);
+
+  // Mobile: tick every unticked supplement in one time-of-day section
+  const checkSection = (items) => {
+    haptic('light');
+    setStackEntries((prev) => {
+      const next = { ...prev };
+      items.forEach((item) => {
+        const key = `${dateKey}-${item.id}`;
+        if (!next[key]) next[key] = { date: dateKey, itemId: item.id, dose: item.defaultDose || 0, taken: true };
+      });
+      return next;
+    });
+  };
+
+  const renderSupplementRow = (item, due) => (
+    <SwipeRow key={item.id} actions={swipeActions(item, 'supplement')}>{renderSupplementRowInner(item, due)}</SwipeRow>
+  );
+  const renderSupplementRowInner = (item, due) => {
     const entry = stackEntries[`${dateKey}-${item.id}`];
     const focused = isDesktop && focusId === item.id;
     const dueLabel = !due ? nextDueLabel(item.schedule, selectedDate) : null;
@@ -522,7 +539,10 @@ export default function ProtocolRows({
     );
   };
 
-  const renderFactorRow = (item) => {
+  const renderFactorRow = (item) => (
+    <SwipeRow key={item.id} actions={swipeActions(item, 'factor')}>{renderFactorRowInner(item)}</SwipeRow>
+  );
+  const renderFactorRowInner = (item) => {
     const entry = inputEntries[`${dateKey}-${item.id}`];
     const count = entry ? entry.count || 1 : 0;
     const focused = isDesktop && focusId === item.id;
@@ -554,14 +574,24 @@ export default function ProtocolRows({
   return (
     <div className={rootClass}>
       {bar}
-      <div className="lr-sec">
-        <b>SUPPLEMENTS</b> {takenCount} of {dueItems.length} taken
-        {isDesktop && <span>LAST 14 DAYS</span>}
-      </div>
-      {dueItems.length === 0 && otherItems.length === 0 && !(search && hiddenMatches.length) && (
-        <div className="lr-empty">{search ? `Nothing matches "${search}"` : 'No supplements yet. Use Edit protocol to add one.'}</div>
+      {timeSections.length === 1 && (
+        <div className="lr-sec">
+          <b>SUPPLEMENTS</b> {takenCount} of {dueItems.length} taken
+          {isDesktop && <span>LAST 14 DAYS</span>}
+        </div>
       )}
-      {dueItems.map((item) => renderSupplementRow(item, true))}
+      {dueItems.length === 0 && otherItems.length === 0 && !(search && hiddenMatches.length) && (
+        <div className="lr-empty">{search ? `Nothing matches "${search}"` : isDesktop ? 'No supplements yet. Use Edit protocol to add one.' : 'No supplements yet. Tap + to add one.'}</div>
+      )}
+      {timeSections.map((sec) => [
+        sec.label && (
+          <div key={`t-${sec.id}`} className="lr-sec lr-tsec">
+            <b>{sec.label.toUpperCase()}</b>
+            {sec.items.some((i) => !stackEntries[`${dateKey}-${i.id}`]) && <button type="button" onClick={() => checkSection(sec.items)}>Check all</button>}
+          </div>
+        ),
+        ...sec.items.map((item) => renderSupplementRow(item, true)),
+      ])}
       {otherItems.map((item) => renderSupplementRow(item, false))}
       <div className="lr-sec"><b>OTHER FACTORS</b> {loggedCount} of {factors.length} {isToday ? 'today' : 'logged'}</div>
       {factors.length === 0 && !(search && hiddenMatches.length) && <div className="lr-empty">{search ? `Nothing matches "${search}"` : 'No factors yet.'}</div>}

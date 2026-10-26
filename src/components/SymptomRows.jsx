@@ -5,6 +5,7 @@ import './listUi.css';
 import { NA_SEVERITY } from '../utils/constants';
 import { getDateKey, haptic } from '../utils/helpers';
 import { isTyping, DraftInput, useReorderDrag, ChangeLog } from './listParts';
+import SwipeRow, { swipeIcons } from './SwipeRow';
 import { isApplicable, getStripDateKeys, getSeverityStrip, getLastSeverity, stepIndex, nextIndexBelow, reorder, makeId } from '../utils/listHelpers';
 import { suggestGroup, groupNames, groupSymptoms, availableGroups, nextGroupOrder, groupColor } from '../utils/symptomGroups';
 import { suggestGrouping, flareThresholds, flaringBadge } from '../utils/flareGroups';
@@ -54,8 +55,7 @@ export default function SymptomRows({
   keyboardEnabled,
   isDesktop,
   barSlot,
-  startAdding,        // Home's "Add …": open the new row's name field once the edit list is up
-  onStartedAdding,
+  onEditItem,         // mobile: a row's swipe Edit opens the item's full-screen page
 }) {
   const dateKey = getDateKey(selectedDate);
   const rootRef = useRef(null);
@@ -67,11 +67,6 @@ export default function SymptomRows({
   const [expandedId, setExpandedId] = useState(null);
   const [showHidden, setShowHidden] = useState(true);
   const [adding, setAdding] = useState(false);
-  useEffect(() => {
-    if (!startAdding || !editing) return;
-    setAdding(true);
-    onStartedAdding?.();
-  }, [startAdding, editing]); // eslint-disable-line react-hooks/exhaustive-deps
   const [addingWellbeing, setAddingWellbeing] = useState(false);
 
   // Grouping: 'order' = the flat list, 'groups' = sections the person defined
@@ -447,6 +442,12 @@ export default function SymptomRows({
     return on.length === timePeriods.length ? on.map((p) => p.label).join(' · ') : `${on[0].label} only`;
   };
 
+  // Mobile: swipe a row left for Edit (the symptom's own page) and Hide
+  const swipeActions = (symptom) => (isDesktop ? null : [
+    ...(onEditItem ? [{ label: 'Edit', icon: swipeIcons.edit, onClick: () => onEditItem(symptom) }] : []),
+    { label: 'Hide', icon: swipeIcons.hide, tone: 'warn', onClick: () => { patchSymptom(symptom.id, { active: false }); setLastAction(`${symptom.name} hidden (history kept)`); } },
+  ]);
+
   const renderLog = (symptom) => (
     <ChangeLog history={symptom.history} format={formatSymptomChange} onRevert={(index) => revertTo(symptom, index)} />
   );
@@ -677,7 +678,7 @@ export default function SymptomRows({
     <div ref={rootRef} className={rootClass} style={rootStyle}>
       {bar}
       {activeSymptoms.length === 0 ? (
-        hiddenMatches.length ? null : <div className="lr-empty">{symptomSearch ? `No symptoms match "${symptomSearch}"` : 'Nothing tracked yet. Use Edit list to add a symptom or wellbeing signal.'}</div>
+        hiddenMatches.length ? null : <div className="lr-empty">{symptomSearch ? `No symptoms match "${symptomSearch}"` : (isDesktop ? 'Nothing tracked yet. Use Edit list to add a symptom or wellbeing signal.' : 'Nothing tracked yet. Tap + to add a symptom.')}</div>
       ) : (
         <>
           {!isDesktop && hasGroups && groupByControl}
@@ -708,8 +709,8 @@ export default function SymptomRows({
             // Until this slot is rated, outline the value picked last time
             const lastSeverity = open && !current ? getLastSeverity(entries, symptom.id, focus.period, selectedDate) : null;
             return (
+              <SwipeRow key={symptom.id} actions={swipeActions(symptom)}>
               <div
-                key={symptom.id}
                 className={`lr-row lr-cols ${open ? 'open' : ''} ${done ? 'done' : ''}`}
                 // Desktop: the row under the mouse is the selected row. Uses mousemove, not mouseenter, so rows
                 // sliding under a resting cursor (scrolling, arrow keys) don't steal the keyboard selection.
@@ -785,6 +786,7 @@ export default function SymptomRows({
                   </div>
                 )}
               </div>
+              </SwipeRow>
             );
             }))];
           })}
