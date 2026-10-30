@@ -48,7 +48,8 @@ import {
 } from './utils/helpers';
 import { clearDay, restoreDay } from './utils/listHelpers';
 import { liveItems, markDeleted, restoreDeleted, isExpired, removeEntriesFor } from './utils/softDelete';
-import { summaryLines } from './utils/homeSummary';
+import { summaryLines, supplementsTaken } from './utils/homeSummary';
+import { healthTrend, lastSleep, bpTrend } from './utils/homeStats';
 
 // Components
 import Header from './components/Header';
@@ -379,6 +380,14 @@ function App() {
   // Soft-deleted items stay in state (and sync) until purged, but nothing renders them
   const liveSymptoms = useMemo(() => liveItems(symptoms), [symptoms]);
   const liveStackItems = useMemo(() => liveItems(stackItems), [stackItems]);
+  // Home's stat tiles. Only computed while Home is on screen; the week of health scores is the
+  // costly part.
+  const homeStats = useMemo(() => (appMode !== 'home' ? null : {
+    supplements: supplementsTaken(liveStackItems, deferredStackEntries, selectedDate),
+    health: healthTrend(liveSymptoms, deferredEntries, trackingMode, selectedDate),
+    sleep: lastSleep(garminSleepDays),
+    bp: bpTrend(bloodPressure),
+  }), [appMode, liveStackItems, deferredStackEntries, liveSymptoms, deferredEntries, trackingMode, selectedDate, garminSleepDays, bloodPressure]);
   const liveInputItems = useMemo(() => liveItems(inputItems), [inputItems]);
 
   const activeSymptoms = useMemo(() => {
@@ -1117,6 +1126,9 @@ function App() {
             onSymptomList={() => openFromHome('symptoms')}
             onNote={() => setShowNoteModal(true)}
             onBloodPressure={() => setShowBloodPressure('entry')}
+            stats={homeStats}
+            onSleep={() => { setAppMode('symptoms'); setShowInsights(true); }}
+            onBloodPressurePage={() => setShowBloodPressure('history')}
             onAdvanced={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => { setAppMode('symptoms'); setShowInsights(false); setShowQuickActions(false); } })}
             onMore={() => setShowQuickActions(true)}
           />

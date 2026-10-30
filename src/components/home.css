@@ -18,6 +18,38 @@
 .hm-face small { font-size: 13.5px; font-weight: 600; color: #aab6c6; }
 .hm-face small.done { color: #c4b5fd; }
 
+/* Four stat tiles, two by two: the two photographs (which still open their panels) and two
+   tinted tiles for sleep and blood pressure. Each shows one big number over a small visual. */
+.hm-tiles { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.hm-tiles .hm-card, .hm-stat { min-height: 0; padding: 16px 16px 15px; align-items: stretch; }
+.hm-tiles .hm-face { flex: 1; min-width: 0; justify-content: space-between; }
+.hm-tiles .hm-title { font-size: 16px; letter-spacing: -.01em; }
+.hm-stat { position: relative; display: flex; border: 0; border-radius: 22px; overflow: hidden; color: #f3f4f6; text-align: left; }
+.hm-stat.sleep { background: radial-gradient(120% 90% at 85% 0%, #1e3a8a 0%, #111827 55%, #0d1117 100%); }
+.hm-stat.pressure { background: radial-gradient(120% 90% at 85% 0%, #4c1d3a 0%, #1d1220 55%, #120d12 100%); }
+.hm-stat:active { transform: scale(.97); transition-duration: .2s; }
+.hm-stat:focus-visible { outline: 2px solid #a78bfa; outline-offset: -4px; }
+.hm-num { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.hm-num b { font-size: 38px; font-weight: 700; letter-spacing: -.03em; line-height: 1; white-space: nowrap; }
+.hm-num b em { font-style: normal; font-size: .55em; font-weight: 600; color: #cbd5e1; letter-spacing: -.01em; }
+.hm-num b.none { color: #64748b; }
+.hm-num small { display: flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hm-bar { display: block; height: 5px; border-radius: 3px; background: rgba(255,255,255,.16); overflow: hidden; }
+.hm-bar i { display: block; height: 100%; border-radius: 3px; background: #c4b5fd; }
+.hm-spark { display: block; width: 100%; height: 24px; overflow: visible; }
+.hm-spark path { fill: none; stroke: #c4b5fd; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.hm-stat.pressure .hm-spark path { stroke: #fb7185; }
+.hm-stages { display: flex; gap: 2px; height: 8px; border-radius: 4px; overflow: hidden; }
+.hm-stages i { min-width: 2px; }
+.hm-stages .deep { background: #1d4ed8; }
+.hm-stages .light { background: #3b82f6; }
+.hm-stages .rem { background: #93c5fd; }
+.hm-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
+.hm-dot.normal { background: #4ade80; }
+.hm-dot.elevated { background: #fbbf24; }
+.hm-dot.stage1 { background: #fb923c; }
+.hm-dot.stage2, .hm-dot.crisis { background: #f87171; }
+
 /* Quick actions: three across, each one card with a bare icon over its label. The three used
    most are tinted the same gradients as the rest of the app's primary actions. */
 .hm-grid { flex: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 2px; }
@@ -37,8 +69,8 @@
 /* The open card's tile stays in the layout, invisible, as the place the panel folds back into.
    Everything else sinks back behind the panel while it grows. */
 .hm-card.hide { visibility: hidden; }
-.hm-card, .hm-grid { transition: transform .55s cubic-bezier(.22,1,.36,1), filter .55s; }
-.hm.recede .hm-card:not(.hide), .hm.recede .hm-grid { transform: scale(.93); filter: brightness(.45); }
+.hm-card, .hm-stat, .hm-grid { transition: transform .55s cubic-bezier(.22,1,.36,1), filter .55s; }
+.hm.recede .hm-card:not(.hide), .hm.recede .hm-stat, .hm.recede .hm-grid { transform: scale(.93); filter: brightness(.45); }
 
 /* The open panel: fills the whole Home area (the same box as .hm's padding), grid included. */
 .hm-xp { position: absolute; z-index: 5; top: 14px; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom)); transform-origin: 50% 25%; touch-action: none; color: #f3f4f6; }
@@ -81,5 +113,5 @@ html.fx-hold .hm, html.fx-hold .mn-main, html.fx-hold .mn-top { opacity: 0; }
 html.fx-reveal .hm, html.fx-reveal .mn-main, html.fx-reveal .mn-top { transition: opacity .28s ease-out; }
 
 @media (prefers-reduced-motion: reduce) {
-  .hm-card, .hm-act, .hm-grid { transition: none; }
+  .hm-card, .hm-stat, .hm-act, .hm-grid { transition: none; }
 }

@@ -1,5 +1,5 @@
-// The easy-mode landing screen: two photographs, Supplements and Tracking, over a grid of the
-// quick actions, all within reach of the thumb. Tapping a photograph morphs it into a panel that
+// The easy-mode landing screen: four stat tiles, two of them photographs (Supplements, Tracking),
+// over a grid of the quick actions, all within reach of the thumb. Tapping a photograph morphs it into a panel that
 // fills Home: the photo grows out of its tile, the title flies up into a header and that kind of
 // logging's options spring up from the bottom. Purely presentational: every button calls a
 // handler App already owns, and nothing here writes to a store.
@@ -13,6 +13,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { solar } from './solarIcons';
+import { formatMinutes, sparkPath } from '../utils/homeStats';
 import { springs, reducedMotion } from './motion';
 import symptomsArt from '../assets/home/symptoms.jpg';
 import supplementsArt from '../assets/home/supplements.jpg';
@@ -30,6 +31,22 @@ function primeKeyboard() {
   setTimeout(() => el.remove(), 1000);
 }
 
+// A trend line across the bottom of a tile; nothing until there are two points.
+function Spark({ values }) {
+  const d = sparkPath(values, 120, 24);
+  return d ? <svg className="hm-spark" viewBox="0 0 120 24" preserveAspectRatio="none" aria-hidden="true"><path d={d} /></svg> : null;
+}
+
+// '7:52 AM' today, 'Yesterday' or 'Oct 28'
+function bpWhen(iso) {
+  const at = new Date(iso), now = new Date();
+  if (Number.isNaN(at.getTime())) return '';
+  const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((day(now) - day(at)) / 864e5);
+  return diff === 0 ? at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : diff === 1 ? 'Yesterday' : at.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
 const relTo = (el, base) => {
   const r = el.getBoundingClientRect(), b = base.getBoundingClientRect();
   return { x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height };
@@ -41,6 +58,9 @@ const boxFrames = (a, b) => [
 
 export default function Home({
   summary,            // { symptoms, supplements }: each a string, or null when nothing is logged yet
+  stats,              // { supplements: {taken, due}, health, sleep, bp } from utils/homeStats.js
+  onSleep,
+  onBloodPressurePage,
   // Supplements panel
   onSimpleChecklist,
   onMatchYesterday,
@@ -65,9 +85,19 @@ export default function Home({
 
   // Each panel: the ways of logging as frosted bars, then the door into the full tab as plain
   // text under them.
+  const { supplements: supp, health, sleep, bp } = stats;
+  const left = supp.due - supp.taken;
+  const change = health.change == null || health.change === 0 ? '' : ` · ${health.change > 0 ? '↑' : '↓'} ${Math.abs(health.change)} this week`;
   const cards = [
     {
       id: 'supplements', title: 'Supplements', art: supplementsArt, line: summary.supplements, empty: 'None taken yet',
+      stat: supp.due ? (
+        <span className="hm-num">
+          <b>{supp.taken}<em> / {supp.due}</em></b>
+          <span className="hm-bar" aria-hidden="true"><i style={{ width: `${(supp.taken / supp.due) * 100}%` }} /></span>
+          <small className={left ? '' : 'done'}>{left ? `${left} left today` : 'All taken'}</small>
+        </span>
+      ) : <span className="hm-num"><b className="none">–</b><small>Nothing due today</small></span>,
       options: [
         { icon: 'protocol', label: 'Simple checklist', onClick: onSimpleChecklist },
         { icon: 'yesterday', label: 'Match yesterday', onClick: onMatchYesterday },
@@ -77,6 +107,13 @@ export default function Home({
     },
     {
       id: 'tracking', title: 'Tracking', art: symptomsArt, line: summary.symptoms, empty: 'Not checked in yet',
+      stat: (
+        <span className="hm-num">
+          <b className={health.today == null ? 'none' : ''}>{health.today ?? '–'}</b>
+          <Spark values={health.points} />
+          <small>{health.today == null ? 'Not checked in yet' : `Health score${change}`}</small>
+        </span>
+      ),
       options: [
         { icon: 'bolt', label: 'Rapid entry', onClick: onRapidEntry },
         { icon: 'mic', label: 'Talk me through it', onClick: onTalkMode },
@@ -118,7 +155,7 @@ export default function Home({
       return () => mo.disconnect();
     }
     const cs = springs.card(), bs = springs.btn();
-    el.querySelectorAll('.hm-card').forEach((c, i) => c.animate(
+    el.querySelectorAll('.hm-card, .hm-stat').forEach((c, i) => c.animate(
       [{ opacity: 0, transform: 'scale(.94)' }, { opacity: 1, transform: 'none' }],
       { duration: cs.ms, delay: i * 60, easing: cs.easing, fill: 'backwards' }));
     acts.forEach((b, i) => b.animate(
@@ -237,23 +274,57 @@ export default function Home({
 
   return (
     <div className={`hm${open ? ' recede' : ''}`} ref={rootRef}>
-      {cards.map((card) => (
-        <button
-          key={card.id}
-          ref={(el) => { cardRefs.current[card.id] = el; }}
-          type="button"
-          className={`hm-card${open === card.id ? ' hide' : ''}`}
-          style={{ backgroundImage: `url(${card.art})` }}
-          aria-expanded={open === card.id}
-          aria-label={`${card.title}: ${card.line || card.empty}. Show options`}
-          onClick={() => show(card.id)}
-        >
+      <div className="hm-tiles">
+        {cards.map((card) => (
+          <button
+            key={card.id}
+            ref={(el) => { cardRefs.current[card.id] = el; }}
+            type="button"
+            className={`hm-card${open === card.id ? ' hide' : ''}`}
+            style={{ backgroundImage: `url(${card.art})` }}
+            aria-expanded={open === card.id}
+            aria-label={`${card.title}: ${card.line || card.empty}. Show options`}
+            onClick={() => show(card.id)}
+          >
+            <span className="hm-face">
+              <span className="hm-title">{card.title}</span>
+              {card.stat}
+            </span>
+          </button>
+        ))}
+        <button type="button" className="hm-stat sleep" onClick={onSleep}>
           <span className="hm-face">
-            <span className="hm-title">{card.title}</span>
-            <small className={card.line ? 'done' : ''}>{card.line || card.empty}</small>
+            <span className="hm-title">Sleep</span>
+            {sleep ? (
+              <span className="hm-num">
+                <b>{formatMinutes(sleep.minutes)}</b>
+                <span className="hm-stages" aria-hidden="true">
+                  <i className="deep" style={{ flex: sleep.stages.deep }} />
+                  <i className="light" style={{ flex: sleep.stages.light }} />
+                  <i className="rem" style={{ flex: sleep.stages.rem }} />
+                </span>
+                <small>{sleep.score != null ? `Garmin score ${sleep.score}` : 'Last night'}</small>
+              </span>
+            ) : (
+              <span className="hm-num"><b className="none">–</b><small>No sleep data yet</small></span>
+            )}
           </span>
         </button>
-      ))}
+        <button type="button" className="hm-stat pressure" onClick={onBloodPressurePage}>
+          <span className="hm-face">
+            <span className="hm-title">Blood pressure</span>
+            {bp ? (
+              <span className="hm-num">
+                <b>{bp.sys}<em>/{bp.dia}</em></b>
+                <Spark values={bp.points} />
+                <small><i className={`hm-dot ${bp.category.id}`} />{bp.category.label} · {bpWhen(bp.time)}</small>
+              </span>
+            ) : (
+              <span className="hm-num"><b className="none">–</b><small>No readings yet</small></span>
+            )}
+          </span>
+        </button>
+      </div>
 
       <div className="hm-grid">
         {actions.map((a) => (
