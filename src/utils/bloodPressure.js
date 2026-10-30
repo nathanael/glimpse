@@ -42,10 +42,9 @@ export function lastRecord(records) {
   return keys.length ? records[keys[keys.length - 1]] : null;
 }
 
-/** The reading the steppers start from: the last cuff reading saved, else a typical one. */
+/** The reading the steppers start from: the last one saved (its average), else a typical one. */
 export function startingReading(records) {
-  const last = lastRecord(records);
-  const r = last?.readings?.[last.readings.length - 1] || last;
+  const r = lastRecord(records);
   if (!r) return { ...DEFAULT_READING };
   return { sys: r.sys, dia: r.dia, pulse: Number.isFinite(r.pulse) ? r.pulse : DEFAULT_READING.pulse };
 }

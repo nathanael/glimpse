@@ -32,8 +32,8 @@ describe('last reading', () => {
   it('picks the newest record by key', () => {
     expect(lastRecord(records).sys).toBe(124);
   });
-  it('starts the steppers from the last cuff reading', () => {
-    expect(startingReading(records)).toEqual({ sys: 122, dia: 78, pulse: 66 });
+  it('starts the steppers from the last saved reading', () => {
+    expect(startingReading(records)).toEqual({ sys: 124, dia: 79, pulse: 66 });
     expect(startingReading({})).toEqual(DEFAULT_READING);
   });
   it('describes it relative to today', () => {

@@ -5,12 +5,15 @@
 // Up to three cuff readings can go into one entry ("Add another reading"); Save writes their
 // average, keeping each reading on the record too. Nothing is written until Save; closing early
 // leaves no trace. Opened from Home's Blood pressure bar and from the ⋯ menu on every tab.
+//
+// "All readings" turns the same overlay into the history (BloodPressureHistory.jsx).
 
 import { useEffect, useRef, useState } from 'react';
 import { haptic } from '../utils/helpers';
 import { MAX_READINGS, averageReadings, bpCategory, clampField, startingReading, lastLine } from '../utils/bloodPressure';
 import { CloseButton, useRiseIn, useDragDismiss } from './overlay';
 import { useFlowViewport } from './AddFlow';
+import BloodPressureHistory from './BloodPressureHistory';
 import './bloodPressure.css';
 
 // One number with − and + either side. A press steps once at once and, held, keeps stepping.
@@ -68,12 +71,13 @@ function Stepper({ field, label, value, onChange, small }) {
   );
 }
 
-export default function BloodPressure({ records, onSave, onClose }) {
+export default function BloodPressure({ records, onSave, onDelete, onClose }) {
   const rootRef = useRef(null);
   useRiseIn(rootRef);
   useFlowViewport(rootRef);   // typing a number keeps the panel above the keyboard
   const dragDismiss = useDragDismiss(rootRef, onClose);
 
+  const [view, setView] = useState('entry');                    // 'entry' | 'history'
   const [taken, setTaken] = useState([]);                       // readings already added
   const [cur, setCur] = useState(() => startingReading(records)); // the one on the steppers
   const set = (field) => (v) => setCur((c) => ({ ...c, [field]: v }));
@@ -109,13 +113,23 @@ export default function BloodPressure({ records, onSave, onClose }) {
     <div className="bp" ref={rootRef} role="dialog" aria-label="Blood pressure">
       <div className="bp-in">
         <div className="bp-head ui-drag" {...dragDismiss}>
+          {view === 'history' && (
+            <button type="button" className="bp-back" aria-label="Back to new reading" onClick={() => setView('entry')}>
+              <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" /></svg>
+            </button>
+          )}
           <div>
-            <h2>Blood pressure</h2>
-            <small>{sub}</small>
+            <h2>{view === 'history' ? 'Readings' : 'Blood pressure'}</h2>
+            {view === 'entry' && <small>{sub}</small>}
           </div>
           <CloseButton label="Close blood pressure" onClick={onClose} />
         </div>
 
+        {view === 'history' ? (
+          <div className="bp-body hist">
+            <BloodPressureHistory records={records} onDelete={onDelete} />
+          </div>
+        ) : (
         <div className="bp-body">
           {taken.map((r, i) => (
             <div className="bp-taken" key={i}>
@@ -148,7 +162,9 @@ export default function BloodPressure({ records, onSave, onClose }) {
           <button type="button" className="bp-save" onClick={save}>
             {taken.length ? `Save average ${shown}` : `Save ${shown}`}
           </button>
+          <button type="button" className="bp-all" onClick={() => setView('history')}>All readings</button>
         </div>
+        )}
       </div>
     </div>
   );

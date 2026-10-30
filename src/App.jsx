@@ -803,6 +803,20 @@ function App() {
     });
   }, [setBloodPressure]);
 
+  const deleteBloodPressure = useCallback((key) => {
+    const removed = bloodPressure[key];
+    if (!removed) return;
+    setBloodPressure((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setUndoToast({
+      message: `Deleted ${removed.sys}/${removed.dia}`,
+      onUndo: () => setBloodPressure((prev) => ({ ...prev, [key]: removed })),
+    });
+  }, [bloodPressure, setBloodPressure]);
+
   const deleteMeal = useCallback((key) => {
     // Captured from the current `meals` state (closure), not from inside the setMeals updater —
     // an updater can run more than once (StrictMode double-invokes render-phase updaters), and
@@ -1296,6 +1310,7 @@ function App() {
         <BloodPressure
           records={bloodPressure}
           onSave={saveBloodPressure}
+          onDelete={deleteBloodPressure}
           onClose={() => setShowBloodPressure(false)}
         />
       )}
