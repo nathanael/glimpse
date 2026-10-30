@@ -20,6 +20,7 @@ import {
   STORAGE_KEY_INPUT_ITEMS,
   STORAGE_KEY_INPUT_ENTRIES,
   STORAGE_KEY_MEALS,
+  STORAGE_KEY_BLOOD_PRESSURE,
   STORAGE_KEY_AI_NOTES,
   severityColors,
   NA_SEVERITY,
@@ -65,8 +66,10 @@ import SymptomRows from './components/SymptomRows';
 import UndoToast from './components/UndoToast';
 import ProtocolRows from './components/ProtocolRows';
 import MealCapture from './components/MealCapture';
+import BloodPressure from './components/BloodPressure';
 import MealList from './components/MealList';
 import { mealKey, mealDateKey } from './food/mealKey';
+import { lastLine as bpLastLine, lastValue as bpLastValue } from './utils/bloodPressure';
 import { mergeBackupMeals } from './food/mealBackup';
 import Calendar from './components/Calendar';
 import Insights from './components/Insights';
@@ -139,6 +142,10 @@ function App() {
     (data) => syncNotifyRef.current?.('meals', data),
     isApplyingCloudRef
   );
+  const [bloodPressure, setBloodPressure] = useLocalStorage(STORAGE_KEY_BLOOD_PRESSURE, {},
+    (data) => syncNotifyRef.current?.('bloodPressure', data),
+    isApplyingCloudRef
+  );
   // Written only by the Glimpse Health MCP; the app reads them and never edits them, so no onChange.
   const [aiNotes, setAiNotes] = useLocalStorage(STORAGE_KEY_AI_NOTES, {});
   const [copyDays, setCopyDays] = useLocalStorage(STORAGE_KEY_COPY_DAYS, 7);
@@ -189,6 +196,7 @@ function App() {
       inputItems: setInputItems,
       inputEntries: setInputEntries,
       meals: setMeals,
+      bloodPressure: setBloodPressure,
       aiNotes: setAiNotes,
     },
     isApplyingCloudRef
@@ -216,6 +224,7 @@ function App() {
   const [showVoiceNote, setShowVoiceNote] = useState(false);
   // null = closed; { key } opens an existing meal for editing; {} opens a fresh capture
   const [mealSheet, setMealSheet] = useState(null);
+  const [showBloodPressure, setShowBloodPressure] = useState(false);
   // One-shot: Home's "Today's meals" sets this so MealList scrolls itself into view on mount.
   const [scrollToMeals, setScrollToMeals] = useState(false);
   const [talkCost, setTalkCost] = useState(null); // stats of the last conversation, until dismissed
@@ -333,7 +342,7 @@ function App() {
         }
         await sync.forcePush({
           symptoms, entries, dailyNotes, stackItems, stackEntries,
-          pinnedSymptoms: [...pinnedSymptoms], trackingMode, inputItems, inputEntries, meals,
+          pinnedSymptoms: [...pinnedSymptoms], trackingMode, inputItems, inputEntries, meals, bloodPressure,
         });
         alert('Push complete. Cloud now has this device\'s data.');
         clearAction();
@@ -777,6 +786,23 @@ function App() {
     setLastAction(name ? `Logged ${name}` : 'Meal logged');
   }, [mealSheet, setMeals, setLastAction]);
 
+  // One to three cuff readings arrive already averaged; the key is made here, outside the updater,
+  // for the same reason as saveMeal's. Undo is the only way back from a mistap: there is no edit.
+  const saveBloodPressure = useCallback((record) => {
+    const at = new Date();
+    const key = mealKey(at);
+    setBloodPressure((prev) => ({ ...prev, [key]: { time: at.toISOString(), ...record } }));
+    haptic('light');
+    setUndoToast({
+      message: `Saved ${record.sys}/${record.dia}`,
+      onUndo: () => setBloodPressure((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }),
+    });
+  }, [setBloodPressure]);
+
   const deleteMeal = useCallback((key) => {
     // Captured from the current `meals` state (closure), not from inside the setMeals updater —
     // an updater can run more than once (StrictMode double-invokes render-phase updaters), and
@@ -1077,6 +1103,8 @@ function App() {
             onSymptomList={() => openFromHome('symptoms')}
             onNote={() => setShowNoteModal(true)}
             onMeal={() => setMealSheet({})}
+            bloodPressureLine={bpLastLine(bloodPressure)}
+            onBloodPressure={() => setShowBloodPressure(true)}
             onAdvanced={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => { setAppMode('symptoms'); setShowInsights(false); setShowQuickActions(false); } })}
             onMore={() => setShowQuickActions(true)}
           />
@@ -1264,6 +1292,14 @@ function App() {
         />
       )}
 
+      {showBloodPressure && (
+        <BloodPressure
+          records={bloodPressure}
+          onSave={saveBloodPressure}
+          onClose={() => setShowBloodPressure(false)}
+        />
+      )}
+
       {/* Voice note (Home dock) */}
       {showVoiceNote && (
         <VoiceNote
@@ -1389,6 +1425,14 @@ function App() {
                       const { merged, added } = mergeBackupMeals(prev, backup.meals);
                       const total = (backup.meals && typeof backup.meals === 'object' && !Array.isArray(backup.meals))
                         ? Object.keys(backup.meals).length : 0;
+                      counts.added += added;
+                      counts.kept += total - added;
+                      return merged;
+                    });
+                    if (backup.bloodPressure) setBloodPressure(prev => {
+                      const { merged, added } = mergeBackupMeals(prev, backup.bloodPressure);
+                      const total = (backup.bloodPressure && typeof backup.bloodPressure === 'object' && !Array.isArray(backup.bloodPressure))
+                        ? Object.keys(backup.bloodPressure).length : 0;
                       counts.added += added;
                       counts.kept += total - added;
                       return merged;
@@ -1604,6 +1648,8 @@ function App() {
           setInputEntries={setInputEntries}
           meals={meals}
           setMeals={setMeals}
+          bloodPressure={bloodPressure}
+          setBloodPressure={setBloodPressure}
           copyDays={copyDays}
           setCopyDays={setCopyDays}
           talkEngine={talkEngine}
@@ -1628,6 +1674,7 @@ function App() {
             inputItems,
             inputEntries,
             meals,
+            bloodPressure,
           })}
           onForcePull={sync.forcePull}
         />
@@ -1677,6 +1724,8 @@ function App() {
           onClear={protocolClearDay}
           onEditProtocol={() => { setAppMode('stack'); setShowInsights(false); setProtocolEditMode(true); }}
           onLogMeal={() => setMealSheet({})}
+          onBloodPressure={() => setShowBloodPressure(true)}
+          bloodPressureHint={bpLastValue(bloodPressure)}
           actions={listBar}
           symptoms={liveSymptoms}
           entries={deferredEntries}

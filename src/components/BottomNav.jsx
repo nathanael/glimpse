@@ -32,6 +32,8 @@ export default function BottomNav({
   onClear,
   onEditProtocol,
   onLogMeal,
+  onBloodPressure,
+  bloodPressureHint,
   actions,        // { buttons: [{ label, onClick, primary }], onAdd, addLabel }: the list's bar above the tabs
 }) {
   const activeTab = showInsights ? 'insights' : appMode === 'home' ? 'home' : appMode === 'symptoms' ? 'symptoms' : 'stack';
@@ -103,6 +105,8 @@ export default function BottomNav({
           onClear={onClear}
           onEditProtocol={onEditProtocol}
           onLogMeal={onLogMeal}
+          onBloodPressure={onBloodPressure}
+          bloodPressureHint={bloodPressureHint}
           onOpenSettings={() => {
             setShowSettings(true);
             setShowQuickActions(false);

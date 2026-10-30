@@ -29,7 +29,16 @@
 .hm-act.t-a { background: linear-gradient(135deg, #4f46e5, #7c3aed); }
 .hm-act.t-b { background: linear-gradient(135deg, #7c3aed, #a855f7); }
 .hm-act.t-c { background: linear-gradient(135deg, #8b5cf6, #c084fc); }
+/* Blood pressure: one full-width bar in the primary gradient between the photographs and the grid,
+   the last reading under its name. */
+.hm-bp { flex: none; display: flex; align-items: center; gap: 14px; height: 72px; padding: 0 20px; border: 0; border-radius: 20px; background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; text-align: left; }
+.hm-bp:active { transform: scale(.97); filter: brightness(1.15); transition-duration: .2s; }
+.hm-bp > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 18px; font-weight: 700; letter-spacing: -.015em; }
+.hm-bp small { font-size: 13.5px; font-weight: 600; letter-spacing: 0; color: #ddd6fe; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-bp-i { width: 28px; height: 28px; flex: none; }
+.hm-bp-plus { width: 24px; height: 24px; flex: none; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 @media (max-width: 359px) {
+  .hm-bp { height: 64px; }
   .hm-act { height: 84px; font-size: 12.5px; }
   .hm-title { font-size: 25px; }
 }
@@ -37,8 +46,8 @@
 /* The open card's tile stays in the layout, invisible, as the place the panel folds back into.
    Everything else sinks back behind the panel while it grows. */
 .hm-card.hide { visibility: hidden; }
-.hm-card, .hm-grid { transition: transform .55s cubic-bezier(.22,1,.36,1), filter .55s; }
-.hm.recede .hm-card:not(.hide), .hm.recede .hm-grid { transform: scale(.93); filter: brightness(.45); }
+.hm-card, .hm-bp, .hm-grid { transition: transform .55s cubic-bezier(.22,1,.36,1), filter .55s; }
+.hm.recede .hm-card:not(.hide), .hm.recede .hm-bp, .hm.recede .hm-grid { transform: scale(.93); filter: brightness(.45); }
 
 /* The open panel: fills the whole Home area (the same box as .hm's padding), grid included. */
 .hm-xp { position: absolute; z-index: 5; top: 14px; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom)); transform-origin: 50% 25%; touch-action: none; color: #f3f4f6; }
@@ -81,5 +90,5 @@ html.fx-hold .hm, html.fx-hold .mn-main, html.fx-hold .mn-top { opacity: 0; }
 html.fx-reveal .hm, html.fx-reveal .mn-main, html.fx-reveal .mn-top { transition: opacity .28s ease-out; }
 
 @media (prefers-reduced-motion: reduce) {
-  .hm-card, .hm-act, .hm-grid { transition: none; }
+  .hm-card, .hm-bp, .hm-act, .hm-grid { transition: none; }
 }

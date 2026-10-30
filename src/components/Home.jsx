@@ -1,5 +1,5 @@
-// The easy-mode landing screen: two photographs, Supplements and Tracking, over a grid of the
-// quick actions, all within reach of the thumb. Tapping a photograph morphs it into a panel that
+// The easy-mode landing screen: two photographs, Supplements and Tracking, the Blood pressure bar,
+// then a grid of the quick actions, all within reach of the thumb. Tapping a photograph morphs it into a panel that
 // fills Home: the photo grows out of its tile, the title flies up into a header and that kind of
 // logging's options spring up from the bottom. Purely presentational: every button calls a
 // handler App already owns, and nothing here writes to a store.
@@ -54,6 +54,9 @@ export default function Home({
   // Grid
   onNote,
   onMeal,
+  // Blood pressure bar
+  bloodPressureLine,  // 'Last 124/79 · today 7:52 AM', or null before the first reading
+  onBloodPressure,
   onAdvanced,         // (event): the button is the origin of the shatter
   onMore,
 }) {
@@ -103,7 +106,7 @@ export default function Home({
     const el = rootRef.current;
     if (!el || reducedMotion()) return;
     const html = document.documentElement;
-    const acts = [...el.querySelectorAll('.hm-act')];
+    const acts = [...el.querySelectorAll('.hm-bp, .hm-act')];
     if (html.classList.contains('fx-hold')) {
       acts.forEach((b) => { b.style.opacity = '0'; });
       const reveal = () => acts.forEach((b, i) => {
@@ -254,6 +257,15 @@ export default function Home({
           </span>
         </button>
       ))}
+
+      <button type="button" className="hm-bp" onClick={onBloodPressure}>
+        <svg viewBox="0 0 24 24" className="hm-bp-i">{solar.heart}</svg>
+        <span>
+          Blood pressure
+          <small>{bloodPressureLine || 'Add your first reading'}</small>
+        </span>
+        <svg viewBox="0 0 24 24" className="hm-bp-plus"><path d="M12 6v12M6 12h12" /></svg>
+      </button>
 
       <div className="hm-grid">
         {actions.map((a) => (

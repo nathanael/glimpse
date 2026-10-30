@@ -15,6 +15,7 @@ export const STORAGE_KEY_INPUT_ITEMS = 'symptomTracker_inputItems';
 export const STORAGE_KEY_INPUT_ENTRIES = 'symptomTracker_inputEntries';
 export const STORAGE_KEY_MEALS = 'symptomTracker_meals';
 export const STORAGE_KEY_AI_NOTES = 'symptomTracker_aiNotes';
+export const STORAGE_KEY_BLOOD_PRESSURE = 'symptomTracker_bloodPressure';
 
 // Input Categories
 export const INPUT_CATEGORIES = [

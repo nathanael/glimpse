@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { DOMAINS, MAP_DOMAINS, DEFINITION_DOMAINS, storageKeyFor, isMonthSharded } from '../domains';
 
 describe('domains config', () => {
-  it('lists all eleven sync domains', () => {
+  it('lists all twelve sync domains', () => {
     expect(Object.keys(DOMAINS).sort()).toEqual([
-      'aiNotes','dailyNotes','entries','inputEntries','inputItems','meals','pinnedSymptoms',
+      'aiNotes','bloodPressure','dailyNotes','entries','inputEntries','inputItems','meals','pinnedSymptoms',
       'stackEntries','stackItems','symptoms','trackingMode',
     ]);
   });
@@ -19,6 +19,10 @@ describe('domains config', () => {
     expect(isMonthSharded('aiNotes')).toBe(true);
     expect(storageKeyFor('aiNotes')).toBe('symptomTracker_aiNotes');
     expect(storageKeyFor('aiNotes')).not.toBe(storageKeyFor('dailyNotes'));
+  });
+  it('bloodPressure is a month-sharded map', () => {
+    expect(isMonthSharded('bloodPressure')).toBe(true);
+    expect(storageKeyFor('bloodPressure')).toBe('symptomTracker_bloodPressure');
   });
   it('classifies definition domains', () => {
     expect(DEFINITION_DOMAINS).toEqual(

@@ -13,6 +13,7 @@ const icons = {
   bolt: solar.bolt,
   camera: solar.camera,
   refresh: solar.refresh,
+  heart: solar.heart,
 };
 
 // The one mobile overflow. Ordered for the thumb: rare and destructive at the top,
@@ -33,6 +34,9 @@ export default function QuickActionsMenu({
   onClear,
   onEditProtocol,
   onLogMeal,
+  // Every tab
+  onBloodPressure,
+  bloodPressureHint,
   // Common
   onOpenSettings,
 }) {
@@ -76,10 +80,12 @@ export default function QuickActionsMenu({
             <Item icon="camera" label="Log a meal" onClick={onLogMeal} />
           </>
         )}
-        {tab !== 'insights' && tab !== 'home' && (
+        {/* Home has its own Blood pressure bar */}
+        {tab !== 'home' && (
           <>
             <hr />
-            <Item icon="note" label="Notes" onClick={onEditNote} />
+            {tab !== 'insights' && <Item icon="note" label="Notes" onClick={onEditNote} />}
+            <Item icon="heart" label="Blood pressure" hint={bloodPressureHint} primary onClick={onBloodPressure} />
             {tab === 'symptoms' && <Item icon="bolt" label="Rapid entry" primary onClick={onRapidEntry} />}
           </>
         )}

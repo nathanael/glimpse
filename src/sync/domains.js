@@ -1,6 +1,6 @@
 // Central sync domain configuration.
 //
-// The eleven sync domains, each carrying its canonical localStorage key, data
+// The twelve sync domains, each carrying its canonical localStorage key, data
 // kind, and sharding strategy. No other module should hardcode domain lists or
 // storage keys — derive everything from here.
 //
@@ -16,6 +16,8 @@ export const DOMAINS = {
   inputEntries:   { storageKey: 'symptomTracker_inputEntries', kind: 'map',     sharding: 'month' },
   dailyNotes:     { storageKey: 'symptomTracker_notes',        kind: 'map',     sharding: 'month' },
   meals:          { storageKey: 'symptomTracker_meals',       kind: 'map',     sharding: 'month' },
+  // Averaged cuff readings, keyed by local time like meals (utils/bloodPressure.js).
+  bloodPressure:  { storageKey: 'symptomTracker_bloodPressure', kind: 'map',   sharding: 'month' },
   // Notes written by the Glimpse Health MCP (ChatGPT). Read-only in the app; never mixed into dailyNotes.
   aiNotes:        { storageKey: 'symptomTracker_aiNotes',     kind: 'map',     sharding: 'month' },
   symptoms:       { storageKey: 'symptomTracker_symptoms',     kind: 'idArray', sharding: 'definitions' },

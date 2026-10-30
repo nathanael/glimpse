@@ -21,6 +21,7 @@ const TRACKED_KEYS = [
   'symptomTracker_inputItems',
   'symptomTracker_inputEntries',
   'symptomTracker_meals',
+  'symptomTracker_bloodPressure',
 ];
 
 const MAX_SNAPSHOTS = 20;

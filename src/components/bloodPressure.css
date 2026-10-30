@@ -1,0 +1,65 @@
+/* Blood pressure entry (BloodPressure.jsx). Home's open-panel look, full screen: dark with a rose
+   glow at the top, the title top left and the round X top right, the controls at the thumb. */
+.bp { position: fixed; inset: 0; z-index: 260; display: flex; flex-direction: column; color: #f3f4f6; padding-top: env(safe-area-inset-top); background: radial-gradient(120% 55% at 85% 0%, #4c1d3a 0%, #1d1220 50%, #0b0b0e 100%) #0b0b0e; }
+.bp-in { flex: 1; min-height: 0; width: 100%; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; padding: 0 14px calc(14px + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.bp button, .bp input { font-family: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+.bp button { cursor: pointer; touch-action: manipulation; }
+
+.bp-head { flex: none; display: flex; align-items: flex-start; gap: 12px; padding: 14px 0 10px 8px; }
+.bp-head > div { flex: 1; min-width: 0; padding-top: 30px; }
+.bp-head h2 { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+.bp-head small { display: block; margin-top: 8px; color: #cbd5e1; font-size: 15px; font-weight: 600; }
+
+/* Everything below the title sits at the bottom, by the thumb. */
+.bp-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; }
+.bp-body::-webkit-scrollbar { display: none; }
+
+.bp-taken { flex: none; display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 0 0 6px; font-size: 15px; color: #cbd5e1; animation: bpIn .3s cubic-bezier(.22,1,.36,1); }
+.bp-taken > span:nth-child(2) { flex: 1; min-width: 0; }
+.bp-taken b { color: #fff; font-size: 17px; }
+.bp-n { width: 24px; height: 24px; flex: none; border-radius: 50%; background: rgba(255,255,255,.14); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: #fff; }
+.bp-taken button { width: 44px; height: 40px; border: 0; background: none; padding: 0; display: grid; place-items: center; color: #9ca3af; }
+.bp-taken svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+@keyframes bpIn { from { opacity: 0; transform: translateY(12px); } }
+
+.bp-card { flex: none; display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: 18px; background: rgba(255,255,255,.08); border: 1px solid transparent; transition: border-color .25s; }
+.bp-card.on { border-color: rgba(251,113,133,.35); }
+.bp-card hr { margin: 0; border: 0; border-top: 1px solid rgba(255,255,255,.08); }
+
+.bp-step { display: flex; align-items: center; gap: 10px; }
+.bp-step label { flex: 1; min-width: 0; text-align: center; }
+.bp-step small { display: block; font-size: 12px; letter-spacing: .08em; font-weight: 600; color: #fda4af; margin-bottom: 2px; }
+.bp-step input { width: 100%; border: 0; background: none; padding: 0; text-align: center; outline: none; font-size: 56px; font-weight: 700; letter-spacing: -.035em; line-height: 1; caret-color: #fb7185; }
+.bp-step input::placeholder { color: #4b5563; }
+.bp-pm { width: 58px; height: 58px; flex: none; border-radius: 50%; border: 0; padding: 0; background: rgba(255,255,255,.14); font-size: 30px; font-weight: 300; line-height: 1; display: grid; place-items: center; user-select: none; -webkit-user-select: none; }
+.bp-pm:active { background: rgba(255,255,255,.26); transform: scale(.94); }
+.bp-step.small { gap: 8px; }
+.bp-step.small label { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+.bp-step.small small { display: inline; font-size: 15px; letter-spacing: 0; font-weight: 500; color: #cbd5e1; margin: 0; }
+.bp-step.small input { width: 3.2ch; font-size: 22px; letter-spacing: 0; }
+.bp-step.small .bp-pm { width: 44px; height: 44px; font-size: 24px; }
+
+.bp-sum { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 2px 6px; font-size: 15px; color: #cbd5e1; }
+.bp-sum b { color: #fff; font-size: 19px; }
+.bp-cat { display: flex; align-items: center; gap: 7px; }
+.bp-cat i { width: 9px; height: 9px; border-radius: 50%; background: #4ade80; }
+.bp-cat.elevated i { background: #fbbf24; }
+.bp-cat.stage1 i { background: #fb923c; }
+.bp-cat.stage2 i, .bp-cat.crisis i { background: #f87171; }
+.bp-cat.crisis { color: #fca5a5; font-weight: 600; }
+
+.bp-add, .bp-save { flex: none; width: 100%; border: 0; border-radius: 18px; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 10px; transition: transform .15s, filter .15s; }
+.bp-add { height: 58px; font-size: 18px; background: rgba(255,255,255,.14); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.bp-add svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
+.bp-save { height: 64px; font-size: 20px; letter-spacing: -.015em; background: linear-gradient(135deg, #e11d48, #fb7185); }
+.bp-add:active, .bp-save:active { transform: scale(.97); filter: brightness(1.12); }
+
+@media (max-height: 700px) {
+  .bp-head > div { padding-top: 6px; }
+  .bp-head h2 { font-size: 28px; }
+  .bp-step input { font-size: 46px; }
+  .bp-pm { width: 50px; height: 50px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bp-taken { animation: none; }
+}

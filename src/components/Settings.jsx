@@ -65,6 +65,8 @@ export default function Settings({
   setInputEntries,
   meals,
   setMeals,
+  bloodPressure,
+  setBloodPressure,
   copyDays,
   setCopyDays,
   talkEngine,
@@ -148,6 +150,7 @@ export default function Settings({
         stackEntries: 'symptomTracker_stackEntries', pinnedSymptoms: 'symptomTracker_pinned',
         trackingMode: 'symptomTracker_mode', inputItems: 'symptomTracker_inputItems',
         inputEntries: 'symptomTracker_inputEntries', meals: 'symptomTracker_meals',
+        bloodPressure: 'symptomTracker_bloodPressure',
       })) {
         let cv = c[name]; try { if (typeof cv === 'string') cv = JSON.parse(cv); } catch {}
         let lv = null; try { lv = JSON.parse(localStorage.getItem(k) || 'null'); } catch {}
@@ -237,6 +240,7 @@ export default function Settings({
       inputItems,
       inputEntries,
       meals,
+      bloodPressure,
       garminSleep: garminSleepDays,
     };
 
@@ -302,6 +306,11 @@ export default function Settings({
         });
         if (backup.meals) setMeals(prev => {
           const { merged, added } = mergeBackupMeals(prev, backup.meals);
+          addedRef.count += added;
+          return merged;
+        });
+        if (backup.bloodPressure) setBloodPressure(prev => {
+          const { merged, added } = mergeBackupMeals(prev, backup.bloodPressure);
           addedRef.count += added;
           return merged;
         });
