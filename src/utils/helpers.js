@@ -1,4 +1,5 @@
 import { trackingModes, severityColors, NA_SEVERITY, GARMIN_SYNC_ENABLED } from './constants';
+import { bpMarkdown } from './bloodPressure';
 import { computeHealthScore } from './healthScore';
 import { isWellbeing } from './wellbeing';
 import { METRICS as SLEEP_METRICS, valueForRow } from './sleepMetrics';
@@ -312,7 +313,7 @@ export const haptic = (type = 'light') => {
 };
 
 // Data Export Helpers
-export const generateAIDataExport = (days, entries, symptoms, stackItems, stackEntries, dailyNotes, trackingMode, insights = null, inputItems = [], inputEntries = {}) => {
+export const generateAIDataExport = (days, entries, symptoms, stackItems, stackEntries, dailyNotes, trackingMode, insights = null, inputItems = [], inputEntries = {}, bloodPressure = {}) => {
   const today = new Date();
   const timePeriods = trackingModes[trackingMode].periods;
   let output = [];
@@ -469,6 +470,9 @@ export const generateAIDataExport = (days, entries, symptoms, stackItems, stackE
       output.push(`- ${formatTableDate(e.date)}${period ? ` ${period}` : ''} · ${symptomNames.get(e.symptomId)} (${e.severity === NA_SEVERITY ? 'N/A' : e.severity}): ${e.note}`);
     }
   }
+
+  const bp = bpMarkdown(bloodPressure, days, today);
+  if (bp) output.push(bp);
 
   // Sleep data
   const sleepDays = readSleepCache();

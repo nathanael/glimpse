@@ -188,6 +188,7 @@ export default function RapidEntry({
             <button aria-label="Next unlogged symptom" onClick={skipToUnlogged}>Next unlogged<svg viewBox="0 0 24 24"><polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" /></svg></button>
             <button aria-label="Next symptom" onClick={() => step(1)}><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg></button>
           </div>
+          <div className="re-scores" role="group" aria-label="Score">
           <div className="re-keys">
             {[0, 1, 2, 3, 4, 5].map((severity) => (
               <button
@@ -201,7 +202,10 @@ export default function RapidEntry({
               </button>
             ))}
           </div>
-          <button className={`re-key na ${currentSeverity === NA_SEVERITY ? 'on' : ''}`} onClick={() => rate(NA_SEVERITY)}>Not applicable right now</button>
+          <button className={`re-key na ${currentSeverity === NA_SEVERITY ? 'on' : ''}`} aria-label="Not applicable right now" onClick={() => rate(NA_SEVERITY)}>
+            <b>N/A</b><small>Not applicable right now</small>
+          </button>
+          </div>
         </div>
       </div>
     </div>

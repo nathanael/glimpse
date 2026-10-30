@@ -33,7 +33,13 @@
 .re-key.last::after { content: "last"; position: absolute; bottom: 7px; font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: #6b7280; }
 .re-key.on { background: color-mix(in srgb, var(--c) 20%, #0e0f11); border-color: var(--c); }
 .re-key.on::after { content: "✓"; position: absolute; top: 7px; right: 10px; bottom: auto; font-size: 12px; color: var(--c); }
-.re-key.na { aspect-ratio: auto; height: 78px; font-size: 14px; font-weight: 500; color: #9ca3af; --c: #64748b; }
+/* The scores, 0-5 and N/A, are one block set apart from the navigation above. N/A is a score
+   too, so it wears the keys' look: the big label in the key font, with what it means beside it. */
+.re-scores { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.re-key.na { aspect-ratio: auto; height: 68px; display: flex; align-items: center; justify-content: center; gap: 10px; color: #cbd5e1; --c: #94a3b8; border-style: dashed; border-color: rgba(255,255,255,.22); }
+.re-key.na b { font-size: 24px; font-weight: 600; }
+.re-key.na small { font-size: 13.5px; font-weight: 500; color: #9ca3af; }
+.re-key.na.on::after { top: 50%; transform: translateY(-50%); right: 16px; }
 /* One box split by hairline dividers: back · next unlogged · forward */
 .re-nav { display: grid; grid-template-columns: 1fr 1.4fr 1fr; border: 1px solid rgba(255,255,255,.07); border-radius: 14px; overflow: hidden; }
 .re-nav button + button { border-left: 1px solid rgba(255,255,255,.07); }

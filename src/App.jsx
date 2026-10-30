@@ -224,7 +224,7 @@ function App() {
   const [showVoiceNote, setShowVoiceNote] = useState(false);
   // null = closed; { key } opens an existing meal for editing; {} opens a fresh capture
   const [mealSheet, setMealSheet] = useState(null);
-  const [showBloodPressure, setShowBloodPressure] = useState(false);
+  const [showBloodPressure, setShowBloodPressure] = useState(null);   // null | 'entry' | 'history'
   // One-shot: Home's "Today's meals" sets this so MealList scrolls itself into view on mount.
   const [scrollToMeals, setScrollToMeals] = useState(false);
   const [talkCost, setTalkCost] = useState(null); // stats of the last conversation, until dismissed
@@ -837,12 +837,12 @@ function App() {
 
   const quickCopyData = useCallback(() => {
     const insights = getInsights(copyDays, entries, liveSymptoms);
-    const data = generateAIDataExport(copyDays, entries, liveSymptoms, liveStackItems, stackEntries, dailyNotes, trackingMode, insights, liveInputItems, inputEntries);
+    const data = generateAIDataExport(copyDays, entries, liveSymptoms, liveStackItems, stackEntries, dailyNotes, trackingMode, insights, liveInputItems, inputEntries, bloodPressure);
     navigator.clipboard.writeText(data);
     setCopyToastMessage(`Copied ${copyDays} day${copyDays > 1 ? 's' : ''} of tracking for AI chat`);
     haptic('light');
     setTimeout(() => setCopyToastMessage(''), 2250);
-  }, [copyDays, entries, liveSymptoms, liveStackItems, stackEntries, dailyNotes, trackingMode, liveInputItems, inputEntries]);
+  }, [copyDays, entries, liveSymptoms, liveStackItems, stackEntries, dailyNotes, trackingMode, liveInputItems, inputEntries, bloodPressure]);
 
   const canGoForward = useMemo(() => {
     const tomorrow = new Date(selectedDate);
@@ -1118,7 +1118,7 @@ function App() {
             onNote={() => setShowNoteModal(true)}
             onMeal={() => setMealSheet({})}
             bloodPressureLine={bpLastLine(bloodPressure)}
-            onBloodPressure={() => setShowBloodPressure(true)}
+            onBloodPressure={() => setShowBloodPressure('entry')}
             onAdvanced={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => { setAppMode('symptoms'); setShowInsights(false); setShowQuickActions(false); } })}
             onMore={() => setShowQuickActions(true)}
           />
@@ -1309,9 +1309,10 @@ function App() {
       {showBloodPressure && (
         <BloodPressure
           records={bloodPressure}
+          startOn={showBloodPressure}
           onSave={saveBloodPressure}
           onDelete={deleteBloodPressure}
-          onClose={() => setShowBloodPressure(false)}
+          onClose={() => setShowBloodPressure(null)}
         />
       )}
 
@@ -1706,6 +1707,7 @@ function App() {
           trackingMode={trackingMode}
           inputItems={liveInputItems}
           inputEntries={inputEntries}
+          bloodPressure={bloodPressure}
           setCopyToastMessage={setCopyToastMessage}
           onClose={() => setShowExport(false)}
           isDesktop={isDesktop}
@@ -1739,7 +1741,7 @@ function App() {
           onClear={protocolClearDay}
           onEditProtocol={() => { setAppMode('stack'); setShowInsights(false); setProtocolEditMode(true); }}
           onLogMeal={() => setMealSheet({})}
-          onBloodPressure={() => setShowBloodPressure(true)}
+          onBloodPressure={() => setShowBloodPressure('history')}
           bloodPressureHint={bpLastValue(bloodPressure)}
           actions={listBar}
           symptoms={liveSymptoms}

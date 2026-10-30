@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { CloseButton, useRiseIn } from './overlay';
-import { generateAIDataExport, exportCSV, haptic } from '../utils/helpers';
+import { generateAIDataExport, exportCSV, haptic, getDateKey } from '../utils/helpers';
+import { bpCSV } from '../utils/bloodPressure';
 
 export default function Export({
   entries,
@@ -11,12 +12,13 @@ export default function Export({
   trackingMode,
   inputItems,
   inputEntries,
+  bloodPressure,
   setCopyToastMessage,
   onClose,
   isDesktop,
 }) {
   const copyAIData = (days) => {
-    const data = generateAIDataExport(days, entries, symptoms, stackItems, stackEntries, dailyNotes, trackingMode, null, inputItems, inputEntries);
+    const data = generateAIDataExport(days, entries, symptoms, stackItems, stackEntries, dailyNotes, trackingMode, null, inputItems, inputEntries, bloodPressure);
     navigator.clipboard.writeText(data);
     onClose();
     setCopyToastMessage(`Copied ${days} days of tracking for AI chat`);
@@ -26,6 +28,19 @@ export default function Export({
 
   const handleExportCSV = (days) => {
     exportCSV(days, entries, symptoms, trackingMode);
+    onClose();
+  };
+
+  const bpCount = Object.keys(bloodPressure || {}).length;
+  const handleExportBP = () => {
+    const url = URL.createObjectURL(new Blob([bpCSV(bloodPressure)], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `blood-pressure-${getDateKey(new Date())}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
     onClose();
   };
 
@@ -167,6 +182,23 @@ export default function Export({
             </button>
           ))}
         </div>
+
+        {/* Blood pressure CSV */}
+        {bpCount > 0 && (
+          <>
+            <div style={{ margin: '20px 0 8px', color: '#64748b', fontSize: '13px', fontWeight: '500', paddingLeft: '4px' }}>
+              DOWNLOAD BLOOD PRESSURE
+            </div>
+            <div style={{ background: 'rgba(15, 17, 21, 0.5)', borderRadius: '12px', overflow: 'hidden' }}>
+              <button
+                onClick={handleExportBP}
+                style={{ width: '100%', background: 'transparent', border: 'none', padding: '14px 16px', color: '#f8fafc', fontSize: '15px', cursor: 'pointer', textAlign: 'left' }}
+              >
+                All {bpCount} reading{bpCount === 1 ? '' : 's'}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

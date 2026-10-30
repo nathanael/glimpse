@@ -70,3 +70,47 @@ export function lastLine(records, now = new Date()) {
     : at.toLocaleDateString([], { month: 'short', day: 'numeric' });
   return `Last ${last.sys}/${last.dia} · ${day}`;
 }
+
+// Records inside the last `days` days (counting today), oldest first.
+function inWindow(records, days, now) {
+  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (days - 1)).getTime();
+  return Object.values(records || {})
+    .filter((r) => r && Number.isFinite(r.sys) && new Date(r.time).getTime() >= from)
+    .sort((a, b) => new Date(a.time) - new Date(b.time));
+}
+
+const pad = (n) => String(n).padStart(2, '0');
+const localStamp = (d) => ({
+  date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+  time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+});
+
+/** The Copy for AI section: a markdown table, newest first, or '' with no readings. */
+export function bpMarkdown(records, days, now = new Date()) {
+  const list = inWindow(records, days, now).reverse();
+  if (!list.length) return '';
+  const avg = averageReadings(list);
+  const out = [
+    '\n### Blood Pressure',
+    `mmHg; pulse in bpm. Each row is the average of 1 to 3 cuff readings taken back to back. Average over the window: ${avg.sys}/${avg.dia}.\n`,
+    '| Date | Time | Systolic | Diastolic | Pulse | Readings | Category |',
+    '| --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const r of list) {
+    const { date, time } = localStamp(new Date(r.time));
+    out.push(`| ${date} | ${time} | ${r.sys} | ${r.dia} | ${Number.isFinite(r.pulse) ? r.pulse : '-'} | ${r.readings?.length || 1} | ${bpCategory(r).label} |`);
+  }
+  return out.join('\n');
+}
+
+/** A CSV of every reading, oldest first: one row per saved average, the cuff readings after it. */
+export function bpCSV(records, days = 99999, now = new Date()) {
+  const rows = [['date', 'time', 'systolic', 'diastolic', 'pulse', 'readings', 'category', 'reading_1', 'reading_2', 'reading_3']];
+  for (const r of inWindow(records, days, now)) {
+    const { date, time } = localStamp(new Date(r.time));
+    const parts = (r.readings || []).slice(0, MAX_READINGS).map((p) => `${p.sys}/${p.dia}${Number.isFinite(p.pulse) ? ` ${p.pulse}` : ''}`);
+    while (parts.length < MAX_READINGS) parts.push('');
+    rows.push([date, time, r.sys, r.dia, Number.isFinite(r.pulse) ? r.pulse : '', r.readings?.length || 1, bpCategory(r).label, ...parts]);
+  }
+  return rows.map((row) => row.map((c) => (/[",\n]/.test(String(c)) ? `"${String(c).replace(/"/g, '""')}"` : c)).join(',')).join('\n');
+}

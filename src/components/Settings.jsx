@@ -402,7 +402,7 @@ export default function Settings({
   };
 
   const copyForAI = (days) => {
-    const data = generateAIDataExport(days, entries, liveItems(symptoms), liveItems(stackItems), stackEntries, dailyNotes, trackingMode, null, liveItems(inputItems), inputEntries);
+    const data = generateAIDataExport(days, entries, liveItems(symptoms), liveItems(stackItems), stackEntries, dailyNotes, trackingMode, null, liveItems(inputItems), inputEntries, bloodPressure);
     navigator.clipboard.writeText(data);
     setCopyToastMessage(`Copied ${days} days of tracking for AI chat`);
     haptic('light');
