@@ -69,7 +69,7 @@ import MealCapture from './components/MealCapture';
 import BloodPressure from './components/BloodPressure';
 import MealList from './components/MealList';
 import { mealKey, mealDateKey } from './food/mealKey';
-import { lastLine as bpLastLine, lastValue as bpLastValue } from './utils/bloodPressure';
+import { lastValue as bpLastValue } from './utils/bloodPressure';
 import { mergeBackupMeals } from './food/mealBackup';
 import Calendar from './components/Calendar';
 import Insights from './components/Insights';
@@ -1116,8 +1116,6 @@ function App() {
             onAddSymptom={() => setAddFlow('symptom')}
             onSymptomList={() => openFromHome('symptoms')}
             onNote={() => setShowNoteModal(true)}
-            onMeal={() => setMealSheet({})}
-            bloodPressureLine={bpLastLine(bloodPressure)}
             onBloodPressure={() => setShowBloodPressure('entry')}
             onAdvanced={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => { setAppMode('symptoms'); setShowInsights(false); setShowQuickActions(false); } })}
             onMore={() => setShowQuickActions(true)}

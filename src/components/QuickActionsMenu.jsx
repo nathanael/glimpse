@@ -80,7 +80,8 @@ export default function QuickActionsMenu({
             <Item icon="camera" label="Log a meal" onClick={onLogMeal} />
           </>
         )}
-        {/* Home has its own Blood pressure bar */}
+        {/* Home's grid has Blood pressure; Meal lives here instead */}
+        {tab === 'home' && <Item icon="camera" label="Log a meal" onClick={onLogMeal} />}
         {tab !== 'home' && (
           <>
             <hr />
