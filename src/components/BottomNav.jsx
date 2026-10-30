@@ -3,11 +3,12 @@ import QuickActionsMenu from './QuickActionsMenu';
 import { solar } from './solarIcons';
 import { shatterSwitch } from './shatter';
 
+// Simple sits at the far right, under the thumb, for hopping back and forth with Advanced
 const TABS = [
-  { id: 'home', label: 'Simple', icon: solar.transfer },
   { id: 'symptoms', label: 'Tracking', icon: solar.symptoms },
   { id: 'stack', label: 'Protocol', icon: solar.protocol },
   { id: 'insights', label: 'Progress', icon: solar.progress },
+  { id: 'home', label: 'Simple', icon: solar.transfer },
 ];
 
 // Mobile dock: the destinations in a pill, plus one overflow button beside it
