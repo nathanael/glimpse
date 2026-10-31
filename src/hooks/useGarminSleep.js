@@ -92,6 +92,14 @@ export function useGarminSleep(user) {
     return () => { cancelled = true; };
   }, [user && user.uid]);
 
+  // A phone has no Garmin bridge of its own: new nights arrive in Firestore from the Mac. Check
+  // again whenever the app comes back to the front, not only at launch.
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') refetch(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [refetch]);
+
   useEffect(() => {
     // Incremental: the bridge stamps syncedAt on every night it writes, so
     // syncedAt > lastPushedAt picks them up without re-reading every night.

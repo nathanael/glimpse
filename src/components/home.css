@@ -33,6 +33,7 @@
 .hm-num b { font-size: 38px; font-weight: 700; letter-spacing: -.03em; line-height: 1; white-space: nowrap; }
 .hm-num b em { font-style: normal; font-size: .55em; font-weight: 600; color: #cbd5e1; letter-spacing: -.01em; }
 .hm-num b.none { color: #64748b; }
+.hm-num.stale b, .hm-num.stale .hm-stages { opacity: .45; }
 .hm-num small { display: flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hm-bar { display: block; height: 5px; border-radius: 3px; background: rgba(255,255,255,.16); overflow: hidden; }
 .hm-bar i { display: block; height: 100%; border-radius: 3px; background: #c4b5fd; }
@@ -46,9 +47,9 @@
 .hm-stages .rem { background: #93c5fd; }
 .hm-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
 .hm-dot.normal { background: #4ade80; }
-.hm-dot.elevated { background: #fbbf24; }
-.hm-dot.stage1 { background: #fb923c; }
-.hm-dot.stage2, .hm-dot.crisis { background: #f87171; }
+.hm-dot.highnormal {{ background: #fbbf24; }
+.hm-dot.grade1 {{ background: #fb923c; }
+.hm-dot.grade2, .hm-dot.grade3 { background: #f87171; }
 
 /* Quick actions: three across, each one card with a bare icon over its label. The three used
    most are tinted the same gradients as the rest of the app's primary actions. */

@@ -47,6 +47,14 @@ function bpWhen(iso) {
     : diff === 1 ? 'Yesterday' : at.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+// Garmin dates a night by the morning you woke up, so today's date is last night.
+function sleepWhen(date) {
+  const [y, m, d] = date.split('-').map(Number);
+  const night = new Date(y, m - 1, d), now = new Date();
+  const age = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - night) / 864e5);
+  return { label: age <= 0 ? 'Last night' : night.toLocaleDateString([], { month: 'short', day: 'numeric' }), stale: age >= 2 };
+}
+
 const relTo = (el, base) => {
   const r = el.getBoundingClientRect(), b = base.getBoundingClientRect();
   return { x: r.left - b.left, y: r.top - b.top, w: r.width, h: r.height };
@@ -296,14 +304,14 @@ export default function Home({
           <span className="hm-face">
             <span className="hm-title">Sleep</span>
             {sleep ? (
-              <span className="hm-num">
+              <span className={`hm-num${sleepWhen(sleep.date).stale ? ' stale' : ''}`}>
                 <b>{formatMinutes(sleep.minutes)}</b>
                 <span className="hm-stages" aria-hidden="true">
                   <i className="deep" style={{ flex: sleep.stages.deep }} />
                   <i className="light" style={{ flex: sleep.stages.light }} />
                   <i className="rem" style={{ flex: sleep.stages.rem }} />
                 </span>
-                <small>{sleep.score != null ? `Garmin score ${sleep.score}` : 'Last night'}</small>
+                <small>{sleepWhen(sleep.date).label}{sleep.score != null ? ` · score ${sleep.score}` : ''}</small>
               </span>
             ) : (
               <span className="hm-num"><b className="none">–</b><small>No sleep data yet</small></span>

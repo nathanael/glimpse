@@ -21,7 +21,7 @@ describe('bpTrend', () => {
     });
     expect(t.sys).toBe(124);
     expect(t.points).toEqual([130, 124]);
-    expect(t.category.id).toBe('elevated');
+    expect(t.category).toEqual({ id: 'normal', label: 'Normal' });
     expect(bpTrend({})).toBeNull();
   });
 });

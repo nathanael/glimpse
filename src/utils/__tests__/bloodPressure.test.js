@@ -16,11 +16,13 @@ describe('averageReadings', () => {
 
 describe('bpCategory', () => {
   it('lets the higher number decide', () => {
-    expect(bpCategory({ sys: 118, dia: 76 }).id).toBe('normal');
-    expect(bpCategory({ sys: 124, dia: 79 }).id).toBe('elevated');
-    expect(bpCategory({ sys: 118, dia: 82 }).id).toBe('stage1');
-    expect(bpCategory({ sys: 141, dia: 70 }).id).toBe('stage2');
-    expect(bpCategory({ sys: 150, dia: 121 }).id).toBe('crisis');
+    expect(bpCategory({ sys: 118, dia: 76 })).toEqual({ id: 'normal', label: 'Optimal' });
+    expect(bpCategory({ sys: 121, dia: 81 })).toEqual({ id: 'normal', label: 'Normal' });
+    expect(bpCategory({ sys: 129, dia: 84 }).id).toBe('normal');
+    expect(bpCategory({ sys: 118, dia: 85 }).id).toBe('highnormal');
+    expect(bpCategory({ sys: 141, dia: 70 }).id).toBe('grade1');
+    expect(bpCategory({ sys: 150, dia: 100 }).id).toBe('grade2');
+    expect(bpCategory({ sys: 150, dia: 121 }).id).toBe('grade3');
   });
 });
 
@@ -58,14 +60,14 @@ describe('exports', () => {
   it('puts readings in the window into a markdown table, newest first', () => {
     const md = bpMarkdown(records, 7, now);
     expect(md).toContain('### Blood Pressure');
-    expect(md).toContain('| 2026-10-30 | 07:52 | 126 | 80 | 67 | 2 | High, stage 1 |');
+    expect(md).toContain('| 2026-10-30 | 07:52 | 126 | 80 | 67 | 2 | Normal |');
     expect(md).not.toContain('2026-10-01');
     expect(bpMarkdown({}, 7, now)).toBe('');
   });
   it('writes every reading to CSV with its cuff readings', () => {
     const lines = bpCSV(records, 99999, now).split('\n');
     expect(lines[0]).toBe('date,time,systolic,diastolic,pulse,readings,category,reading_1,reading_2,reading_3');
-    expect(lines[1]).toBe('2026-10-01,08:00,140,90,70,1,"High, stage 2",,,');
-    expect(lines[2]).toBe('2026-10-30,07:52,126,80,67,2,"High, stage 1",128/81 68,124/78 66,');
+    expect(lines[1]).toBe('2026-10-01,08:00,140,90,70,1,"High, grade 1",,,');
+    expect(lines[2]).toBe('2026-10-30,07:52,126,80,67,2,Normal,128/81 68,124/78 66,');
   });
 });

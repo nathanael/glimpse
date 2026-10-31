@@ -27,13 +27,15 @@ export function averageReadings(readings) {
   return { sys: mean(list.map((r) => r.sys)), dia: mean(list.map((r) => r.dia)), pulse: pulses.length ? mean(pulses) : null };
 }
 
-// American Heart Association categories; the higher of the two numbers decides.
+// European (ESC/ESH) bands, which treat up to 129/84 as normal, so a reading a point or two over
+// 120/80 stays green. The higher band of the two numbers decides.
 export function bpCategory({ sys, dia }) {
-  if (sys > 180 || dia > 120) return { id: 'crisis', label: 'Very high' };
-  if (sys >= 140 || dia >= 90) return { id: 'stage2', label: 'High, stage 2' };
-  if (sys >= 130 || dia >= 80) return { id: 'stage1', label: 'High, stage 1' };
-  if (sys >= 120) return { id: 'elevated', label: 'Elevated' };
-  return { id: 'normal', label: 'Normal' };
+  if (sys >= 180 || dia >= 110) return { id: 'grade3', label: 'Very high' };
+  if (sys >= 160 || dia >= 100) return { id: 'grade2', label: 'High, grade 2' };
+  if (sys >= 140 || dia >= 90) return { id: 'grade1', label: 'High, grade 1' };
+  if (sys >= 130 || dia >= 85) return { id: 'highnormal', label: 'High normal' };
+  if (sys >= 120 || dia >= 80) return { id: 'normal', label: 'Normal' };
+  return { id: 'normal', label: 'Optimal' };
 }
 
 /** The most recent saved record, by key, or null. */
