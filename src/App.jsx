@@ -1322,7 +1322,6 @@ function App() {
         <SleepNight
           days={garminSleepDays}
           onClose={() => setShowSleepNight(false)}
-          onMore={() => { setShowSleepNight(false); setAppMode('symptoms'); setShowInsights(true); }}
         />
       )}
 

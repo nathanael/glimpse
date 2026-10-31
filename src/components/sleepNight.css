@@ -4,10 +4,8 @@
 .sn-in { flex: 1; min-height: 0; width: 100%; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; padding: 0 14px calc(14px + env(safe-area-inset-bottom)); box-sizing: border-box; }
 .sn button { font-family: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
-.sn-head { flex: none; display: flex; align-items: flex-start; gap: 12px; padding: 14px 0 10px 8px; }
-.sn-head > div { flex: 1; min-width: 0; padding-top: 30px; }
-.sn-head h2 { margin: 0; font-size: 34px; font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
-.sn-head small { display: block; margin-top: 8px; color: #cbd5e1; font-size: 15px; font-weight: 600; }
+.sn-head { flex: none; display: flex; align-items: center; gap: 12px; padding: 14px 0 10px 8px; }
+.sn-head h2 { flex: 1; min-width: 0; margin: 0; font-size: 17px; font-weight: 700; color: #e5e7eb; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .sn-empty { flex: 1; display: grid; place-items: center; color: #94a3b8; font-size: 15px; }
 
@@ -69,6 +67,5 @@
 .sn-bars button.on span { color: #c4b5fd; font-weight: 700; }
 .sn-bars button:focus-visible { outline: 2px solid #a78bfa; outline-offset: 2px; border-radius: 6px; }
 
-.sn-foot { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 4px 0 6px; }
+.sn-foot { flex: none; display: flex; justify-content: center; padding: 4px 0 2px; }
 .sn-foot span { font-size: 12px; color: #94a3b8; }
-.sn-foot button { min-height: 44px; border: 0; background: none; padding: 0 6px; font-size: 14px; font-weight: 700; color: #c4b5fd; }

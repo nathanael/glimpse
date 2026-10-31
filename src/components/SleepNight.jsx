@@ -1,6 +1,6 @@
 // Sleep, opened from Home's Sleep tile: one Garmin night as a card (score ring, time asleep against
 // need, stage bar), four vitals and the seven nights up to it. Swipe sideways or tap a bar to move
-// between nights. "All sleep data" opens the full Progress view. Numbers come from utils/sleepNight.js.
+// between nights. No page title: the date is the header. Numbers come from utils/sleepNight.js.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { sortedNights, nightSummary } from '../utils/sleepNight';
@@ -29,7 +29,7 @@ function Hm({ minutes }) {
   return <>{Math.floor(minutes / 60)}h {String(minutes % 60).padStart(2, '0')}<em>m</em></>;
 }
 
-export default function SleepNight({ days, onClose, onMore }) {
+export default function SleepNight({ days, onClose }) {
   const nights = useMemo(() => sortedNights(days), [days]);
   const [index, setIndex] = useState(() => nights.length - 1);
   const rootRef = useRef(null);
@@ -81,10 +81,7 @@ export default function SleepNight({ days, onClose, onMore }) {
     <div className="sn" ref={rootRef} role="dialog" aria-label="Sleep">
       <div className="sn-in">
         <div className="sn-head ui-drag" {...dragDismiss}>
-          <div>
-            <h2>Sleep</h2>
-            <small>{night ? nightDate(night.date, index === count - 1) : 'No nights yet'}</small>
-          </div>
+          <h2>{night ? nightDate(night.date, index === count - 1) : 'No nights yet'}</h2>
           <CloseButton label="Close sleep" onClick={onClose} />
         </div>
 
@@ -153,7 +150,6 @@ export default function SleepNight({ days, onClose, onMore }) {
 
             <div className="sn-foot">
               <span>Swipe or tap a bar for other nights</span>
-              {onMore && <button type="button" onClick={onMore}>All sleep data</button>}
             </div>
           </div>
         )}
