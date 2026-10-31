@@ -12,6 +12,13 @@ function recentFrom(date) {
   return d.toISOString().slice(0, 10);
 }
 
+// The local calendar date `n` days back, as 'YYYY-MM-DD'.
+function daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function readCache() {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
@@ -39,6 +46,7 @@ export function useGarminSleep(user) {
   const [error, setError] = useState(null);
   const daysRef = useRef(days);
   const lastPushedAtRef = useRef(lastPushedAt);
+  const lastFullRef = useRef(0);
 
   // Keep refs in sync with state
   daysRef.current = days;
@@ -54,21 +62,30 @@ export function useGarminSleep(user) {
       const base = db.collection('users').doc(user.uid).collection('garminSleep');
       const curLastPushedAt = lastPushedAtRef.current;
       const curDays = daysRef.current;
+      // Each read stands alone, so one that fails (a bad saved mark, a quota error) can't block
+      // the others. A cache whose newest night is two or more days old is read from scratch,
+      // at most once an hour, so a phone can never sit on an old night while the cloud has newer.
+      const safe = (q) => q.get().then((snap) => snap.docs.map((d) => d.data())).catch((e) => {
+        console.warn('[useGarminSleep] read failed:', e);
+        return null;
+      });
+      const newest = curDays.length ? curDays[curDays.length - 1].date : null;
+      const mark = curLastPushedAt ? new Date(curLastPushedAt) : null;
+      const stale = !newest || newest < daysAgo(2);
+      const fullDue = stale && Date.now() - lastFullRef.current > 60 * 60 * 1000;
+      if (!newest && !fullDue) return;
       let docs;
-      if (curLastPushedAt) {
-        // Two reads, merged: nights stamped since the last fetch, and every night from a few days
-        // before the newest one cached. The date read doesn't depend on the cached syncedAt
-        // mark, so a phone whose mark got ahead of the Mac's pushes still catches up.
-        const newest = curDays.length ? curDays[curDays.length - 1].date : null;
-        const from = newest ? recentFrom(newest) : null;
-        const [bySync, byDate] = await Promise.all([
-          base.where('syncedAt', '>', new Date(curLastPushedAt)).orderBy('syncedAt').get(),
-          from ? base.where('date', '>=', from).get() : Promise.resolve({ docs: [] }),
-        ]);
-        docs = [...byDate.docs, ...bySync.docs].map(d => d.data());
+      if (fullDue) {
+        lastFullRef.current = Date.now();
+        docs = await safe(base);
       } else {
-        docs = (await base.get()).docs.map(d => d.data());
+        const parts = await Promise.all([
+          safe(base.where('date', '>=', recentFrom(newest))),
+          mark && !Number.isNaN(mark.getTime()) ? safe(base.where('syncedAt', '>', mark).orderBy('syncedAt')) : [],
+        ]);
+        docs = parts.every((p) => p === null) ? null : parts.flatMap((p) => p || []);
       }
+      if (!docs) throw new Error('Could not read sleep nights');
       const { merged, newestTs } = applyFirestoreSnapshot(curDays, curLastPushedAt, docs);
       setDays(merged);
       setLastPushedAt(newestTs);

@@ -93,7 +93,7 @@ export default function Home({
 
   // Each panel: the ways of logging as frosted bars, then the door into the full tab as plain
   // text under them.
-  const { supplements: supp, health, sleep, bp } = stats;
+  const { supplements: supp, health, sleep, sleepError, bp } = stats;
   const left = supp.due - supp.taken;
   const change = health.change == null || health.change === 0 ? '' : ` · ${health.change > 0 ? '↑' : '↓'} ${Math.abs(health.change)} this week`;
   const cards = [
@@ -311,7 +311,7 @@ export default function Home({
                   <i className="light" style={{ flex: sleep.stages.light }} />
                   <i className="rem" style={{ flex: sleep.stages.rem }} />
                 </span>
-                <small>{sleepWhen(sleep.date).label}{sleep.score != null ? ` · score ${sleep.score}` : ''}</small>
+                <small>{sleepWhen(sleep.date).label}{sleep.score != null ? ` · score ${sleep.score}` : ''}{sleepError ? ` · ${sleepError}` : ''}</small>
               </span>
             ) : (
               <span className="hm-num"><b className="none">–</b><small>No sleep data yet</small></span>

@@ -306,7 +306,7 @@ function App() {
 
   const garminSync = useGarminSync(firebase.user);
   // Keeps the local Garmin cache current on every device for Copy for AI / CSV / backup
-  const { days: garminSleepDays } = useGarminSleep(GARMIN_SYNC_ENABLED ? firebase.user : null);
+  const { days: garminSleepDays, error: garminSleepError } = useGarminSleep(GARMIN_SYNC_ENABLED ? firebase.user : null);
   // The Sleep tab exists only once Garmin nights have synced to this account
   const sleepAvailable = GARMIN_SYNC_ENABLED && garminSleepDays.length > 0;
 
@@ -388,8 +388,9 @@ function App() {
     supplements: supplementsTaken(liveStackItems, deferredStackEntries, selectedDate),
     health: healthTrend(liveSymptoms, deferredEntries, trackingMode, selectedDate),
     sleep: lastSleep(garminSleepDays),
+    sleepError: garminSleepError ? 'couldn’t update' : !firebase.user ? 'signed out' : null,
     bp: bpTrend(bloodPressure),
-  }), [appMode, liveStackItems, deferredStackEntries, liveSymptoms, deferredEntries, trackingMode, selectedDate, garminSleepDays, bloodPressure]);
+  }), [appMode, liveStackItems, deferredStackEntries, liveSymptoms, deferredEntries, trackingMode, selectedDate, garminSleepDays, garminSleepError, firebase.user, bloodPressure]);
   const liveInputItems = useMemo(() => liveItems(inputItems), [inputItems]);
 
   const activeSymptoms = useMemo(() => {
