@@ -7,6 +7,7 @@ import './desktopNav.css';
 import './sleepTab.css';
 import { aggregate, rangeForPreset, previousPeriodOf, priorYearPeriodOf, alignByIndex } from '../utils/garminSleepCache';
 import { computeHealthScore } from '../utils/healthScore';
+import { getDateKey } from '../utils/helpers';
 import {
   CONTRIBUTORS, contributorStanding, sleepBalance, scoreVerdict, asleepMinutes,
   symptomLinks, supplementLinks, pearson, mean, shiftDate, gapRuns, gapLabel,
@@ -227,7 +228,7 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
                 <button aria-label="Back to the newest night" disabled={night === 0} onClick={() => setNight(0)}>●</button>
                 <button aria-label="Next night" disabled={night === 0} onClick={() => setNight((n) => Math.max(0, n - 1))}>›</button>
               </div>
-              <div className="sl-label">{night === 0 ? 'Last night' : new Date(row.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+              <div className="sl-label">{night === 0 && row.date === getDateKey(new Date()) ? 'Last night' : new Date(row.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</div>
               <div className="sl-verdict" style={{ color: verdict.color }}>{verdict.label}</div>
               <div className="sl-sub">{hm(asleep)} asleep · {hm(row.awakeSleepSeconds != null ? row.awakeSleepSeconds / 60 : null)} awake</div>
               {row.sleepNeedMinutes && <div className="sl-sub">Need {hm(row.sleepNeedMinutes)}</div>}
