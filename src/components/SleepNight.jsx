@@ -1,6 +1,7 @@
 // Sleep, opened from Home's Sleep tile: one Garmin night as a card (score ring, time asleep against
-// need, stage bar), four vitals and the seven nights up to it. Swipe sideways or tap a bar to move
-// between nights. No page title: the date is the header. Numbers come from utils/sleepNight.js.
+// need, stage bar), four vitals and the seven nights up to it, filling the screen. The date sits in a
+// bar at the bottom with big arrows; swiping sideways or tapping a bar also moves between nights.
+// The page is locked in place. Numbers come from utils/sleepNight.js.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { sortedNights, nightSummary } from '../utils/sleepNight';
@@ -11,12 +12,15 @@ import './sleepNight.css';
 
 const RING_R = 49, RING_C = 2 * Math.PI * RING_R;
 
-function nightDate(date, isLatest) {
+// The bottom bar's two lines: the night's date, and how long ago it was.
+function nightDate(date) {
   const [y, m, d] = date.split('-').map(Number);
   const night = new Date(y, m - 1, d), now = new Date();
   const age = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()) - night) / 864e5);
-  const label = night.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
-  return isLatest && age <= 0 ? `Last night · ${label}` : label;
+  return {
+    label: night.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' }),
+    ago: age <= 0 ? 'Last night' : age === 1 ? '2 nights ago' : `${age + 1} nights ago`,
+  };
 }
 
 const weekday = (date) => {
@@ -83,13 +87,13 @@ export default function SleepNight({ days, onClose }) {
   };
 
   const st = night?.stages;
+  const when = night ? nightDate(night.date) : null;
   const pct = night?.score != null ? Math.max(0, Math.min(1, night.score / 100)) : 0;
 
   return (
     <div className="sn" ref={rootRef} role="dialog" aria-label="Sleep">
       <div className="sn-in">
         <div className="sn-head">
-          <h2>{night ? nightDate(night.date, index === count - 1) : 'No nights yet'}</h2>
           <CloseButton label="Close sleep" onClick={onClose} />
         </div>
 
@@ -156,9 +160,18 @@ export default function SleepNight({ days, onClose }) {
               </div>
             </div>
 
-            <div className="sn-foot">
-              <span>Swipe or tap a bar for other nights</span>
-            </div>
+            <nav className="sn-nav" aria-label="Choose night">
+              <button type="button" aria-label="Previous night" disabled={index <= 0} onClick={() => go(index - 1)}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+              </button>
+              <div className="sn-date" aria-live="polite" key={night.date}>
+                <b>{when.label}</b>
+                <small>{when.ago}</small>
+              </div>
+              <button type="button" aria-label="Next night" disabled={index >= count - 1} onClick={() => go(index + 1)}>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+              </button>
+            </nav>
           </div>
         )}
       </div>
