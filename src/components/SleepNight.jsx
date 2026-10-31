@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { sortedNights, nightSummary } from '../utils/sleepNight';
 import { formatMinutes } from '../utils/homeStats';
 import { haptic } from '../utils/helpers';
-import { CloseButton, useRiseIn, useDragDismiss } from './overlay';
+import { CloseButton, useRiseIn } from './overlay';
 import './sleepNight.css';
 
 const RING_R = 49, RING_C = 2 * Math.PI * RING_R;
@@ -35,7 +35,15 @@ export default function SleepNight({ days, onClose }) {
   const rootRef = useRef(null);
   const swipe = useRef(null);
   useRiseIn(rootRef);
-  const dragDismiss = useDragDismiss(rootRef, onClose);
+
+  // The page is locked in place: no scroll, rubber-band or drag. Sideways swipes still change night.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return undefined;
+    const stop = (e) => e.preventDefault();
+    el.addEventListener('touchmove', stop, { passive: false });
+    return () => el.removeEventListener('touchmove', stop);
+  }, []);
 
   // A new night arriving while open keeps the page on the latest one.
   const count = nights.length;
@@ -80,7 +88,7 @@ export default function SleepNight({ days, onClose }) {
   return (
     <div className="sn" ref={rootRef} role="dialog" aria-label="Sleep">
       <div className="sn-in">
-        <div className="sn-head ui-drag" {...dragDismiss}>
+        <div className="sn-head">
           <h2>{night ? nightDate(night.date, index === count - 1) : 'No nights yet'}</h2>
           <CloseButton label="Close sleep" onClick={onClose} />
         </div>

@@ -1,6 +1,6 @@
 /* Sleep page (SleepNight.jsx), opened from Home's Sleep tile. Home's open-panel look, full screen,
    with the Sleep tile's blue glow at the top, the title top left and the round X top right. */
-.sn { position: fixed; inset: 0; z-index: 260; display: flex; flex-direction: column; color: #f3f4f6; padding-top: env(safe-area-inset-top); background: radial-gradient(120% 55% at 85% 0%, #1e3a8a 0%, #111827 50%, #0b0d12 100%) #0b0d12; }
+.sn { position: fixed; inset: 0; z-index: 260; display: flex; flex-direction: column; color: #f3f4f6; padding-top: env(safe-area-inset-top); background: radial-gradient(120% 55% at 85% 0%, #1e3a8a 0%, #111827 50%, #0b0d12 100%) #0b0d12; touch-action: none; overscroll-behavior: none; overflow: hidden; }
 .sn-in { flex: 1; min-height: 0; width: 100%; max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; padding: 0 14px calc(14px + env(safe-area-inset-bottom)); box-sizing: border-box; }
 .sn button { font-family: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
@@ -9,8 +9,7 @@
 
 .sn-empty { flex: 1; display: grid; place-items: center; color: #94a3b8; font-size: 15px; }
 
-.sn-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; touch-action: pan-y; }
-.sn-body::-webkit-scrollbar { display: none; }
+.sn-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 10px; touch-action: none; }
 
 .sn-hero { flex: none; display: flex; flex-direction: column; gap: 16px; padding: 20px 18px 18px; border-radius: 22px; background: rgba(255,255,255,.07); animation: snIn .3s cubic-bezier(.22,1,.36,1); }
 @keyframes snIn { from { opacity: .3; transform: translateY(6px); } }
