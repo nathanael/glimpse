@@ -47,8 +47,8 @@
 .hm-stages .rem { background: #93c5fd; }
 .hm-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
 .hm-dot.normal { background: #4ade80; }
-.hm-dot.highnormal {{ background: #fbbf24; }
-.hm-dot.grade1 {{ background: #fb923c; }
+.hm-dot.highnormal { background: #fbbf24; }
+.hm-dot.grade1 { background: #fb923c; }
 .hm-dot.grade2, .hm-dot.grade3 { background: #f87171; }
 
 /* Quick actions: three across, each one card with a bare icon over its label. The three used
