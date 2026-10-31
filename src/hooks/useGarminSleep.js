@@ -5,6 +5,13 @@ import { GARMY_BASE, transformRecord } from './useGarminSync';
 
 const CACHE_KEY = 'garminSleepCache';
 
+// Three days before `date` ('YYYY-MM-DD'), so late Garmin fill-ins of recent nights come along too.
+function recentFrom(date) {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 3);
+  return d.toISOString().slice(0, 10);
+}
+
 function readCache() {
   try {
     const raw = localStorage.getItem(CACHE_KEY);
@@ -47,16 +54,21 @@ export function useGarminSleep(user) {
       const base = db.collection('users').doc(user.uid).collection('garminSleep');
       const curLastPushedAt = lastPushedAtRef.current;
       const curDays = daysRef.current;
-      let snap;
+      let docs;
       if (curLastPushedAt) {
-        snap = await base
-          .where('syncedAt', '>', new Date(curLastPushedAt))
-          .orderBy('syncedAt')
-          .get();
+        // Two reads, merged: nights stamped since the last fetch, and every night from a few days
+        // before the newest one cached. The date read doesn't depend on the cached syncedAt
+        // mark, so a phone whose mark got ahead of the Mac's pushes still catches up.
+        const newest = curDays.length ? curDays[curDays.length - 1].date : null;
+        const from = newest ? recentFrom(newest) : null;
+        const [bySync, byDate] = await Promise.all([
+          base.where('syncedAt', '>', new Date(curLastPushedAt)).orderBy('syncedAt').get(),
+          from ? base.where('date', '>=', from).get() : Promise.resolve({ docs: [] }),
+        ]);
+        docs = [...byDate.docs, ...bySync.docs].map(d => d.data());
       } else {
-        snap = await base.get();
+        docs = (await base.get()).docs.map(d => d.data());
       }
-      const docs = snap.docs.map(d => d.data());
       const { merged, newestTs } = applyFirestoreSnapshot(curDays, curLastPushedAt, docs);
       setDays(merged);
       setLastPushedAt(newestTs);
