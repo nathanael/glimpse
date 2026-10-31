@@ -68,6 +68,7 @@ import UndoToast from './components/UndoToast';
 import ProtocolRows from './components/ProtocolRows';
 import MealCapture from './components/MealCapture';
 import BloodPressure from './components/BloodPressure';
+import SleepNight from './components/SleepNight';
 import MealList from './components/MealList';
 import { mealKey, mealDateKey } from './food/mealKey';
 import { lastValue as bpLastValue } from './utils/bloodPressure';
@@ -226,6 +227,7 @@ function App() {
   // null = closed; { key } opens an existing meal for editing; {} opens a fresh capture
   const [mealSheet, setMealSheet] = useState(null);
   const [showBloodPressure, setShowBloodPressure] = useState(null);   // null | 'entry' | 'history'
+  const [showSleepNight, setShowSleepNight] = useState(false); // Sleep page from Home's Sleep tile
   // One-shot: Home's "Today's meals" sets this so MealList scrolls itself into view on mount.
   const [scrollToMeals, setScrollToMeals] = useState(false);
   const [talkCost, setTalkCost] = useState(null); // stats of the last conversation, until dismissed
@@ -1127,7 +1129,7 @@ function App() {
             onNote={() => setShowNoteModal(true)}
             onBloodPressure={() => setShowBloodPressure('entry')}
             stats={homeStats}
-            onSleep={() => { setAppMode('symptoms'); setShowInsights(true); }}
+            onSleep={() => setShowSleepNight(true)}
             onBloodPressurePage={() => setShowBloodPressure('history')}
             onAdvanced={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => { setAppMode('symptoms'); setShowInsights(false); setShowQuickActions(false); } })}
             onMore={() => setShowQuickActions(true)}
@@ -1313,6 +1315,14 @@ function App() {
           onSave={saveMeal}
           onDelete={deleteMeal}
           onClose={() => setMealSheet(null)}
+        />
+      )}
+
+      {showSleepNight && (
+        <SleepNight
+          days={garminSleepDays}
+          onClose={() => setShowSleepNight(false)}
+          onMore={() => { setShowSleepNight(false); setAppMode('symptoms'); setShowInsights(true); }}
         />
       )}
 
