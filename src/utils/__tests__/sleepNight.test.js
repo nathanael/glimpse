@@ -17,7 +17,8 @@ describe('sleepNight', () => {
     expect(s.need).toEqual({ text: '18 min under your need', tone: 'ok' });
     expect(s.stages).toEqual({ deep: 74, light: 248, rem: 110, awake: 22 });
     expect(s.week).toHaveLength(7);
-    expect(s.week[6]).toMatchObject({ date: '2026-10-30', index: 1 });
+    expect(s.week[6]).toMatchObject({ date: '2026-10-30', index: 1, score: 78 });
+    expect(s.weekScoreAvg).toBe(78);
     expect(s.week[5]).toMatchObject({ date: '2026-10-29', minutes: null, index: -1 });
     expect(s.week[4]).toMatchObject({ date: '2026-10-28', index: 0 });
     expect(s.verdict).toBe('Fair');

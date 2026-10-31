@@ -145,15 +145,18 @@ export default function SleepNight({ days, onClose }) {
             )}
 
             <div className="sn-week">
-              <div className="sn-week-h"><span>7 nights</span>{night.weekAvg != null && <span>Avg {formatMinutes(night.weekAvg)}</span>}</div>
+              <div className="sn-week-h"><span>Sleep score, 7 nights</span>{night.weekScoreAvg != null && <span>Avg {night.weekScoreAvg}</span>}</div>
               <div className="sn-bars">
                 {night.week.map((w) => (
                   <button key={w.date} type="button" disabled={w.index < 0}
                     className={w.date === night.date ? 'on' : ''}
-                    aria-label={`${w.date}${w.minutes != null ? `, ${formatMinutes(w.minutes)}` : ', no data'}`}
+                    aria-label={`${w.date}${w.score != null ? `, score ${w.score}` : w.index < 0 ? ', no data' : ', no score'}`}
                     aria-pressed={w.date === night.date}
                     onClick={() => go(w.index)}>
-                    <b><i style={{ height: w.minutes != null && night.weekMax ? `${Math.max(6, (w.minutes / night.weekMax) * 100)}%` : '0%' }} /></b>
+                    <b>
+                      {w.score != null && <em>{w.score}</em>}
+                      <i style={{ height: w.score != null ? `calc((100% - 18px) * ${Math.max(0.04, Math.min(1, w.score / 100))})` : '0' }} />
+                    </b>
                     <span>{weekday(w.date)}</span>
                   </button>
                 ))}

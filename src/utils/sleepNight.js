@@ -1,6 +1,6 @@
 // The numbers behind the Sleep page opened from Home's Sleep tile: one Garmin night at a time,
 // with its score, time asleep against need, stages, four vitals and the seven nights up to it.
-// Pure, so SleepNight.jsx stays presentational. A row's `date` is the morning the night ended.
+// The 7-night columns are sleep scores (out of 100). Pure, so SleepNight.jsx stays presentational. A row's `date` is the morning the night ended.
 
 import { asleepMinutes, scoreVerdict, shiftDate } from './sleepInsights';
 
@@ -70,10 +70,9 @@ export function nightSummary(nights, index) {
   const week = [6, 5, 4, 3, 2, 1, 0].map((n) => {
     const date = shiftDate(row.date, -n);
     const d = have.get(date);
-    return { date, minutes: d ? asleepMinutes(d) : null, index: d ? nights.indexOf(d) : -1 };
+    return { date, minutes: d ? asleepMinutes(d) : null, score: d?.sleepScore ?? null, index: d ? nights.indexOf(d) : -1 };
   });
-  const weekMins = week.map((w) => w.minutes);
-  const avg = mean(weekMins);
+  const scoreAvg = mean(week.map((w) => w.score));
   return {
     date: row.date,
     score: row.sleepScore ?? null,
@@ -83,7 +82,6 @@ export function nightSummary(nights, index) {
     stages: { deep: mins(row.deepSleepSeconds), light: mins(row.lightSleepSeconds), rem: mins(row.remSleepSeconds), awake: mins(row.awakeSleepSeconds) },
     vitals: nightVitals(row, week.map((w) => have.get(w.date))),
     week,
-    weekAvg: avg == null ? null : Math.round(avg),
-    weekMax: Math.max(0, ...weekMins.filter((m) => m != null)),
+    weekScoreAvg: scoreAvg == null ? null : Math.round(scoreAvg),
   };
 }
