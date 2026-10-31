@@ -311,7 +311,7 @@ export default function Home({
                   <i className="light" style={{ flex: sleep.stages.light }} />
                   <i className="rem" style={{ flex: sleep.stages.rem }} />
                 </span>
-                <small>{sleepWhen(sleep.date).label}{sleep.score != null ? ` · score ${sleep.score}` : ''}{sleepError ? ` · ${sleepError}` : ''}</small>
+                <small>{sleepError ? `${sleepError[0].toUpperCase()}${sleepError.slice(1)} · ${sleepWhen(sleep.date).label}` : `${sleepWhen(sleep.date).label}${sleep.score != null ? ` · score ${sleep.score}` : ''}`}</small>
               </span>
             ) : (
               <span className="hm-num"><b className="none">–</b><small>No sleep data yet</small></span>
