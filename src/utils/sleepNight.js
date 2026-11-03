@@ -26,7 +26,7 @@ function hrvTone(row) {
   return row.hrvOvernight >= row.hrvWeeklyAvg * 0.9 ? 'good' : row.hrvOvernight >= row.hrvWeeklyAvg * 0.75 ? 'ok' : 'bad';
 }
 
-/** HRV, resting HR, lowest SpO2 and Body Battery for `row`, with a tone each; `week` is the 7 nights to it. */
+/** HRV, resting HR, lowest SpO2 and overnight stress for `row`, with a tone each; `week` is the 7 nights to it. */
 export function nightVitals(row, week) {
   const rhrAvg = mean(week.map((d) => d?.restingHr));
   const out = [];
@@ -45,9 +45,11 @@ export function nightVitals(row, week) {
     out.push({ key: 'spo2', label: 'Lowest SpO2', value: Math.round(s), unit: '%', tone: s >= 92 ? 'good' : s >= 88 ? 'ok' : 'bad',
       sub: Number.isFinite(row.averageSpo2) ? `Avg ${Math.round(row.averageSpo2)}%` : 'Overnight' });
   }
-  if (Number.isFinite(row.bodyBatteryHigh)) {
-    const b = row.bodyBatteryHigh;
-    out.push({ key: 'battery', label: 'Body Battery', value: Math.round(b), unit: '', tone: b >= 75 ? 'good' : b >= 50 ? 'ok' : 'bad', sub: 'Charged to' });
+  if (Number.isFinite(row.avgSleepStress)) {
+    // Garmin's average stress while asleep, 0-100, lower is calmer; 25 and under counts as rest.
+    const v = row.avgSleepStress, avg = mean(week.map((d) => d?.avgSleepStress));
+    out.push({ key: 'stress', label: 'Overnight stress', value: Math.round(v), unit: '', tone: v <= 20 ? 'good' : v <= 30 ? 'ok' : 'bad',
+      sub: avg != null ? `Week avg ${Math.round(avg)}` : 'Average asleep' });
   }
   return out;
 }

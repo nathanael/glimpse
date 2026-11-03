@@ -38,5 +38,8 @@ describe('sleepNight', () => {
   it('tones vitals and skips missing ones', () => {
     const v = nightVitals(night('2026-10-30', { bodyBatteryHigh: null, hrvStatus: 'LOW' }), [night('2026-10-29', { restingHr: 55 })]);
     expect(v.map((x) => [x.key, x.tone])).toEqual([['hrv', 'bad'], ['rhr', 'good'], ['spo2', 'ok']]);
+    const w = nightVitals(night('2026-10-30', { avgSleepStress: 24 }), [night('2026-10-29', { avgSleepStress: 18 }), night('2026-10-30', { avgSleepStress: 24 })]);
+    expect(w.map((x) => x.key)).toEqual(['hrv', 'rhr', 'spo2', 'stress']);
+    expect(w[3]).toMatchObject({ label: 'Overnight stress', value: 24, tone: 'ok', sub: 'Week avg 21' });
   });
 });
