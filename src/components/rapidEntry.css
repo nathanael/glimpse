@@ -41,7 +41,7 @@
 .re-key.na small { font-size: 13.5px; font-weight: 500; color: #9ca3af; }
 .re-key.na.on::after { top: 50%; transform: translateY(-50%); right: 16px; }
 /* One box split by hairline dividers: back · next unlogged · forward */
-.re-nav { display: grid; grid-template-columns: 1fr 1.4fr 1fr; border: 1px solid rgba(255,255,255,.07); border-radius: 14px; overflow: hidden; }
+.re-nav { display: grid; grid-template-columns: 1fr 1fr 1.4fr; border: 1px solid rgba(255,255,255,.07); border-radius: 14px; overflow: hidden; }
 .re-nav button + button { border-left: 1px solid rgba(255,255,255,.07); }
 .re-nav button { height: 90px; border: 0; background: none; color: #9ca3af; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; font-weight: 500; }
 .re-nav button:active { background: rgba(255,255,255,.06); color: #f3f4f6; }
