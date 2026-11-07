@@ -65,12 +65,8 @@ const TILES = [
   { key: 'hrv', title: 'HRV', chart: 'HRV (Overnight)', get: (d) => d.hrvOvernight ?? null, dec: 0, unit: ' ms', up: true, color: '#a78bfa', ref: null },
   { key: 'bodyBattery', title: 'Body Battery', chart: 'Body Battery', get: (d) => d.bodyBatteryHigh ?? null, dec: 0, unit: '', up: true, color: '#22c55e', ref: 75 },
 ];
-// Two rows of five; related measures share a faint tint
-const TINTS = { sleep: 'rgba(139,92,246,.10)', breath: 'rgba(6,182,212,.08)' };
-const TILE_LAYOUT = [
-  ['score'], ['duration', 'sleep'], ['rem', 'sleep'], ['deep', 'sleep'], ['hrv'],
-  ['respiration', 'breath'], ['spo2avg', 'breath'], ['spo2', 'breath'], ['stress'], ['bodyBattery'],
-];
+// Two rows of five; Sleep Score first and set apart
+const TILE_LAYOUT = ['score', 'duration', 'rem', 'deep', 'hrv', 'respiration', 'spo2avg', 'spo2', 'stress', 'bodyBattery'];
 const tileValue = (t, v) => (v == null ? '-' : `${v.toFixed(t.dec)}${t.unit}`);
 const chartValue = (t, d) => { const v = t.get(d); return v == null ? null : +v.toFixed(1); };
 const unitOf = (t) => t.unit.trim();
@@ -254,7 +250,7 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
   const shownInsights = insights.slice(start, start + 2);
 
   // One stat card: the range average (vs the period before), or with "Last night" ticked that night vs the average
-  const renderTile = (key, tint) => {
+  const renderTile = (key) => {
     const t = TILES.find((x) => x.key === key);
     const avg = mean(visible.map(t.get).filter((v) => v != null));
     const on = active === t.key;
@@ -276,7 +272,7 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
       }
     }
     return (
-      <button key={t.key} className={`sl-kpi ${on ? 'on' : ''} ${t.key === 'score' ? 'sl-kpi-hero' : ''}`} style={{ ...(tint && !on ? { background: TINTS[tint] } : null), ...(on ? { borderColor: t.color } : null) }} onClick={() => { setActive(t.key); setSelection(null); }}>
+      <button key={t.key} className={`sl-kpi ${on ? 'on' : ''} ${t.key === 'score' ? 'sl-kpi-hero' : ''}`} style={on ? { borderColor: t.color } : undefined} onClick={() => { setActive(t.key); setSelection(null); }}>
         <span className="sl-kpi-t"><span>{t.title}</span>{badge && <span className={tone}>{badge}</span>}</span>
         <span className="sl-kpi-v">{tileValue(t, shown)}</span>
       </button>
@@ -378,7 +374,7 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
           <button className={`dn-btn sl-push ${compareMode ? 'sl-comparing' : ''}`} onClick={() => setCompareMode((c) => !c)}>{compareMode ? '✓ Comparing' : 'Compare'}</button>
         </div>
         <div className="sl-kpis">
-          {TILE_LAYOUT.map(([key, tint]) => renderTile(key, tint))}
+          {TILE_LAYOUT.map(renderTile)}
         </div>
 
       {compareMode ? (
