@@ -55,9 +55,9 @@ const mins = (sec) => (sec != null ? sec / 60 : null);
 // Stat tiles, copied from the Garmin dashboard: title, averaged value, chart colour and guideline
 const TILES = [
   { key: 'score', title: 'Sleep Score', chart: 'Sleep Score', get: (d) => d.sleepScore ?? null, dec: 0, unit: '', up: true, color: '#10b981', ref: 80 },
-  { key: 'duration', title: 'Duration', chart: 'Duration', get: (d) => { const m = asleepMinutes(d); return m != null ? m / 60 : null; }, dec: 1, unit: ' hrs', up: true, color: '#6ee7b7', ref: 8 },
-  { key: 'rem', title: 'REM Sleep', chart: 'REM Sleep', get: (d) => mins(d.remSleepSeconds), dec: 0, unit: ' min', up: true, color: '#8b5cf6', ref: 90 },
-  { key: 'deep', title: 'Deep Sleep', chart: 'Deep Sleep', get: (d) => mins(d.deepSleepSeconds), dec: 0, unit: ' min', up: true, color: '#3b82f6', ref: 60 },
+  { key: 'duration', title: 'Duration', chart: 'Duration', get: (d) => { const m = asleepMinutes(d); return m != null ? m / 60 : null; }, dec: 1, unit: ' hrs', up: true, color: '#6ee7b7', ref: 8, hmm: 60 },
+  { key: 'rem', title: 'REM Sleep', chart: 'REM Sleep', get: (d) => mins(d.remSleepSeconds), dec: 0, unit: ' min', up: true, color: '#8b5cf6', ref: 90, hmm: 1 },
+  { key: 'deep', title: 'Deep Sleep', chart: 'Deep Sleep', get: (d) => mins(d.deepSleepSeconds), dec: 0, unit: ' min', up: true, color: '#3b82f6', ref: 60, hmm: 1 },
   { key: 'respiration', title: 'Respiration', chart: 'Respiration Rate', get: (d) => d.averageRespiration ?? null, dec: 1, unit: ' brpm', up: false, color: '#f59e0b', ref: 14 },
   { key: 'spo2avg', title: 'SpO2 Avg', chart: 'SpO2 (Average)', get: (d) => d.averageSpo2 ?? null, dec: 1, unit: '%', up: true, color: '#22d3ee', ref: 95 },
   { key: 'spo2', title: 'SpO2 Low', chart: 'SpO2 (Lowest)', get: (d) => d.lowestSpo2 ?? null, dec: 1, unit: '%', up: true, color: '#06b6d4', ref: 92 },
@@ -67,7 +67,9 @@ const TILES = [
 ];
 // Two rows of five; Sleep Score first and set apart
 const TILE_LAYOUT = ['score', 'duration', 'rem', 'deep', 'hrv', 'respiration', 'spo2avg', 'spo2', 'stress', 'bodyBattery'];
-const tileValue = (t, v) => (v == null ? '-' : `${v.toFixed(t.dec)}${t.unit}`);
+// Duration, REM and Deep read as h:mm on the cards (hmm = minutes per unit of the value)
+const clock = (min) => { const m = Math.round(min); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+const tileValue = (t, v) => (v == null ? '-' : t.hmm ? clock(v * t.hmm) : `${v.toFixed(t.dec)}${t.unit}`);
 const chartValue = (t, d) => { const v = t.get(d); return v == null ? null : +v.toFixed(1); };
 const unitOf = (t) => t.unit.trim();
 
@@ -261,7 +263,7 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
       const diff = shown != null && avg != null ? shown - avg : null;
       if (diff != null && Math.abs(diff) >= 10 ** -t.dec / 2) {
         tone = (diff > 0) === t.up ? 'good' : 'bad';
-        badge = `${diff > 0 ? '↗' : '↘'} ${Math.abs(diff).toFixed(t.dec)}`;
+        badge = `${diff > 0 ? '↗' : '↘'} ${t.hmm ? clock(Math.abs(diff) * t.hmm) : Math.abs(diff).toFixed(t.dec)}`;
       }
     } else {
       const prev = mean(prior.map(t.get).filter((v) => v != null));
