@@ -276,7 +276,7 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
       }
     }
     return (
-      <button key={t.key} className={`sl-kpi ${on ? 'on' : ''}`} style={{ ...(tint && !on ? { background: TINTS[tint] } : null), ...(on ? { borderColor: t.color } : null) }} onClick={() => { setActive(t.key); setSelection(null); }}>
+      <button key={t.key} className={`sl-kpi ${on ? 'on' : ''} ${t.key === 'score' ? 'sl-kpi-hero' : ''}`} style={{ ...(tint && !on ? { background: TINTS[tint] } : null), ...(on ? { borderColor: t.color } : null) }} onClick={() => { setActive(t.key); setSelection(null); }}>
         <span className="sl-kpi-t"><span>{t.title}</span>{badge && <span className={tone}>{badge}</span>}</span>
         <span className="sl-kpi-v">{tileValue(t, shown)}</span>
       </button>
