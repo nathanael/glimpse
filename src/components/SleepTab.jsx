@@ -65,10 +65,11 @@ const TILES = [
   { key: 'hrv', title: 'HRV', chart: 'HRV (Overnight)', get: (d) => d.hrvOvernight ?? null, dec: 0, unit: ' ms', up: true, color: '#a78bfa', ref: null },
   { key: 'bodyBattery', title: 'Body Battery', chart: 'Body Battery', get: (d) => d.bodyBatteryHigh ?? null, dec: 0, unit: '', up: true, color: '#22c55e', ref: 75 },
 ];
-// Two rows of five; related measures sit together in a labelled group
+// Two rows of five; related measures share a faint tint
+const TINTS = { sleep: 'rgba(139,92,246,.10)', breath: 'rgba(6,182,212,.08)' };
 const TILE_LAYOUT = [
-  { key: 'score' }, { group: 'Time asleep', keys: ['duration', 'rem', 'deep'] }, { key: 'hrv' },
-  { group: 'Breathing', keys: ['respiration', 'spo2avg', 'spo2'] }, { key: 'stress' }, { key: 'bodyBattery' },
+  ['score'], ['duration', 'sleep'], ['rem', 'sleep'], ['deep', 'sleep'], ['hrv'],
+  ['respiration', 'breath'], ['spo2avg', 'breath'], ['spo2', 'breath'], ['stress'], ['bodyBattery'],
 ];
 const tileValue = (t, v) => (v == null ? '-' : `${v.toFixed(t.dec)}${t.unit}`);
 const chartValue = (t, d) => { const v = t.get(d); return v == null ? null : +v.toFixed(1); };
@@ -253,7 +254,7 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
   const shownInsights = insights.slice(start, start + 2);
 
   // One stat card: the range average (vs the period before), or with "Last night" ticked that night vs the average
-  const renderTile = (key) => {
+  const renderTile = (key, tint) => {
     const t = TILES.find((x) => x.key === key);
     const avg = mean(visible.map(t.get).filter((v) => v != null));
     const on = active === t.key;
@@ -275,7 +276,7 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
       }
     }
     return (
-      <button key={t.key} className={`sl-kpi ${on ? 'on' : ''}`} style={on ? { borderColor: t.color } : undefined} onClick={() => { setActive(t.key); setSelection(null); }}>
+      <button key={t.key} className={`sl-kpi ${on ? 'on' : ''}`} style={{ ...(tint && !on ? { background: TINTS[tint] } : null), ...(on ? { borderColor: t.color } : null) }} onClick={() => { setActive(t.key); setSelection(null); }}>
         <span className="sl-kpi-t"><span>{t.title}</span>{badge && <span className={tone}>{badge}</span>}</span>
         <span className="sl-kpi-v">{tileValue(t, shown)}</span>
         {single && <span className="sl-kpi-s">vs {windowNights(range)}-night avg {tileValue(t, avg)}</span>}
@@ -378,14 +379,7 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
           <button className={`dn-btn sl-push ${compareMode ? 'sl-comparing' : ''}`} onClick={() => setCompareMode((c) => !c)}>{compareMode ? '✓ Comparing' : 'Compare'}</button>
         </div>
         <div className="sl-kpis">
-          {TILE_LAYOUT.map((cell) => (cell.group ? (
-            <div key={cell.group} className="sl-kpi-group" style={{ gridColumn: `span ${cell.keys.length}` }}>
-              <span className="sl-group-label">{cell.group}</span>
-              <div className="sl-group-tiles" style={{ gridTemplateColumns: `repeat(${cell.keys.length}, minmax(0, 1fr))` }}>
-                {cell.keys.map(renderTile)}
-              </div>
-            </div>
-          ) : renderTile(cell.key)))}
+          {TILE_LAYOUT.map(([key, tint]) => renderTile(key, tint))}
         </div>
 
       {compareMode ? (
