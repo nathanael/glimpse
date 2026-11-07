@@ -56,8 +56,8 @@ const mins = (sec) => (sec != null ? sec / 60 : null);
 const TILES = [
   { key: 'score', title: 'Sleep Score', chart: 'Sleep Score', get: (d) => d.sleepScore ?? null, dec: 0, unit: '', up: true, color: '#10b981', ref: 80 },
   { key: 'duration', title: 'Duration', chart: 'Duration', get: (d) => { const m = asleepMinutes(d); return m != null ? m / 60 : null; }, dec: 1, unit: ' hrs', up: true, color: '#6ee7b7', ref: 8 },
-  { key: 'rem', title: 'REM Sleep', chart: 'REM Sleep', get: (d) => mins(d.remSleepSeconds), dec: 1, unit: ' min', up: true, color: '#8b5cf6', ref: 90 },
-  { key: 'deep', title: 'Deep Sleep', chart: 'Deep Sleep', get: (d) => mins(d.deepSleepSeconds), dec: 1, unit: ' min', up: true, color: '#3b82f6', ref: 60 },
+  { key: 'rem', title: 'REM Sleep', chart: 'REM Sleep', get: (d) => mins(d.remSleepSeconds), dec: 0, unit: ' min', up: true, color: '#8b5cf6', ref: 90 },
+  { key: 'deep', title: 'Deep Sleep', chart: 'Deep Sleep', get: (d) => mins(d.deepSleepSeconds), dec: 0, unit: ' min', up: true, color: '#3b82f6', ref: 60 },
   { key: 'respiration', title: 'Respiration', chart: 'Respiration Rate', get: (d) => d.averageRespiration ?? null, dec: 1, unit: ' brpm', up: false, color: '#f59e0b', ref: 14 },
   { key: 'spo2avg', title: 'SpO2 Avg', chart: 'SpO2 (Average)', get: (d) => d.averageSpo2 ?? null, dec: 1, unit: '%', up: true, color: '#22d3ee', ref: 95 },
   { key: 'spo2', title: 'SpO2 Low', chart: 'SpO2 (Lowest)', get: (d) => d.lowestSpo2 ?? null, dec: 1, unit: '%', up: true, color: '#06b6d4', ref: 92 },
