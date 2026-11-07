@@ -44,12 +44,11 @@
 /* Last night checkbox beside Days / Weeks / Months */
 .sl-faded { opacity: .45; }
 .sl-faded:hover { opacity: 1; }
-.sl .dn-btn.sl-check { border: 1px solid transparent; padding-left: 10px; }
-.sl .dn-btn.sl-check.on { background: rgba(37,99,235,.18); border-color: #2563eb; color: #f3f4f6; }
+.sl .dn-btn.sl-check { padding-left: 10px; }
+.sl .dn-btn.sl-check.on { color: #f3f4f6; }
 .sl-box { width: 16px; height: 16px; box-sizing: border-box; border-radius: 4px; border: 1.5px solid #9ca3af; display: grid; place-items: center; }
 .sl-check.on .sl-box { background: #2563eb; border-color: #2563eb; }
 
-.sl-kpi-s { display: block; font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .sl-main { padding: 12px; display: grid; gap: 16px; }
 .sl-panel { background: rgba(17,24,39,.5); border-radius: 8px; padding: 16px; min-width: 0; }

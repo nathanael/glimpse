@@ -90,7 +90,7 @@ function Donut({ size, stroke, pct, color, children }) {
 
 export default function SleepTab({ days, symptoms, entries, stackItems, stackEntries, trackingMode }) {
   const [night, setNight] = useState(0); // 0 = newest night
-  const [nightOnly, setNightOnly] = useState(false); // tiles show the picked night instead of the range average
+  const [nightOnly, setNightOnly] = useState(true); // tiles show the picked night instead of the range average
   const [insightAt, setInsightAt] = useState(0);
   const [paused, setPaused] = useState(false);
   const [customRange, setCustomRange] = useState(null); // null = follow the preset
@@ -279,7 +279,6 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
       <button key={t.key} className={`sl-kpi ${on ? 'on' : ''}`} style={{ ...(tint && !on ? { background: TINTS[tint] } : null), ...(on ? { borderColor: t.color } : null) }} onClick={() => { setActive(t.key); setSelection(null); }}>
         <span className="sl-kpi-t"><span>{t.title}</span>{badge && <span className={tone}>{badge}</span>}</span>
         <span className="sl-kpi-v">{tileValue(t, shown)}</span>
-        {single && <span className="sl-kpi-s">vs {windowNights(range)}-night avg {tileValue(t, avg)}</span>}
       </button>
     );
   };
