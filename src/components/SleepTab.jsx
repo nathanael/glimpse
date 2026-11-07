@@ -9,7 +9,7 @@ import { aggregate, rangeForPreset, previousPeriodOf, priorYearPeriodOf, alignBy
 import { computeHealthScore } from '../utils/healthScore';
 import { getDateKey } from '../utils/helpers';
 import {
-  CONTRIBUTORS, contributorStanding, sleepBalance, scoreVerdict, asleepMinutes,
+  sleepBalance, scoreVerdict, asleepMinutes,
   symptomLinks, supplementLinks, pearson, mean, shiftDate, gapRuns, gapLabel,
 } from '../utils/sleepInsights';
 
@@ -68,21 +68,11 @@ const tileValue = (t, v) => (v == null ? '-' : `${v.toFixed(t.dec)}${t.unit}`);
 const chartValue = (t, d) => { const v = t.get(d); return v == null ? null : +v.toFixed(1); };
 const unitOf = (t) => t.unit.trim();
 
-function Donut({ size, stroke, pct, color, children }) {
-  const r = (size - stroke) / 2, c = 2 * Math.PI * r;
-  return (
-    <div className="sl-donut" style={{ width: size, height: size }}>
-      <svg width={size} height={size}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#374151" strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={`${c * pct} ${c}`} />
-      </svg>
-      <span>{children}</span>
-    </div>
-  );
-}
-
 export default function SleepTab({ days, symptoms, entries, stackItems, stackEntries, trackingMode }) {
   const [night, setNight] = useState(0); // 0 = newest night
+  const [nightOnly, setNightOnly] = useState(false); // tiles show the picked night instead of the range average
+  const [insightAt, setInsightAt] = useState(0);
+  const [paused, setPaused] = useState(false);
   const [customRange, setCustomRange] = useState(null); // null = follow the preset
   const [preset, setPreset] = useState('14d');
   const [rangeMenu, setRangeMenu] = useState(false);
@@ -180,6 +170,13 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
     return { sym, sup, r, rN: pairs.length, nights: recent.length };
   }, [days, symptoms, entries, trackingMode, stackItems, stackEntries, healthByDate]);
 
+  const insightCount = links.sym.length + links.sup.length + (links.r != null ? 1 : 0);
+  useEffect(() => {
+    if (paused || insightCount <= 1) return undefined;
+    const t = setInterval(() => setInsightAt((i) => (i + 1) % insightCount), 5000);
+    return () => clearInterval(t);
+  }, [paused, insightCount]);
+
   // Balance is a rolling 14-night figure and, as on the Garmin dashboard, ignores the night stepper
   const balance = useMemo(() => sleepBalance(days.slice(-14)), [days]);
   const verdict = scoreVerdict(row.sleepScore);
@@ -210,100 +207,55 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
   const canBack = range && range.start > minDate;
   const canForward = range && range.end < maxDate;
 
+  // Sleep and symptom links, one at a time, rotating under the controls bar
+  const insights = [
+    ...links.sym.map((f) => ({
+      key: `s-${f.symptom}-${f.metric}`, kind: 'Symptom', kindColor: '#f9a8d4',
+      text: <>{f.below ? 'Under' : 'Over'} <b>{f.threshold}{f.unit === 'min' ? ' min' : f.unit} {f.metric}</b> → <b>{f.symptom}</b> that day</>,
+      effect: `+${f.effect.toFixed(1)}`, tone: 'bad',
+      detail: `${f.nights} nights · avg ${f.badAvg.toFixed(1)} vs ${f.restAvg.toFixed(1)} that day`,
+    })),
+    ...links.sup.map((f) => ({
+      key: `p-${f.item}-${f.metric}`, kind: 'Supplement', kindColor: '#93c5fd',
+      text: <><b>{f.item}</b> taken → <b>{f.metric}</b> that night</>,
+      effect: `${f.diff > 0 ? '+' : '−'}${Math.abs(Math.round(f.diff))}${f.unit === 'min' ? 'm' : ''}`, tone: f.diff > 0 ? 'good' : 'bad',
+      detail: `${f.nights} of ${f.total} nights · ${Math.round(f.takenAvg)} vs ${Math.round(f.skippedAvg)}${f.unit === 'min' ? ' min' : f.unit ? ` ${f.unit}` : ''}`,
+    })),
+    ...(links.r != null ? [{
+      key: 'r', kind: 'Health', kindColor: '#a78bfa',
+      text: <>Sleep score vs same-day <b>Health score</b></>,
+      effect: `r ${links.r.toFixed(2).replace(/^(-?)0/, '$1')}`, tone: links.r > 0 ? 'good' : 'bad',
+      detail: `${Math.abs(links.r) >= 0.5 ? 'strong' : Math.abs(links.r) >= 0.3 ? 'moderate' : 'weak'} link · ${links.rN} days`,
+    }] : []),
+  ];
+  const curIdx = insights.length ? insightAt % insights.length : 0;
+  const cur = insights[curIdx];
+  const nightLabel = night === 0 ? `Last night · ${new Date(row.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}`
+    : new Date(row.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
+
   if (!days.length) {
     return <div className="sl-empty">No Garmin nights synced yet.</div>;
   }
 
-  const hasLinks = links.sym.length || links.sup.length || links.r != null;
-
   return (
     <div className="sl">
-      <div className="sl-row1">
-        <section className="sl-card">
-          <div className="sl-hero">
-            <Donut size={112} stroke={11} pct={(row.sleepScore || 0) / 100} color={verdict.color}><b className="sl-big">{row.sleepScore ?? '—'}</b></Donut>
-            <div>
-              <div className="sl-night">
-                <button aria-label="Previous night" disabled={nightIdx === 0} onClick={() => setNight((n) => n + 1)}>‹</button>
-                <button aria-label="Back to the newest night" disabled={night === 0} onClick={() => setNight(0)}>●</button>
-                <button aria-label="Next night" disabled={night === 0} onClick={() => setNight((n) => Math.max(0, n - 1))}>›</button>
-              </div>
-              <div className="sl-label">{night === 0 && row.date === getDateKey(new Date()) ? 'Last night' : new Date(row.date + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}</div>
-              <div className="sl-verdict" style={{ color: verdict.color }}>{verdict.label}</div>
-              <div className="sl-sub">{hm(asleep)} asleep · {hm(row.awakeSleepSeconds != null ? row.awakeSleepSeconds / 60 : null)} awake</div>
-              {row.sleepNeedMinutes && <div className="sl-sub">Need {hm(row.sleepNeedMinutes)}</div>}
-            </div>
-            <div className="sl-balance">
-              <div className="sl-label">Balance · last {balance.nights.length} nights</div>
-              {balance.counted ? (
-                <div className="sl-debt" style={{ color: balance.net <= 0 ? '#4ade80' : balance.net < 120 ? '#d1d5db' : balance.net < 300 ? '#fbbf24' : '#f87171' }}>
-                  {hm(Math.abs(balance.net))}<span>{balance.net <= 0 ? 'ahead' : 'short'}</span>
-                </div>
-              ) : <div className="sl-sub">No sleep need recorded</div>}
-              <div className="sl-strip">
-                {balance.nights.map((n) => (
-                  <i key={n.date} title={n.ratio == null ? `${n.date}: no data` : `${n.date}: ${hm(n.got)} of ${hm(n.need)}`}
-                    style={{ background: n.ratio == null ? 'rgba(255,255,255,.08)' : n.ratio >= 1 ? '#22c55e' : n.ratio >= 0.88 ? '#eab308' : '#ef4444' }} />
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="sl-contrib-head">
-            <span className="sl-label">Contributors</span>
-          </div>
-          <div className="sl-rings">
-            {CONTRIBUTORS.map((c) => {
-              const st = contributorStanding(c, row, [], 'targets');
-              return (
-                <div key={c.key} className="sl-ring" title={st ? st.tip : 'No data for this night'}>
-                  <Donut size={54} stroke={6} pct={st ? st.pct : 0} color={st ? st.color : '#374151'} />
-                  <b>{st ? c.fmt(st.value) : '—'}</b>
-                  <span>{c.label}</span>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="sl-card">
-          <div className="sl-head">
-            <h2>Sleep and your symptoms</h2>
-            <span className="sl-sub sl-push">last {links.nights} nights</span>
-          </div>
-          {hasLinks ? (
-            <div className="sl-links">
-              {links.sym.map((f) => (
-                <div key={f.symptom} className="sl-link">
-                  <p>{f.below ? 'Under' : 'Over'} <b>{f.threshold}{f.unit === 'min' ? ' min' : f.unit} {f.metric}</b> → <b>{f.symptom}</b> that day</p>
-                  <span className="sl-n">{f.nights} nights · avg {f.badAvg.toFixed(1)} vs {f.restAvg.toFixed(1)}</span>
-                  <span className="sl-effect bad">+{f.effect.toFixed(1)}</span>
-                </div>
-              ))}
-              {links.sup.map((f) => (
-                <div key={f.item} className="sl-link">
-                  <p><b>{f.item}</b> taken → <b>{f.metric}</b> that night</p>
-                  <span className="sl-n">{f.nights} of {f.total} nights · {Math.round(f.takenAvg)} vs {Math.round(f.skippedAvg)}{f.unit === 'min' ? ' min' : f.unit ? ` ${f.unit}` : ''}</span>
-                  <span className={`sl-effect ${f.diff > 0 ? 'good' : 'bad'}`}>{f.diff > 0 ? '+' : '−'}{Math.abs(Math.round(f.diff))}{f.unit === 'min' ? 'm' : ''}</span>
-                </div>
-              ))}
-              {links.r != null && (
-                <div className="sl-link">
-                  <p>Sleep score vs same-day <b>Health score</b></p>
-                  <span className="sl-n">{Math.abs(links.r) >= 0.5 ? 'strong' : Math.abs(links.r) >= 0.3 ? 'moderate' : 'weak'} link · {links.rN} days</span>
-                  <span className={`sl-effect ${links.r > 0 ? 'good' : 'bad'}`}>r {links.r.toFixed(2).replace(/^(-?)0/, '$1')}</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="sl-sub">Not enough overlap between sleep and symptom logs yet. Links show once there are at least 10 nights with symptoms logged the next day.</div>
-          )}
-          <div className="sl-foot">Bad nights are the worst third for each measure. Symptom scale 0–5; higher is worse.</div>
-        </section>
-      </div>
-
       <section className="sl-card sl-main">
         <div className="sl-bar">
-          <div className="sl-range">
+          <div className="sl-pill" style={{ background: `${verdict.color}1f` }}>
+            <b className="sl-pill-score" style={{ background: verdict.color }}>{row.sleepScore ?? '—'}</b>
+            <span>
+              <b style={{ color: verdict.color }}>{verdict.label}</b>
+              <span className="sl-dim"> · {nightLabel} · {hm(asleep)}{row.sleepNeedMinutes ? ` of ${hm(row.sleepNeedMinutes)}` : ''}</span>
+              {balance.counted && <span className="sl-dim"> · <span style={{ color: balance.net <= 0 ? '#4ade80' : balance.net < 120 ? '#d1d5db' : balance.net < 300 ? '#fbbf24' : '#f87171' }}>{hm(Math.abs(balance.net))} {balance.net <= 0 ? 'ahead' : 'short'}</span> over {balance.nights.length} nights</span>}
+            </span>
+            <span className="sl-night">
+              <button aria-label="Previous night" disabled={nightIdx === 0} onClick={() => setNight((n) => n + 1)}>‹</button>
+              <button aria-label="Back to the newest night" disabled={night === 0} onClick={() => setNight(0)}>●</button>
+              <button aria-label="Next night" disabled={night === 0} onClick={() => setNight((n) => Math.max(0, n - 1))}>›</button>
+            </span>
+          </div>
+          <div className="sl-vr" />
+          <div className={`sl-range ${nightOnly && !compareMode ? 'sl-faded' : ''}`}>
             <button className="sl-range-step" title="Previous period" disabled={!canBack} onClick={() => stepPeriod(-1)}>‹</button>
             <div className="sl-range-wrap">
               <button className="sl-range-btn" onClick={() => setRangeMenu((o) => !o)}>
@@ -327,21 +279,59 @@ export default function SleepTab({ days, symptoms, entries, stackItems, stackEnt
             <button className="sl-range-step" title="Next period" disabled={!canForward} onClick={() => stepPeriod(1)}>›</button>
           </div>
           {!compareMode && (
-            <div className="dn-seg">{MODES.map(([k, l]) => <button key={k} className={mode === k ? 'on' : ''} onClick={() => { setMode(k); setSelection(null); }}>{l}</button>)}</div>
+            <div className="dn-seg">
+              {MODES.map(([k, l]) => <button key={k} className={!nightOnly && mode === k ? 'on' : ''} onClick={() => { setMode(k); setNightOnly(false); setSelection(null); }}>{l}</button>)}
+              <button className={`sl-seg-night ${nightOnly ? 'on' : ''}`} aria-pressed={nightOnly} onClick={() => setNightOnly((v) => !v)}
+                title="Show one night's numbers in the cards, compared with the average for the range">
+                {nightOnly && <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5l2.5 2.5L10 3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                {night === 0 ? 'Last night' : shortDate(row.date)}
+              </button>
+            </div>
           )}
           <button className={`dn-btn sl-push ${compareMode ? 'sl-comparing' : ''}`} onClick={() => setCompareMode((c) => !c)}>{compareMode ? '✓ Comparing' : 'Compare'}</button>
         </div>
+        {insights.length > 0 && (
+          <div className="sl-ticker" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
+            <span key={cur.key} className="sl-tick">
+              <span className="sl-chip-kind" style={{ color: cur.kindColor }}>{cur.kind}</span>
+              <span className="sl-chip-text">{cur.text} <span className="sl-n">{cur.detail}</span></span>
+              <b className={cur.tone}>{cur.effect}</b>
+            </span>
+            {insights.length > 1 && (
+              <span className="sl-dots">
+                {insights.map((f, k) => (
+                  <button key={f.key} aria-label={`Insight ${k + 1} of ${insights.length}`} className={k === curIdx ? 'on' : ''} onClick={() => setInsightAt(k)} />
+                ))}
+              </span>
+            )}
+          </div>
+        )}
         <div className="sl-kpis">
           {TILES.map((t) => {
-            const cur = mean(visible.map(t.get).filter((v) => v != null));
-            const prev = mean(prior.map(t.get).filter((v) => v != null));
-            const pc = cur != null && prev ? ((cur - prev) / prev) * 100 : null;
-            const tone = pc == null || Math.abs(pc) < 1 ? 'flat' : (pc > 0) === t.up ? 'good' : 'bad';
+            const avg = mean(visible.map(t.get).filter((v) => v != null));
             const on = active === t.key;
+            let shown = avg, badge = null, tone = 'flat';
+            if (nightOnly && !compareMode) {
+              // One night against the range average, in the tile's own units
+              shown = t.get(row);
+              const diff = shown != null && avg != null ? shown - avg : null;
+              if (diff != null && Math.abs(diff) >= 10 ** -t.dec / 2) {
+                tone = (diff > 0) === t.up ? 'good' : 'bad';
+                badge = `${diff > 0 ? '↗' : '↘'} ${Math.abs(diff).toFixed(t.dec)}`;
+              }
+            } else {
+              const prev = mean(prior.map(t.get).filter((v) => v != null));
+              const pc = avg != null && prev ? ((avg - prev) / prev) * 100 : null;
+              if (pc != null && Math.abs(pc) >= 1) {
+                tone = (pc > 0) === t.up ? 'good' : 'bad';
+                badge = `${pc > 0 ? '↗' : '↘'} ${Math.abs(pc).toFixed(0)}%`;
+              }
+            }
             return (
               <button key={t.key} className={`sl-kpi ${on ? 'on' : ''}`} style={on ? { borderColor: t.color } : undefined} onClick={() => { setActive(t.key); setSelection(null); }}>
-                <span className="sl-kpi-t"><span>{t.title}</span>{pc != null && Math.abs(pc) >= 1 && <span className={tone}>{pc > 0 ? '↗' : '↘'} {Math.abs(pc).toFixed(0)}%</span>}</span>
-                <span className="sl-kpi-v">{tileValue(t, cur)}</span>
+                <span className="sl-kpi-t">{t.title}</span>
+                <span className="sl-kpi-v">{tileValue(t, shown)}</span>
+                <span className="sl-kpi-s">{badge ? <b className={tone}>{badge}</b> : <b className="flat">–</b>} {nightOnly && !compareMode ? `vs avg ${tileValue(t, avg)}` : 'vs prior'}</span>
               </button>
             );
           })}

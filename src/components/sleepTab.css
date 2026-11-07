@@ -8,46 +8,44 @@
 .sl-sub { color: #6b7280; font-size: 12px; }
 .sl-label { font-size: 11px; color: #6b7280; letter-spacing: .05em; text-transform: uppercase; font-weight: 600; }
 .sl .dn-btn.sl-on { background: #2563eb; color: #fff; }
-.sl, .sl-kpi, .sl-debt, .sl-big { font-variant-numeric: tabular-nums; }
+.sl, .sl-kpi { font-variant-numeric: tabular-nums; }
 
-.sl-row1 { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 14px; }
-
-.sl-donut { position: relative; flex: none; }
-.sl-donut svg { transform: rotate(-90deg); display: block; }
-.sl-donut > span { position: absolute; inset: 0; display: grid; place-items: center; }
-.sl-big { font-size: 34px; font-weight: 700; letter-spacing: -.02em; }
-
-.sl-hero { display: grid; grid-template-columns: auto auto 1fr; gap: 22px; align-items: center; padding-bottom: 16px; border-bottom: 1px solid #374151; }
-.sl-verdict { font-weight: 600; margin: 1px 0 2px; }
-.sl-debt { font-size: 24px; font-weight: 700; letter-spacing: -.01em; margin: 2px 0 8px; }
-.sl-debt span { font-size: 13px; font-weight: 500; color: #9ca3af; margin-left: 6px; }
-.sl-strip { display: flex; gap: 3px; height: 26px; }
-.sl-strip i { flex: 1; border-radius: 3px; }
-
-.sl-contrib-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 12px; }
-.sl-rings { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; padding-top: 12px; }
-.sl-ring { display: grid; justify-items: center; gap: 4px; text-align: center; }
-.sl-ring b { font-size: 13px; font-weight: 600; }
-.sl-ring span { font-size: 11px; color: #6b7280; }
-
-.sl-links { display: grid; gap: 10px; }
-.sl-link { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 11px 12px; border-radius: 8px; background: rgba(17,24,39,.6); }
-.sl-link p { margin: 0; }
-.sl-link b { font-weight: 600; }
-.sl-n { color: #6b7280; font-size: 11px; grid-column: 1; }
-.sl-effect { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-weight: 600; }
 .sl .good { color: #4ade80; } .sl .bad { color: #f87171; } .sl .flat { color: #6b7280; }
-.sl-foot { color: #6b7280; font-size: 11px; margin-top: 10px; }
+.sl-dim { color: #9ca3af; }
+
+/* Night summary pill at the start of the controls bar */
+.sl-pill { height: 32px; padding: 0 10px 0 4px; border-radius: 16px; display: flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; }
+.sl-pill-score { width: 26px; height: 26px; border-radius: 13px; color: #052e16; display: grid; place-items: center; font-size: 12px; flex: none; }
+.sl-vr { width: 1px; height: 20px; background: #374151; flex: none; }
+.sl-faded { opacity: .45; }
+.sl-faded:hover { opacity: 1; }
+.sl .dn-seg button.sl-seg-night { border-left: 1px solid #1f2937; display: inline-flex; align-items: center; gap: 6px; }
+.sl .dn-seg button.sl-seg-night.on { background: #7c3aed; color: #fff; }
+
+/* One rotating sleep and symptom insight under the bar */
+.sl-ticker { height: 34px; border-radius: 6px; background: rgba(17,24,39,.6); display: flex; align-items: center; gap: 12px; padding: 0 12px; min-width: 0; }
+.sl-tick { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; animation: sl-fade .4s ease; }
+.sl-chip-kind { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; width: 74px; flex: none; }
+.sl-chip-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-chip-text b { font-weight: 600; }
+.sl-chip-text .sl-n { margin-left: 6px; }
+.sl-tick > b { flex: none; font-weight: 600; }
+@keyframes sl-fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.sl-dots { display: flex; align-items: center; gap: 4px; flex: none; }
+.sl-dots button { width: 4px; height: 4px; padding: 0; border: 0; border-radius: 2px; background: #4b5563; cursor: pointer; transition: width .2s; }
+.sl-dots button.on { width: 16px; background: #d1d5db; }
+.sl-n { color: #6b7280; font-size: 11px; }
+.sl-kpi-s { display: block; font-size: 11px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-kpi-s b { font-weight: 600; }
 
 .sl-main { padding: 12px; display: grid; gap: 16px; }
 .sl-panel { background: rgba(17,24,39,.5); border-radius: 8px; padding: 16px; min-width: 0; }
-.sl-kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
-.sl-kpi { font: inherit; color: #f3f4f6; cursor: pointer; text-align: left; padding: 12px; border-radius: 8px; border: 1px solid transparent; background: rgba(17,24,39,.5); display: block; min-width: 0; transition: background .15s, border-color .15s; }
+.sl-kpis { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 8px; }
+.sl-kpi { font: inherit; color: #f3f4f6; cursor: pointer; text-align: left; padding: 10px; border-radius: 8px; border: 1px solid transparent; background: rgba(17,24,39,.5); display: block; min-width: 0; transition: background .15s, border-color .15s; }
 .sl-kpi:hover { background: rgba(17,24,39,.8); }
 .sl-kpi.on { background: #111827; }
-.sl-kpi-t { font-size: 12px; color: #9ca3af; display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 4px; white-space: nowrap; }
-.sl-kpi-t > span:last-child:not(:first-child) { font-weight: 600; }
-.sl-kpi-v { display: block; font-size: 24px; line-height: 32px; font-weight: 700; letter-spacing: -.025em; white-space: nowrap; }
+.sl-kpi-t { font-size: 11px; color: #9ca3af; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sl-kpi-v { display: block; font-size: 20px; line-height: 28px; font-weight: 700; letter-spacing: -.025em; white-space: nowrap; }
 
 .sl-chart { width: 100%; user-select: none; }
 .sl-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #9ca3af; margin-top: 8px; }
@@ -58,11 +56,12 @@
 .sl-clear { font: inherit; background: none; border: 0; color: #a78bfa; cursor: pointer; margin-left: 6px; }
 
 @media (max-width: 1100px) {
-  .sl-row1 { grid-template-columns: 1fr; }
+  .sl-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .sl-vr { display: none; }
 }
 .sl-head h2.sl-trend-title { font-size: 18px; color: #93c5fd; }
 
-/* Night stepper inside the last-night card */
+/* Night stepper inside the summary pill */
 .sl-night { display: flex; gap: 8px; margin-bottom: 2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .sl-night button { background: none; border: 0; padding: 0; color: #4b5563; cursor: pointer; font: inherit; }
 .sl-night button:hover:not(:disabled) { color: #d1d5db; }
