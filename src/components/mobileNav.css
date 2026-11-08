@@ -31,6 +31,7 @@
 .mn-tablist button span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mn-tablist button svg { width: 20px; height: 20px; }
 .mn-tablist button.on { background: rgba(255,255,255,.08); color: #f3f4f6; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+.mn-tablist button.sw { color: #ddd6fe; background: rgba(139,92,246,.18); box-shadow: 0 0 0 1px rgba(139,92,246,.55); }
 
 .mn-tablist { display: flex; flex: 1; min-width: 0; }
 /* Home has no dock (its grid holds the same actions): it drops out of sight there and springs

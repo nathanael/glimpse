@@ -288,8 +288,9 @@ function App() {
   }, [appMode, showInsights, homeDeep]);
   const closeToHome = (e) => shatterSwitch({ toAdv: false, originEl: e.currentTarget, commit: () => { setAppMode('home'); setShowInsights(false); } });
   useEffect(() => {
-    if (onHome && getDateKey(selectedDate) !== getDateKey(new Date())) setSelectedDate(new Date());
-  }, [onHome, selectedDate]);
+    // The simple screens over Home have their own week strip; closing them snaps back to today.
+    if (onHome && !showRapidEntry && !showSimpleProtocol && getDateKey(selectedDate) !== getDateKey(new Date())) setSelectedDate(new Date());
+  }, [onHome, selectedDate, showRapidEntry, showSimpleProtocol]);
 
   // One-shot: "Today's meals" sets it, MealList consumes it on its next mount. If the user
   // leaves Protocol before the timeout fires, clear it immediately instead of leaving it
@@ -800,8 +801,7 @@ function App() {
 
   // One to three cuff readings arrive already averaged; the key is made here, outside the updater,
   // for the same reason as saveMeal's. Undo is the only way back from a mistap: there is no edit.
-  const saveBloodPressure = useCallback((record) => {
-    const at = new Date();
+  const saveBloodPressure = useCallback((record, at = new Date()) => {
     const key = mealKey(at);
     setBloodPressure((prev) => ({ ...prev, [key]: { time: at.toISOString(), ...record } }));
     haptic('light');
@@ -1120,18 +1120,15 @@ function App() {
               date: selectedDate,
             })}
             onSimpleChecklist={() => setShowSimpleProtocol(true)}
-            onMatchYesterday={() => protocolMatchYesterday()}
-            onAddSupplement={() => setAddFlow('supplement')}
-            onProtocolDetail={() => openFromHome('stack')}
             onRapidEntry={() => setShowRapidEntry(true)}
             onTalkMode={() => openTalkMode()}
+            onProgress={() => setShowInsights(true)}
             onAddSymptom={() => setAddFlow('symptom')}
             onSymptomList={() => openFromHome('symptoms')}
             onNote={() => setShowNoteModal(true)}
             onBloodPressure={() => setShowBloodPressure('entry')}
             stats={homeStats}
             onSleep={() => setShowSleepNight(true)}
-            onBloodPressurePage={() => setShowBloodPressure('history')}
             onAdvanced={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => { setAppMode('symptoms'); setShowInsights(false); setShowQuickActions(false); } })}
             onMore={() => setShowQuickActions(true)}
           />
@@ -1247,6 +1244,12 @@ function App() {
           timePeriods={timePeriods}
           quickLog={quickLog}
           setCopyToastMessage={setCopyToastMessage}
+          onSelectDate={selectDate}
+          onAdvanced={() => {
+            setShowRapidEntry(false);
+            if (appMode === 'home') openFromHome('symptoms');
+            else { setAppMode('symptoms'); setShowInsights(false); }
+          }}
           onClose={() => setShowRapidEntry(false)}
         />
       )}
@@ -1286,6 +1289,7 @@ function App() {
           stackEntries={stackEntries}
           setStackEntries={setStackEntries}
           selectedDate={selectedDate}
+          onSelectDate={selectDate}
           onFullDetail={() => { setShowSimpleProtocol(false); if (appMode === 'home') openFromHome('stack'); else setAppMode('stack'); }}
           onClose={() => setShowSimpleProtocol(false)}
         />
@@ -1756,6 +1760,8 @@ function App() {
           onEditSymptoms={() => { setAppMode('symptoms'); setShowInsights(false); setSymptomEditMode(true); }}
           onClearSymptoms={clearSymptomDay}
           onRapidEntry={() => { setAppMode('symptoms'); setShowInsights(false); setShowRapidEntry(true); }}
+          onCheckIn={() => setShowRapidEntry(true)}
+          onSimpleChecklist={() => setShowSimpleProtocol(true)}
           // Stack page actions
           onCheckAll={protocolCheckAll}
           onClear={protocolClearDay}

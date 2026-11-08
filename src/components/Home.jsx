@@ -1,5 +1,5 @@
-// The easy-mode landing screen: four stat tiles, two of them photographs (Supplements, Tracking),
-// over a grid of the quick actions, all within reach of the thumb. Tapping a photograph morphs it into a panel that
+// The easy-mode landing screen: two sections stacked, Health tracking (a photograph) and Sleep,
+// over a grid of the quick actions, all within reach of the thumb. Tapping the photograph morphs it into a panel that
 // fills Home: the photo grows out of its tile, the title flies up into a header and that kind of
 // logging's options spring up from the bottom. Purely presentational: every button calls a
 // handler App already owns, and nothing here writes to a store.
@@ -16,7 +16,6 @@ import { solar } from './solarIcons';
 import { formatMinutes, sparkPath } from '../utils/homeStats';
 import { springs, reducedMotion } from './motion';
 import symptomsArt from '../assets/home/symptoms.jpg';
-import supplementsArt from '../assets/home/supplements.jpg';
 import './home.css';
 
 // iOS only raises the keyboard for a focus() made inside the tap itself, and the note sheet's
@@ -37,16 +36,6 @@ function Spark({ values }) {
   return d ? <svg className="hm-spark" viewBox="0 0 120 24" preserveAspectRatio="none" aria-hidden="true"><path d={d} /></svg> : null;
 }
 
-// '7:52 AM' today, 'Yesterday' or 'Oct 28'
-function bpWhen(iso) {
-  const at = new Date(iso), now = new Date();
-  if (Number.isNaN(at.getTime())) return '';
-  const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const diff = Math.round((day(now) - day(at)) / 864e5);
-  return diff === 0 ? at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-    : diff === 1 ? 'Yesterday' : at.toLocaleDateString([], { month: 'short', day: 'numeric' });
-}
-
 // Garmin dates a night by the morning you woke up, so today's date is last night.
 function sleepWhen(date) {
   const [y, m, d] = date.split('-').map(Number);
@@ -65,27 +54,24 @@ const boxFrames = (a, b) => [
 ];
 
 export default function Home({
-  summary,            // { symptoms, supplements }: each a string, or null when nothing is logged yet
-  stats,              // { supplements: {taken, due}, health, sleep, bp } from utils/homeStats.js
+  summary,            // { symptoms }: a string, or null when nothing is logged yet
+  stats,              // { health, sleep } from utils/homeStats.js
   onSleep,
-  onBloodPressurePage,
-  // Supplements panel
-  onSimpleChecklist,
-  onMatchYesterday,
-  onAddSupplement,
-  onProtocolDetail,
-  // Tracking panel
+  // Health tracking panel
   onRapidEntry,
   onTalkMode,
+  onProgress,
   onAddSymptom,
   onSymptomList,
+  // Grid
+  onSimpleChecklist,
   // Grid
   onNote,
   onBloodPressure,
   onAdvanced,         // (event): the button is the origin of the shatter
   onMore,
 }) {
-  const [open, setOpen] = useState(null);   // 'supplements' | 'tracking' | null
+  const [open, setOpen] = useState(null);   // 'tracking' | null
   const rootRef = useRef(null);
   const cardRefs = useRef({});
   const xpRef = useRef(null);
@@ -93,28 +79,11 @@ export default function Home({
 
   // Each panel: the ways of logging as frosted bars, then the door into the full tab as plain
   // text under them.
-  const { supplements: supp, health, sleep, sleepError, bp } = stats;
-  const left = supp.due - supp.taken;
+  const { health, sleep, sleepError } = stats;
   const change = health.change == null || health.change === 0 ? '' : ` · ${health.change > 0 ? '↑' : '↓'} ${Math.abs(health.change)} this week`;
   const cards = [
     {
-      id: 'supplements', title: 'Supplements', art: supplementsArt, line: summary.supplements, empty: 'None taken yet',
-      stat: supp.due ? (
-        <span className="hm-num">
-          <b>{supp.taken}<em> / {supp.due}</em></b>
-          <span className="hm-bar" aria-hidden="true"><i style={{ width: `${(supp.taken / supp.due) * 100}%` }} /></span>
-          <small className={left ? '' : 'done'}>{left ? `${left} left today` : 'All taken'}</small>
-        </span>
-      ) : <span className="hm-num"><b className="none">–</b><small>Nothing due today</small></span>,
-      options: [
-        { icon: 'protocol', label: 'Simple checklist', onClick: onSimpleChecklist },
-        { icon: 'yesterday', label: 'Match yesterday', onClick: onMatchYesterday },
-        { icon: 'add', label: 'Add supplement', onClick: () => { primeKeyboard(); onAddSupplement(); } },
-        { icon: 'more', label: 'Full protocol', onClick: onProtocolDetail, deep: true },
-      ],
-    },
-    {
-      id: 'tracking', title: 'Tracking', art: symptomsArt, line: summary.symptoms, empty: 'Not checked in yet',
+      id: 'tracking', title: 'Health tracking', art: symptomsArt, line: summary.symptoms, empty: 'Not checked in yet',
       stat: (
         <span className="hm-num">
           <b className={health.today == null ? 'none' : ''}>{health.today ?? '–'}</b>
@@ -125,6 +94,7 @@ export default function Home({
       options: [
         { icon: 'bolt', label: 'Rapid entry', onClick: onRapidEntry },
         { icon: 'mic', label: 'Talk me through it', onClick: onTalkMode },
+        { icon: 'progress', label: 'Progress', onClick: onProgress },
         { icon: 'add', label: 'Add symptom', onClick: () => { primeKeyboard(); onAddSymptom(); } },
         { icon: 'symptoms', label: 'Full list', onClick: onSymptomList, deep: true },
       ],
@@ -315,20 +285,6 @@ export default function Home({
               </span>
             ) : (
               <span className="hm-num"><b className="none">–</b><small>No sleep data yet</small></span>
-            )}
-          </span>
-        </button>
-        <button type="button" className="hm-stat pressure" onClick={onBloodPressurePage}>
-          <span className="hm-face">
-            <span className="hm-title">Blood pressure</span>
-            {bp ? (
-              <span className="hm-num">
-                <b>{bp.sys}<em>/{bp.dia}</em></b>
-                <Spark values={bp.points} />
-                <small><i className={`hm-dot ${bp.category.id}`} />{bp.category.label} · {bpWhen(bp.time)}</small>
-              </span>
-            ) : (
-              <span className="hm-num"><b className="none">–</b><small>No readings yet</small></span>
             )}
           </span>
         </button>

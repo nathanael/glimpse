@@ -3,7 +3,8 @@ import QuickActionsMenu from './QuickActionsMenu';
 import { solar } from './solarIcons';
 import { shatterSwitch } from './shatter';
 
-// Simple sits at the far right, under the thumb, for hopping back and forth with Advanced
+// Simple sits at the far right, under the thumb, for hopping back and forth with Advanced. On
+// Tracking and Protocol it skips Home and opens that tab's simple screen (Check-in, Pills).
 const TABS = [
   { id: 'symptoms', label: 'Tracking', icon: solar.symptoms },
   { id: 'stack', label: 'Protocol', icon: solar.protocol },
@@ -30,6 +31,8 @@ export default function BottomNav({
   onEditSymptoms,
   onClearSymptoms,
   onRapidEntry,
+  onCheckIn,          // the simple check-in, from the Tracking tab's switch
+  onSimpleChecklist,  // the Pills checklist, from the Protocol tab's switch
   onClear,
   onEditProtocol,
   onLogMeal,
@@ -54,7 +57,11 @@ export default function BottomNav({
   // Home has no dock: its own grid holds Advanced and More. Leaving Home the dock rises into
   // place; coming back it drops away. Tapping the Simple tab plays the shatter back to the photos.
   const away = appMode === 'home' && !showInsights;
+  // The Simple tab on Tracking / Protocol: the switch straight into that tab's simple screen.
+  const simple = activeTab === 'symptoms' && onCheckIn ? { label: 'Check-in', open: onCheckIn }
+    : activeTab === 'stack' && onSimpleChecklist ? { label: 'Pills', open: onSimpleChecklist } : null;
   const onTab = (tab, e) => {
+    if (tab === 'home' && simple) { setShowQuickActions(false); simple.open(); return; }
     if (tab === 'home') shatterSwitch({ toAdv: false, originEl: e.currentTarget, commit: () => goTo('home') });
     else goTo(tab);
   };
@@ -79,8 +86,8 @@ export default function BottomNav({
           <div className="mn-tabs">
             <div className="mn-tablist" role="tablist">
               {TABS.map((tab) => (
-                <button key={tab.id} role="tab" aria-selected={activeTab === tab.id} className={activeTab === tab.id ? 'on' : ''} onClick={(e) => onTab(tab.id, e)}>
-                  <svg viewBox="0 0 24 24">{tab.icon}</svg><span>{tab.label}</span>
+                <button key={tab.id} role="tab" aria-selected={activeTab === tab.id} className={activeTab === tab.id ? 'on' : tab.id === 'home' && simple ? 'sw' : ''} onClick={(e) => onTab(tab.id, e)}>
+                  <svg viewBox="0 0 24 24">{tab.icon}</svg><span>{tab.id === 'home' && simple ? simple.label : tab.label}</span>
                 </button>
               ))}
             </div>

@@ -1,0 +1,21 @@
+/* WeekStrip: seven day buttons in one row; the chosen day is a light chip. */
+.wk { flex: none; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.wk-d { height: 68px; min-width: 0; padding: 0; border: 0; border-radius: 15px; background: #15171a; color: #9ca3af; font-family: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: transform .12s, background .15s; }
+.wk-d:active { transform: scale(.94); }
+.wk-d span { font-size: 11px; font-weight: 600; white-space: nowrap; }
+.wk-d b { font-size: 18px; font-weight: 700; color: #f3f4f6; line-height: 1; }
+.wk-d i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.12); }
+.wk-d i.full { background: #a78bfa; }
+.wk-d i.part { background: #6d5bb5; }
+.wk-d.on { background: #f3f4f6; color: #4b5563; }
+.wk-d.on b { color: #0b0c0e; }
+.wk-d.on i { background: rgba(0,0,0,.15); }
+.wk-d.on i.full { background: #7c3aed; }
+.wk-d.on i.part { background: #a78bfa; }
+@media (max-height: 700px) { .wk-d { height: 56px; } }
+
+/* The way from a simple screen back to its Advanced tab: one bar under the strip. */
+.adv-back { flex: none; width: 100%; height: 50px; border: 1.5px solid rgba(139,92,246,.7); border-radius: 16px; background: #1e1838; color: #ddd6fe; font-family: inherit; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.adv-back:active { transform: scale(.98); background: #261f48; }
+.adv-back svg { width: 22px; height: 22px; }
+@media (max-height: 700px) { .adv-back { height: 44px; } }

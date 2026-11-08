@@ -57,3 +57,12 @@
 
 /* Wellbeing questions: the scale reads the other way, so say so above the name */
 .re-kind { font-size: 11.5px; letter-spacing: .3px; text-transform: uppercase; color: #2dd4bf; padding: 3px 9px; border-radius: 999px; background: rgba(45, 212, 191, .1); border: 1px solid rgba(45, 212, 191, .3); }
+
+/* Week strip and the way back to Advanced, under the keys. On a short phone the nav row and
+   keys give up height so the symptom still has room. */
+.re-foot { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+@media (max-height: 760px) {
+  .re-nav button { height: 60px; }
+  .re-key.na { height: 54px; }
+  .re-keys .re-key { aspect-ratio: 1.35; }
+}

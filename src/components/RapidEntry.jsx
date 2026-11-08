@@ -8,6 +8,9 @@ import { getDateKey, getCurrentTimePeriod, formatDate } from '../utils/helpers';
 import { getLastSeverity } from '../utils/listHelpers';
 import * as queue from '../voice/checkinQueue';
 import { isWellbeing, colorIndex, WELLBEING_LABELS } from '../utils/wellbeing';
+import WeekStrip from './WeekStrip';
+import { solar } from './solarIcons';
+import './weekStrip.css';
 
 // Full-screen, one-symptom-at-a-time logging. Rating jumps to the next unlogged symptom;
 // finishing a period offers the other one, then closes with confetti.
@@ -20,6 +23,8 @@ export default function RapidEntry({
   timePeriods,
   quickLog,
   setCopyToastMessage,
+  onSelectDate,  // (date): the week strip moves the day being logged
+  onAdvanced,    // the Advanced Tracking tab
   onClose,
 }) {
   const dateKey = getDateKey(selectedDate);
@@ -40,8 +45,41 @@ export default function RapidEntry({
   const periodLabel = timePeriods.length > 1 ? timePeriods.find((p) => p.id === period)?.label : '';
   const otherIncomplete = queue.otherIncomplete(symptoms, entries, dateKey, timePeriods, period);
 
+  // A new day from the week strip starts that day's queue afresh, as opening Rapid entry on it would.
+  const firstDay = useRef(dateKey);
+  const quiet = useRef(false);   // an already-finished day arrives done: no confetti for it
   useEffect(() => {
-    if (done) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    if (firstDay.current === dateKey) return;
+    firstDay.current = dateKey;
+    const p = queue.initialPeriod(symptoms, entries, dateKey, timePeriods, getCurrentTimePeriod(trackingMode));
+    const l = listFor(p);
+    setPeriod(p);
+    setIndex(Math.max(0, l.findIndex((s) => !entries[queue.entryKey(dateKey, s.id, p)])));
+    quiet.current = true;
+    setDone(l.every((s) => !!entries[queue.entryKey(dateKey, s.id, p)]));
+  }, [dateKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A day's dot: every symptom rated in every period, some, or none.
+  const dayStatus = (d) => {
+    const k = getDateKey(d);
+    let all = 0, n = 0;
+    timePeriods.forEach((p) => listFor(p.id).forEach((s) => { all += 1; if (entries[queue.entryKey(k, s.id, p.id)]) n += 1; }));
+    return !all || !n ? '' : n === all ? 'full' : 'part';
+  };
+  const foot = (onSelectDate || onAdvanced) && (
+    <div className="re-foot">
+      {onSelectDate && <WeekStrip selectedDate={selectedDate} onSelect={onSelectDate} status={dayStatus} />}
+      {onAdvanced && (
+        <button type="button" className="adv-back" onClick={onAdvanced}>
+          <svg viewBox="0 0 24 24">{solar.transfer}</svg>Advanced tracking
+        </button>
+      )}
+    </div>
+  );
+
+  useEffect(() => {
+    if (done && !quiet.current) confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    quiet.current = false;
   }, [done]);
 
   const switchPeriod = (periodId) => {
@@ -150,6 +188,7 @@ export default function RapidEntry({
               <button className="dn-btn ghost" onClick={startOver}>Start {periodLabel} over</button>
             </div>
           </div>
+          {foot && <div className="re-pad">{foot}</div>}
         </div>
       </div>
     );
@@ -206,6 +245,7 @@ export default function RapidEntry({
             <b>N/A</b><small>Not applicable right now</small>
           </button>
           </div>
+          {foot}
         </div>
       </div>
     </div>

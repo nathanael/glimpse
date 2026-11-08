@@ -9,13 +9,16 @@ import { useEffect, useRef } from 'react';
 import { getDateKey, isScheduledForDate, haptic, formatDate } from '../utils/helpers';
 import './simpleProtocol.css';
 import { CloseButton, useRiseIn, useDragDismiss } from './overlay';
+import WeekStrip from './WeekStrip';
+import { solar } from './solarIcons';
 
 export default function SimpleProtocol({
   stackItems,
   stackEntries,
   setStackEntries,
   selectedDate,
-  onFullDetail,
+  onSelectDate,   // (date): the week strip moves the day being checked off
+  onFullDetail,   // the Advanced Protocol tab
   onClose,
 }) {
   const rootRef = useRef(null);
@@ -33,6 +36,14 @@ export default function SimpleProtocol({
   const keyFor = (item) => `${dateKey}-${item.id}`;
   const isTaken = (item) => !!stackEntries[keyFor(item)];
   const taken = due.filter(isTaken).length;
+
+  // A day's dot: every due item taken, some, or none.
+  const dayStatus = (d) => {
+    const k = getDateKey(d);
+    const items = (stackItems || []).filter((i) => i.active && isScheduledForDate(i.schedule, d));
+    const n = items.filter((i) => stackEntries[`${k}-${i.id}`]).length;
+    return !items.length || !n ? '' : n === items.length ? 'full' : 'part';
+  };
 
   const toggle = (item) => {
     const key = keyFor(item);
@@ -58,7 +69,7 @@ export default function SimpleProtocol({
 
         <div className="sck-list">
           {due.length === 0 ? (
-            <p className="sck-empty">Nothing scheduled today.</p>
+            <p className="sck-empty">Nothing scheduled this day.</p>
           ) : due.map((item) => (
             <button
               key={item.id}
@@ -74,7 +85,10 @@ export default function SimpleProtocol({
         </div>
 
         <div className="sck-foot">
-          <button onClick={onFullDetail}>Full detail →</button>
+          {onSelectDate && <WeekStrip selectedDate={selectedDate} onSelect={onSelectDate} status={dayStatus} />}
+          <button type="button" className="adv-back" onClick={onFullDetail}>
+            <svg viewBox="0 0 24 24">{solar.transfer}</svg>Advanced protocol
+          </button>
         </div>
       </div>
     </div>

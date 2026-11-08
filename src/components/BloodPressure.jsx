@@ -16,6 +16,7 @@ import { MAX_READINGS, averageReadings, bpCategory, clampField, startingReading,
 import { CloseButton, useRiseIn, useDragDismiss } from './overlay';
 import { useFlowViewport } from './AddFlow';
 import BloodPressureHistory from './BloodPressureHistory';
+import WeekStrip from './WeekStrip';
 import './bloodPressure.css';
 
 // One number with − and + either side. A press steps once at once and, held, keeps stepping.
@@ -73,6 +74,8 @@ function Stepper({ field, label, value, onChange, small }) {
   );
 }
 
+const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
 export default function BloodPressure({ records, startOn = 'entry', onSave, onDelete, onClose }) {
   const rootRef = useRef(null);
   useRiseIn(rootRef);
@@ -84,6 +87,10 @@ export default function BloodPressure({ records, startOn = 'entry', onSave, onDe
   const [taken, setTaken] = useState([]);                       // readings already added
   const [cur, setCur] = useState(() => startingReading(records)); // the one on the steppers
   const set = (field) => (v) => setCur((c) => ({ ...c, [field]: v }));
+  // The day the reading is for: today unless picked on the week strip, then that day at this time.
+  const [day, setDay] = useState(() => new Date());
+  const isToday = sameDay(day, new Date());
+  const savedOn = (d) => Object.values(records || {}).some((r) => r && Number.isFinite(r.sys) && r.time && sameDay(new Date(r.time), d));
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -104,7 +111,9 @@ export default function BloodPressure({ records, startOn = 'entry', onSave, onDe
   };
   const removeTaken = (i) => setTaken((t) => t.filter((_, j) => j !== i));
   const save = () => {
-    onSave({ sys: avg.sys, dia: avg.dia, pulse: avg.pulse, readings: all });
+    const now = new Date();
+    const at = isToday ? now : new Date(day.getFullYear(), day.getMonth(), day.getDate(), now.getHours(), now.getMinutes(), now.getSeconds());
+    onSave({ sys: avg.sys, dia: avg.dia, pulse: avg.pulse, readings: all }, at);
     if (!fromPage) { onClose(); return; }
     setTaken([]);
     setCur({ sys: avg.sys, dia: avg.dia, pulse: avg.pulse ?? cur.pulse });
@@ -114,6 +123,7 @@ export default function BloodPressure({ records, startOn = 'entry', onSave, onDe
 
   const sub = taken.length
     ? `Reading ${all.length} of up to ${MAX_READINGS}`
+    : !isToday ? `For ${day.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}`
     : (lastLine(records) || 'Your first reading');
 
   return (
@@ -173,6 +183,7 @@ export default function BloodPressure({ records, startOn = 'entry', onSave, onDe
             {taken.length ? `Save average ${shown}` : `Save ${shown}`}
           </button>
           {!fromPage && <button type="button" className="bp-all" onClick={() => setView('history')}>All readings</button>}
+          <WeekStrip selectedDate={day} onSelect={setDay} status={(d) => (savedOn(d) ? 'full' : '')} />
         </div>
         )}
       </div>
