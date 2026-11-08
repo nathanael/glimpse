@@ -1,13 +1,19 @@
-// The one bottom bar every screen shares, always in the same place: Home on the left, the last
-// 30 days as chips you swipe through in the middle (today at the right end), and the
-// Simple/Advanced switch on the right. A screen without days or a switch keeps the slots empty,
-// so Home and the switch never move.
-import { useLayoutEffect, useRef } from 'react';
+// The one bottom bar every screen shares, always in the same place: Home on the left, the day
+// with ‹ › arrows in the middle (the same picker as Sleep, minified), and the Simple/Advanced
+// switch on the right. A screen without days or a switch keeps the slots empty, so Home and the
+// switch never move.
 import { getDateKey } from '../utils/helpers';
 import './dayBar.css';
 
-const DAYS = 30;
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const DAY_MS = 86400000;
+
+function dayLabel(d) {
+  const diff = Math.round((startOfDay(new Date()) - startOfDay(d)) / DAY_MS);
+  if (diff === 0) return { label: 'Today', sub: d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) };
+  if (diff === 1) return { label: 'Yesterday', sub: d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) };
+  return { label: d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }), sub: `${diff} days ago` };
+}
 
 export default function DayBar({
   selectedDate,   // omit for a screen without days (Progress)
@@ -17,20 +23,11 @@ export default function DayBar({
   onSwitch,       // omit where there is nothing to switch to
   switchLabel,    // e.g. 'Advanced tracking'
 }) {
-  const railRef = useRef(null);
-  const today = startOfDay(new Date());
-  const days = Array.from({ length: DAYS }, (_, i) => { const d = new Date(today); d.setDate(d.getDate() - (DAYS - 1 - i)); return d; });
-  const selKey = selectedDate ? getDateKey(selectedDate) : null;
-
-  // Keep the chosen day in view: today on arrival, scrolled to if picked off-screen.
-  useLayoutEffect(() => {
-    const rail = railRef.current;
-    if (!rail) return;
-    const on = rail.querySelector('.db-chip.on') || rail.lastElementChild;
-    if (!on) return;
-    const left = on.offsetLeft, right = left + on.offsetWidth;
-    if (left < rail.scrollLeft || right > rail.scrollLeft + rail.clientWidth) rail.scrollLeft = right - rail.clientWidth + 4;
-  }, [selKey]);
+  const day = selectedDate ? startOfDay(selectedDate) : null;
+  const isToday = day && day.getTime() >= startOfDay(new Date()).getTime();
+  const shift = (n) => { const d = new Date(day); d.setDate(d.getDate() + n); onSelect(d); };
+  const when = day ? dayLabel(day) : null;
+  const s = day && status ? status(day) : '';
 
   return (
     <div className="db">
@@ -38,27 +35,19 @@ export default function DayBar({
         <svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" /></svg>
       </button>
       <div className="db-sl">
-        {selectedDate && (
-          <div className="db-rail" ref={railRef} role="group" aria-label="Day">
-            {days.map((d, i) => {
-              const key = getDateKey(d), on = key === selKey, isToday = i === DAYS - 1;
-              const s = status ? status(d) : '';
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  className={`db-chip${on ? ' on' : ''}`}
-                  aria-pressed={on}
-                  aria-label={`${isToday ? 'Today' : d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}${s === 'full' ? ', done' : s === 'part' ? ', part done' : ''}`}
-                  onClick={() => { if (!on) onSelect(d); }}
-                >
-                  <span>{isToday ? 'Today' : d.toLocaleDateString([], { weekday: 'short' }).slice(0, 2)}</span>
-                  <b>{d.getDate()}</b>
-                  <i className={s || undefined} />
-                </button>
-              );
-            })}
-          </div>
+        {day && (
+          <nav className="db-nav" aria-label="Day">
+            <button type="button" className="db-arr" aria-label="Previous day" onClick={() => shift(-1)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+            </button>
+            <div className="db-date" aria-live="polite" key={getDateKey(day)}>
+              <b>{when.label}{s && <i className={s} aria-label={s === 'full' ? 'done' : 'part done'} />}</b>
+              <small>{when.sub}</small>
+            </div>
+            <button type="button" className="db-arr" aria-label="Next day" disabled={isToday} onClick={() => shift(1)}>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
+          </nav>
         )}
       </div>
       <button

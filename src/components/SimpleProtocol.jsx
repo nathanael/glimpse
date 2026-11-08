@@ -57,7 +57,7 @@ export default function SimpleProtocol({
       <div className="sck-in">
         <div className="sck-bar ui-drag" {...dragDismiss}>
           <h2>Pills</h2>
-          <span>{formatDate(selectedDate)}{due.length > 0 && ` · ${taken} of ${due.length}`}</span>
+          <span>{onHome ? (due.length > 0 && `${taken} of ${due.length} taken`) : <>{formatDate(selectedDate)}{due.length > 0 && ` · ${taken} of ${due.length}`}</>}</span>
           {!onHome && <CloseButton label="Close checklist" onClick={onClose} />}
         </div>
 

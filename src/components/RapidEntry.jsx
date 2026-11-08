@@ -199,7 +199,7 @@ export default function RapidEntry({
         {header}
 
         <div className="re-progress">
-          <div className="re-count"><span>{formatDate(selectedDate)}{periodLabel && ` · ${periodLabel}`}</span><span><b>{loggedCount}</b> of {list.length} logged</span></div>
+          <div className="re-count"><span>{onHome ? periodLabel : <>{formatDate(selectedDate)}{periodLabel && ` · ${periodLabel}`}</>}</span><span><b>{loggedCount}</b> of {list.length} logged</span></div>
           <div className="re-ticks">
             {list.map((s) => {
               const entry = entries[entryKey(s, period)];
