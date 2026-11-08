@@ -70,6 +70,8 @@ export default function ProtocolRows({
   barSlot,
   onEditItem,         // mobile: a row's swipe Edit opens the item's full-screen page
   mealsSlot,
+  tab: tabProp,
+  onTab,
 }) {
   const dateKey = getDateKey(selectedDate);
   const isToday = selectedDate.toDateString() === new Date().toDateString();
@@ -80,6 +82,9 @@ export default function ProtocolRows({
   const [scheduleDraft, setScheduleDraft] = useState(null);
   const [showAllHidden, setShowAllHidden] = useState(false);
   const [adding, setAdding] = useState(null); // 'supplement' | 'factor'
+  const [ownTab, setOwnTab] = useState('s'); // phone list: 's' supplements | 'f' other factors
+  const tab = tabProp ?? ownTab;
+  const setTab = onTab ?? setOwnTab;
 
   useEffect(() => setScheduleDraft(null), [expandedId]);
 
@@ -515,13 +520,31 @@ export default function ProtocolRows({
     return (
       <div
         key={item.id}
-        className={`lr-row lr-cols ${focused ? 'focus' : ''} ${entry ? 'done' : ''} ${due ? '' : 'muted'}`}
+        className={`lr-row lr-cols ${isDesktop ? '' : 'lr-two'} ${focused ? 'focus' : ''} ${entry ? 'done' : ''} ${due ? '' : 'muted'}`}
         onMouseMove={isDesktop && due && !focused ? () => setFocusId(item.id) : undefined}
         onClick={() => { if (due) setFocusId(item.id); if (!isDesktop) toggleSupplement(item); }}
       >
-        <div className="lr-name">{item.name}{item.description && <small>{item.description}</small>}</div>
+        {isDesktop ? (
+          <div className="lr-name">{item.name}{item.description && <small>{item.description}</small>}</div>
+        ) : (
+          <div className="lr-name">
+            {item.name}
+            <small className="lr-sub">
+              {dosingId === item.id ? (
+                <span className="lr-dose editing" onClick={(e) => e.stopPropagation()}>
+                  <DraftInput className="lr-input num boxed" inputMode="decimal" autoFocus value={entry?.dose ?? item.defaultDose} onCommit={(v) => setDose(item, v)} onAbandon={() => setDosingId(null)} />{item.unit}
+                </span>
+              ) : (
+                <button type="button" className="lr-dose" onClick={(e) => { e.stopPropagation(); setDosingId(item.id); }}>
+                  <b>{entry?.dose ?? item.defaultDose}</b>{item.unit}
+                </button>
+              )}
+              {item.description && <span className="lr-desc"> · {item.description}</span>}
+            </small>
+          </div>
+        )}
         {isDesktop && renderStrip(item.id, stackEntries, item.schedule, onOpenSupplementGraph ? () => onOpenSupplementGraph(item.id) : null)}
-        {dosingId === item.id ? (
+        {!isDesktop ? null : dosingId === item.id ? (
           <div className="lr-dose editing" onClick={(e) => e.stopPropagation()}>
             <DraftInput className="lr-input num boxed" inputMode="decimal" autoFocus value={entry?.dose ?? item.defaultDose} onCommit={(v) => setDose(item, v)} onAbandon={() => setDosingId(null)} />{item.unit}
           </div>
@@ -571,19 +594,30 @@ export default function ProtocolRows({
     );
   };
 
+  const showS = isDesktop || tab === 's';
+  const showF = isDesktop || tab === 'f';
   return (
     <div className={rootClass}>
       {bar}
-      {timeSections.length === 1 && (
+      {!isDesktop && (
+        <div className="lr-tabs" role="tablist">
+          <button type="button" role="tab" aria-selected={tab === 's'} className={tab === 's' ? 'on' : ''} onClick={() => setTab('s')}>Supplements <span>{takenCount}/{dueItems.length}</span></button>
+          <button type="button" role="tab" aria-selected={tab === 'f'} className={tab === 'f' ? 'on' : ''} onClick={() => setTab('f')}>Other factors <span>{loggedCount}/{factors.length}</span></button>
+        </div>
+      )}
+      {showS && !isDesktop && dueItems.length > 0 && (
+        <div className="lr-prog"><i style={{ width: `${Math.round((takenCount / dueItems.length) * 100)}%` }} /></div>
+      )}
+      {showS && isDesktop && timeSections.length === 1 && (
         <div className="lr-sec">
           <b>SUPPLEMENTS</b> {takenCount} of {dueItems.length} taken
           {isDesktop && <span>LAST 14 DAYS</span>}
         </div>
       )}
-      {dueItems.length === 0 && otherItems.length === 0 && !(search && hiddenMatches.length) && (
+      {showS && dueItems.length === 0 && otherItems.length === 0 && !(search && hiddenMatches.length) && (
         <div className="lr-empty">{search ? `Nothing matches "${search}"` : isDesktop ? 'No supplements yet. Use Edit protocol to add one.' : 'No supplements yet. Tap + to add one.'}</div>
       )}
-      {timeSections.map((sec) => [
+      {showS && timeSections.map((sec) => [
         sec.label && (
           <div key={`t-${sec.id}`} className="lr-sec lr-tsec">
             <b>{sec.label.toUpperCase()}</b>
@@ -592,15 +626,15 @@ export default function ProtocolRows({
         ),
         ...sec.items.map((item) => renderSupplementRow(item, true)),
       ])}
-      {otherItems.map((item) => renderSupplementRow(item, false))}
-      <div className="lr-sec"><b>OTHER FACTORS</b> {loggedCount} of {factors.length} {isToday ? 'today' : 'logged'}</div>
-      {factors.length === 0 && !(search && hiddenMatches.length) && <div className="lr-empty">{search ? `Nothing matches "${search}"` : 'No factors yet.'}</div>}
-      {factors.map(renderFactorRow)}
+      {showS && otherItems.map((item) => renderSupplementRow(item, false))}
+      {isDesktop && <div className="lr-sec"><b>OTHER FACTORS</b> {loggedCount} of {factors.length} {isToday ? 'today' : 'logged'}</div>}
+      {showF && factors.length === 0 && !(search && hiddenMatches.length) && <div className="lr-empty">{search ? `Nothing matches "${search}"` : 'No factors yet.'}</div>}
+      {showF && factors.map(renderFactorRow)}
       <HiddenSearchResults matches={hiddenMatches} onRestore={(m) => {
         if (m.deleted) onRestoreDeleted?.(m.kind, m.item);
         else { patch(m.kind, m.item.id, { active: true }); setLastAction(`Restored ${m.item.name}`); }
       }} />
-      {mealsSlot}
+      {isDesktop && mealsSlot}
       {isDesktop && (
         <div className="lr-hintbar">
           <span><kbd>Space</kbd> check</span>

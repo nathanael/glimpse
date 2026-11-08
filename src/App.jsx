@@ -263,6 +263,7 @@ function App() {
   // One-shot: Home's "Add symptom" / "Add supplement" opens the list in edit mode with its new
   // row's name field already open; the list clears this once it has opened the row.
   const [addFlow, setAddFlow] = useState(null);     // 'supplement' | 'symptom' | null: the step-by-step add
+  const [protocolTab, setProtocolTab] = useState('s'); // phone Supplements list: 's' supplements | 'f' other factors
   const [itemPage, setItemPage] = useState(null);   // { kind, id }: one item's full-screen settings
 
   // Desktop mode
@@ -893,7 +894,7 @@ function App() {
   // Mobile Protocol and Tracking: the day's two main actions and the list's +, in a bar above the
   // tabs. The + sits right above the ⋯ on both tabs, so adding is always in the same spot.
   const listBar = isDesktop || showInsights ? null
-    : appMode === 'stack' && !protocolEditMode ? {
+    : appMode === 'stack' && !protocolEditMode && protocolTab === 's' ? {
       buttons: [
         { label: 'Match yesterday', onClick: () => protocolMatchYesterday() },
         { label: 'Check all', onClick: () => protocolCheckAll(), primary: true },
@@ -1073,6 +1074,8 @@ function App() {
                 keyboardEnabled={listKeyboardEnabled}
                 isDesktop={isDesktop}
                 barSlot={navSlot}
+                tab={protocolTab}
+                onTab={setProtocolTab}
                 mealsSlot={(
                   <MealList
                     meals={meals}
@@ -1225,6 +1228,8 @@ function App() {
                 keyboardEnabled={listKeyboardEnabled}
                 isDesktop={isDesktop}
                 barSlot={navSlot}
+                tab={protocolTab}
+                onTab={setProtocolTab}
                 mealsSlot={(
                   <MealList
                     meals={meals}
