@@ -3,12 +3,10 @@ import './mobileNav.css';
 import { formatDate } from '../utils/helpers';
 import { getScoreColor } from '../utils/healthScore';
 import { useHealthScore } from '../hooks/useHealthScore';
-import { CloseButton } from './overlay';
 
-const Chevron = ({ points }) => <svg viewBox="0 0 24 24"><polyline points={points} /></svg>;
 
-// Mobile top bar: scope on the left (date, or the Insights view switch), score on the right,
-// then Home's X when the tab was opened from a Home card.
+// Mobile top bar: the day on the left (tap for the calendar; the day chips at the bottom step
+// days), or the Insights view switch; score and the ⋯ menu on the right.
 // Row two is filled by the active list: progress left, its one primary action right.
 export default function Header({
   selectedDate,
@@ -21,7 +19,8 @@ export default function Header({
   trackingMode,
   showInsights,
   slotRef,
-  onClose,     // set when the tab was opened from a Home card: the X goes back there
+  onMore,      // the ⋯ menu (Settings, Copy for AI, Clear day, Edit list…)
+  moreOn,
 }) {
   const { score, delta, rollingAvg } = useHealthScore(selectedDate, { symptoms, entries, trackingMode });
   const scoreValue = score !== null ? score : rollingAvg;
@@ -34,32 +33,16 @@ export default function Header({
           <div className="dn-slot" ref={slotRef} />
         ) : (
           <>
-            <div className="dn-step">
-              <button aria-label="Previous day" onClick={() => changeDate(-1)}><Chevron points="15 18 9 12 15 6" /></button>
-              <button
-                className="dn-date"
-                onClick={() => {
-                  setCalendarMonth(new Date(selectedDate));
-                  setShowCalendar(true);
-                }}
-              >
-                {formatDate(selectedDate)}
-                {isToday && <small>{selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small>}
-              </button>
-              <button aria-label="Next day" disabled={!canGoForward} onClick={() => changeDate(1)}><Chevron points="9 18 15 12 9 6" /></button>
-            </div>
-            {!isToday && (
-              <button
-                className="dn-btn ghost"
-                onClick={() => {
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  changeDate(Math.round((today - new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())) / (1000 * 60 * 60 * 24)));
-                }}
-              >
-                Today
-              </button>
-            )}
+            <button
+              className="mn-date"
+              onClick={() => {
+                setCalendarMonth(new Date(selectedDate));
+                setShowCalendar(true);
+              }}
+            >
+              {formatDate(selectedDate)}
+              {isToday && <small>{selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small>}
+            </button>
             <span style={{ marginLeft: 'auto' }} />
           </>
         )}
@@ -72,7 +55,11 @@ export default function Header({
             )}
           </div>
         )}
-        {onClose && <CloseButton label="Back to Home" onClick={onClose} />}
+        {onMore && (
+          <button type="button" className={`mn-hmore${moreOn ? ' on' : ''}`} aria-label="More actions" aria-haspopup="menu" onClick={onMore}>
+            <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+          </button>
+        )}
       </div>
       {!showInsights && <div className="mn-r2 dn-slot" ref={slotRef} />}
     </div>

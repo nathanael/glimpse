@@ -54,7 +54,6 @@ import { healthTrend, lastSleep, bpTrend } from './utils/homeStats';
 // Components
 import Header from './components/Header';
 import Home from './components/Home';
-import { shatterSwitch } from './components/shatter';
 import BottomNav from './components/BottomNav';
 import DesktopToolbar from './components/DesktopToolbar';
 import RapidEntry from './components/RapidEntry';
@@ -71,6 +70,7 @@ import BloodPressure from './components/BloodPressure';
 import SleepNight from './components/SleepNight';
 import MealList from './components/MealList';
 import { mealKey, mealDateKey } from './food/mealKey';
+import { trackingDayStatus, protocolDayStatus } from './utils/dayStatus';
 import { lastValue as bpLastValue } from './utils/bloodPressure';
 import { mergeBackupMeals } from './food/mealBackup';
 import Calendar from './components/Calendar';
@@ -279,14 +279,21 @@ function App() {
   // stepped back to on another tab snaps the date forward rather than logging to a hidden day.
   const onHome = !isDesktop && appMode === 'home' && !showInsights;
 
-  // A tab opened from one of Home's cards (Full list, Full detail, Today's meals) is a detail of
-  // Home, so its header gets Home's X back. Any other way of reaching or leaving the tab drops it.
-  const [homeDeep, setHomeDeep] = useState(null);
-  const openFromHome = (mode) => { setHomeDeep(mode); setAppMode(mode); };
-  useEffect(() => {
-    if (homeDeep && (appMode !== homeDeep || showInsights)) setHomeDeep(null);
-  }, [appMode, showInsights, homeDeep]);
-  const closeToHome = (e) => shatterSwitch({ toAdv: false, originEl: e.currentTarget, commit: () => { setAppMode('home'); setShowInsights(false); } });
+  // Every mobile screen shares one bottom bar (DayBar): Home on the left, days, and the
+  // Simple/Advanced switch on the right. Home and the switch are instant: no animation between
+  // a list and its simple screen, so flipping back and forth feels like one page.
+  const openFromHome = (mode) => { setAppMode(mode); setShowInsights(false); };
+  const [instantOpen, setInstantOpen] = useState(false);   // the simple screen came from the switch
+  const goHome = () => {
+    setShowRapidEntry(false);
+    setShowSimpleProtocol(false);
+    setShowBloodPressure(null);
+    setShowQuickActions(false);
+    setShowInsights(false);
+    setAppMode('home');
+  };
+  useEffect(() => { if (!showRapidEntry && !showSimpleProtocol) setInstantOpen(false); }, [showRapidEntry, showSimpleProtocol]);
+  const toList = (mode) => { setShowRapidEntry(false); setShowSimpleProtocol(false); setAppMode(mode); setShowInsights(false); };
   useEffect(() => {
     // The simple screens over Home have their own week strip; closing them snaps back to today.
     if (onHome && !showRapidEntry && !showSimpleProtocol && getDateKey(selectedDate) !== getDateKey(new Date())) setSelectedDate(new Date());
@@ -992,7 +999,8 @@ function App() {
           trackingMode={trackingMode}
           showInsights={showInsights}
           slotRef={setNavSlot}
-          onClose={homeDeep ? closeToHome : undefined}
+          onMore={() => setShowQuickActions(!showQuickActions)}
+          moreOn={showQuickActions}
         />
       )}
 
@@ -1129,7 +1137,6 @@ function App() {
             onBloodPressure={() => setShowBloodPressure('entry')}
             stats={homeStats}
             onSleep={() => setShowSleepNight(true)}
-            onAdvanced={(e) => shatterSwitch({ toAdv: true, originEl: e.currentTarget, commit: () => { setAppMode('symptoms'); setShowInsights(false); setShowQuickActions(false); } })}
             onMore={() => setShowQuickActions(true)}
           />
         </div>
@@ -1245,11 +1252,9 @@ function App() {
           quickLog={quickLog}
           setCopyToastMessage={setCopyToastMessage}
           onSelectDate={selectDate}
-          onAdvanced={() => {
-            setShowRapidEntry(false);
-            if (appMode === 'home') openFromHome('symptoms');
-            else { setAppMode('symptoms'); setShowInsights(false); }
-          }}
+          onAdvanced={() => toList('symptoms')}
+          onHome={isDesktop ? undefined : goHome}
+          instant={instantOpen}
           onClose={() => setShowRapidEntry(false)}
         />
       )}
@@ -1290,7 +1295,9 @@ function App() {
           setStackEntries={setStackEntries}
           selectedDate={selectedDate}
           onSelectDate={selectDate}
-          onFullDetail={() => { setShowSimpleProtocol(false); if (appMode === 'home') openFromHome('stack'); else setAppMode('stack'); }}
+          onFullDetail={() => toList('stack')}
+          onHome={isDesktop ? undefined : goHome}
+          instant={instantOpen}
           onClose={() => setShowSimpleProtocol(false)}
         />
       )}
@@ -1336,6 +1343,7 @@ function App() {
           startOn={showBloodPressure}
           onSave={saveBloodPressure}
           onDelete={deleteBloodPressure}
+          onHome={isDesktop ? undefined : goHome}
           onClose={() => setShowBloodPressure(null)}
         />
       )}
@@ -1760,8 +1768,13 @@ function App() {
           onEditSymptoms={() => { setAppMode('symptoms'); setShowInsights(false); setSymptomEditMode(true); }}
           onClearSymptoms={clearSymptomDay}
           onRapidEntry={() => { setAppMode('symptoms'); setShowInsights(false); setShowRapidEntry(true); }}
-          onCheckIn={() => setShowRapidEntry(true)}
-          onSimpleChecklist={() => setShowSimpleProtocol(true)}
+          onCheckIn={() => { setInstantOpen(true); setShowRapidEntry(true); }}
+          onSimpleChecklist={() => { setInstantOpen(true); setShowSimpleProtocol(true); }}
+          onHome={goHome}
+          onSelectDate={selectDate}
+          dayStatus={appMode === 'symptoms'
+            ? (d) => trackingDayStatus(activeSymptoms, entries, timePeriods, d)
+            : (d) => protocolDayStatus(liveStackItems, stackEntries, d)}
           // Stack page actions
           onCheckAll={protocolCheckAll}
           onClear={protocolClearDay}

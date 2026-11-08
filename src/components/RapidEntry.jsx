@@ -8,9 +8,8 @@ import { getDateKey, getCurrentTimePeriod, formatDate } from '../utils/helpers';
 import { getLastSeverity } from '../utils/listHelpers';
 import * as queue from '../voice/checkinQueue';
 import { isWellbeing, colorIndex, WELLBEING_LABELS } from '../utils/wellbeing';
-import WeekStrip from './WeekStrip';
-import { solar } from './solarIcons';
-import './weekStrip.css';
+import DayBar from './DayBar';
+import { trackingDayStatus } from '../utils/dayStatus';
 
 // Full-screen, one-symptom-at-a-time logging. Rating jumps to the next unlogged symptom;
 // finishing a period offers the other one, then closes with confetti.
@@ -23,8 +22,10 @@ export default function RapidEntry({
   timePeriods,
   quickLog,
   setCopyToastMessage,
-  onSelectDate,  // (date): the week strip moves the day being logged
-  onAdvanced,    // the Advanced Tracking tab
+  onSelectDate,  // (date): the day chips move the day being logged
+  onAdvanced,    // the switch: the Advanced Tracking list
+  onHome,
+  instant,       // opened by the switch: no rise-in, it just appears
   onClose,
 }) {
   const dateKey = getDateKey(selectedDate);
@@ -39,7 +40,7 @@ export default function RapidEntry({
   const [index, setIndex] = useState(() => Math.max(0, list.findIndex((s) => !isLogged(s))));
   const [done, setDone] = useState(() => list.every(isLogged));
   const rootRef = useRef(null);
-  useRiseIn(rootRef);
+  useRiseIn(rootRef, instant);
   const dragDismiss = useDragDismiss(rootRef, onClose);
   const current = list[Math.min(index, list.length - 1)];
   const periodLabel = timePeriods.length > 1 ? timePeriods.find((p) => p.id === period)?.label : '';
@@ -59,21 +60,16 @@ export default function RapidEntry({
     setDone(l.every((s) => !!entries[queue.entryKey(dateKey, s.id, p)]));
   }, [dateKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // A day's dot: every symptom rated in every period, some, or none.
-  const dayStatus = (d) => {
-    const k = getDateKey(d);
-    let all = 0, n = 0;
-    timePeriods.forEach((p) => listFor(p.id).forEach((s) => { all += 1; if (entries[queue.entryKey(k, s.id, p.id)]) n += 1; }));
-    return !all || !n ? '' : n === all ? 'full' : 'part';
-  };
-  const foot = (onSelectDate || onAdvanced) && (
+  const foot = onHome && (
     <div className="re-foot">
-      {onSelectDate && <WeekStrip selectedDate={selectedDate} onSelect={onSelectDate} status={dayStatus} />}
-      {onAdvanced && (
-        <button type="button" className="adv-back" onClick={onAdvanced}>
-          <svg viewBox="0 0 24 24">{solar.transfer}</svg>Advanced tracking
-        </button>
-      )}
+      <DayBar
+        selectedDate={selectedDate}
+        onSelect={onSelectDate}
+        status={(d) => trackingDayStatus(symptoms, entries, timePeriods, d)}
+        onHome={onHome}
+        onSwitch={onAdvanced}
+        switchLabel="Advanced tracking"
+      />
     </div>
   );
 
@@ -169,7 +165,7 @@ export default function RapidEntry({
           ))}
         </div>
       )}
-      <CloseButton label="Close rapid entry" onClick={onClose} />
+      {!onHome && <CloseButton label="Close rapid entry" onClick={onClose} />}
     </div>
   );
 

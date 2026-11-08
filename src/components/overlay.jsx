@@ -22,10 +22,10 @@ export function CloseButton({ onClick, label = 'Close', delay = 200 }) {
 }
 
 // Play the overlay up from a little below on mount: the move springs, the fade is quick.
-export function useRiseIn(ref) {
+export function useRiseIn(ref, skip = false) {
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el?.animate) return;
+    if (skip || !el?.animate) return;
     el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, easing: 'ease-out' });
     if (reducedMotion()) return;
     const sp = springs.card();

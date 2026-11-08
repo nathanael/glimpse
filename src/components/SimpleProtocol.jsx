@@ -9,20 +9,22 @@ import { useEffect, useRef } from 'react';
 import { getDateKey, isScheduledForDate, haptic, formatDate } from '../utils/helpers';
 import './simpleProtocol.css';
 import { CloseButton, useRiseIn, useDragDismiss } from './overlay';
-import WeekStrip from './WeekStrip';
-import { solar } from './solarIcons';
+import DayBar from './DayBar';
+import { protocolDayStatus } from '../utils/dayStatus';
 
 export default function SimpleProtocol({
   stackItems,
   stackEntries,
   setStackEntries,
   selectedDate,
-  onSelectDate,   // (date): the week strip moves the day being checked off
-  onFullDetail,   // the Advanced Protocol tab
+  onSelectDate,   // (date): the day chips move the day being checked off
+  onFullDetail,   // the switch: the Advanced supplements list
+  onHome,
+  instant,        // opened by the switch: no rise-in, it just appears
   onClose,
 }) {
   const rootRef = useRef(null);
-  useRiseIn(rootRef);
+  useRiseIn(rootRef, instant);
   const dragDismiss = useDragDismiss(rootRef, onClose);
 
   useEffect(() => {
@@ -36,14 +38,6 @@ export default function SimpleProtocol({
   const keyFor = (item) => `${dateKey}-${item.id}`;
   const isTaken = (item) => !!stackEntries[keyFor(item)];
   const taken = due.filter(isTaken).length;
-
-  // A day's dot: every due item taken, some, or none.
-  const dayStatus = (d) => {
-    const k = getDateKey(d);
-    const items = (stackItems || []).filter((i) => i.active && isScheduledForDate(i.schedule, d));
-    const n = items.filter((i) => stackEntries[`${k}-${i.id}`]).length;
-    return !items.length || !n ? '' : n === items.length ? 'full' : 'part';
-  };
 
   const toggle = (item) => {
     const key = keyFor(item);
@@ -62,9 +56,9 @@ export default function SimpleProtocol({
     <div className="sck" ref={rootRef}>
       <div className="sck-in">
         <div className="sck-bar ui-drag" {...dragDismiss}>
-          <h2>{formatDate(selectedDate)}</h2>
-          {due.length > 0 && <span>{taken} of {due.length}</span>}
-          <CloseButton label="Close checklist" onClick={onClose} />
+          <h2>Pills</h2>
+          <span>{formatDate(selectedDate)}{due.length > 0 && ` · ${taken} of ${due.length}`}</span>
+          {!onHome && <CloseButton label="Close checklist" onClick={onClose} />}
         </div>
 
         <div className="sck-list">
@@ -84,12 +78,22 @@ export default function SimpleProtocol({
           ))}
         </div>
 
-        <div className="sck-foot">
-          {onSelectDate && <WeekStrip selectedDate={selectedDate} onSelect={onSelectDate} status={dayStatus} />}
-          <button type="button" className="adv-back" onClick={onFullDetail}>
-            <svg viewBox="0 0 24 24">{solar.transfer}</svg>Advanced protocol
-          </button>
-        </div>
+        {onHome ? (
+          <div className="sck-foot">
+            <DayBar
+              selectedDate={selectedDate}
+              onSelect={onSelectDate}
+              status={(d) => protocolDayStatus(stackItems, stackEntries, d)}
+              onHome={onHome}
+              onSwitch={onFullDetail}
+              switchLabel="Advanced supplements"
+            />
+          </div>
+        ) : (
+          <div className="sck-foot">
+            <button type="button" className="sck-full" onClick={onFullDetail}>Full detail →</button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -68,7 +68,6 @@ export default function Home({
   // Grid
   onNote,
   onBloodPressure,
-  onAdvanced,         // (event): the button is the origin of the shatter
   onMore,
 }) {
   const [open, setOpen] = useState(null);   // 'tracking' | null
@@ -107,7 +106,7 @@ export default function Home({
     { id: 'pills', icon: 'protocol', label: 'Pills', tone: 'b', onClick: onSimpleChecklist },
     { id: 'bp', icon: 'heart', label: 'BP', tone: 'c', onClick: onBloodPressure },
     { id: 'note', icon: 'note', label: "Day's note", onClick: () => { primeKeyboard(); onNote(); } },
-    { id: 'advanced', icon: 'transfer', label: 'Advanced', onClick: onAdvanced },
+    { id: 'progress', icon: 'progress', label: 'Progress', onClick: onProgress },
     { id: 'more', icon: 'more', label: 'More', onClick: onMore },
   ];
 

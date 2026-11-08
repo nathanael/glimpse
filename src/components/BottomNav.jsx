@@ -1,18 +1,9 @@
 import './mobileNav.css';
 import QuickActionsMenu from './QuickActionsMenu';
-import { solar } from './solarIcons';
-import { shatterSwitch } from './shatter';
+import DayBar from './DayBar';
 
-// Simple sits at the far right, under the thumb, for hopping back and forth with Advanced. On
-// Tracking and Protocol it skips Home and opens that tab's simple screen (Check-in, Pills).
-const TABS = [
-  { id: 'symptoms', label: 'Tracking', icon: solar.symptoms },
-  { id: 'stack', label: 'Protocol', icon: solar.protocol },
-  { id: 'insights', label: 'Progress', icon: solar.progress },
-  { id: 'home', label: 'Simple', icon: solar.transfer },
-];
-
-// Mobile dock: the destinations in a pill, plus one overflow button beside it
+// Mobile dock on the Advanced lists and Progress: the list's actions, then the bar every screen
+// shares (Home · days · switch). The switch drops into that list's simple screen.
 export default function BottomNav({
   appMode,
   setAppMode,
@@ -31,8 +22,11 @@ export default function BottomNav({
   onEditSymptoms,
   onClearSymptoms,
   onRapidEntry,
-  onCheckIn,          // the simple check-in, from the Tracking tab's switch
-  onSimpleChecklist,  // the Pills checklist, from the Protocol tab's switch
+  onCheckIn,          // the simple check-in, from the Tracking list's switch
+  onSimpleChecklist,  // the Pills checklist, from the supplements list's switch
+  onHome,
+  onSelectDate,
+  dayStatus,          // (date) => 'full' | 'part' | '' for the list on screen
   onClear,
   onEditProtocol,
   onLogMeal,
@@ -41,30 +35,9 @@ export default function BottomNav({
   actions,        // { buttons: [{ label, onClick, primary }], onAdd, addLabel }: the list's bar above the tabs
 }) {
   const activeTab = showInsights ? 'insights' : appMode === 'home' ? 'home' : appMode === 'symptoms' ? 'symptoms' : 'stack';
-
-  const goTo = (tab) => {
-    if (tab === 'insights') {
-      setShowInsights(true);
-    } else {
-      setAppMode(tab);
-      setShowInsights(false);
-    }
-    setShowSettings(false);
-    setShowExport(false);
-    setShowQuickActions(false);
-  };
-
-  // Home has no dock: its own grid holds Advanced and More. Leaving Home the dock rises into
-  // place; coming back it drops away. Tapping the Simple tab plays the shatter back to the photos.
+  // Home has no dock; leaving it the dock rises into place, coming back it drops away.
   const away = appMode === 'home' && !showInsights;
-  // The Simple tab on Tracking / Protocol: the switch straight into that tab's simple screen.
-  const simple = activeTab === 'symptoms' && onCheckIn ? { label: 'Check-in', open: onCheckIn }
-    : activeTab === 'stack' && onSimpleChecklist ? { label: 'Pills', open: onSimpleChecklist } : null;
-  const onTab = (tab, e) => {
-    if (tab === 'home' && simple) { setShowQuickActions(false); simple.open(); return; }
-    if (tab === 'home') shatterSwitch({ toAdv: false, originEl: e.currentTarget, commit: () => goTo('home') });
-    else goTo(tab);
-  };
+  const toSimple = activeTab === 'symptoms' ? onCheckIn : activeTab === 'stack' ? onSimpleChecklist : undefined;
 
   return (
     <>
@@ -83,18 +56,14 @@ export default function BottomNav({
           </div>
         )}
         <div className="mn-dock-in">
-          <div className="mn-tabs">
-            <div className="mn-tablist" role="tablist">
-              {TABS.map((tab) => (
-                <button key={tab.id} role="tab" aria-selected={activeTab === tab.id} className={activeTab === tab.id ? 'on' : tab.id === 'home' && simple ? 'sw' : ''} onClick={(e) => onTab(tab.id, e)}>
-                  <svg viewBox="0 0 24 24">{tab.icon}</svg><span>{tab.id === 'home' && simple ? simple.label : tab.label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-          <button className={`mn-more ${showQuickActions ? 'on' : ''}`} aria-label="More actions" aria-haspopup="menu" onClick={() => setShowQuickActions(!showQuickActions)}>
-            <svg viewBox="0 0 24 24">{solar.more}</svg>
-          </button>
+          <DayBar
+            selectedDate={activeTab === 'insights' ? undefined : selectedDate}
+            onSelect={onSelectDate}
+            status={dayStatus}
+            onHome={onHome}
+            onSwitch={toSimple && (() => { setShowQuickActions(false); toSimple(); })}
+            switchLabel={activeTab === 'symptoms' ? 'Simple check-in' : 'Simple pills'}
+          />
         </div>
       </div>
 

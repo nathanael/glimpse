@@ -16,7 +16,8 @@ import { MAX_READINGS, averageReadings, bpCategory, clampField, startingReading,
 import { CloseButton, useRiseIn, useDragDismiss } from './overlay';
 import { useFlowViewport } from './AddFlow';
 import BloodPressureHistory from './BloodPressureHistory';
-import WeekStrip from './WeekStrip';
+import DayBar from './DayBar';
+import { bpDayStatus } from '../utils/dayStatus';
 import './bloodPressure.css';
 
 // One number with − and + either side. A press steps once at once and, held, keeps stepping.
@@ -76,7 +77,7 @@ function Stepper({ field, label, value, onChange, small }) {
 
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
-export default function BloodPressure({ records, startOn = 'entry', onSave, onDelete, onClose }) {
+export default function BloodPressure({ records, startOn = 'entry', onSave, onDelete, onHome, onClose }) {
   const rootRef = useRef(null);
   useRiseIn(rootRef);
   useFlowViewport(rootRef);   // typing a number keeps the panel above the keyboard
@@ -90,7 +91,6 @@ export default function BloodPressure({ records, startOn = 'entry', onSave, onDe
   // The day the reading is for: today unless picked on the week strip, then that day at this time.
   const [day, setDay] = useState(() => new Date());
   const isToday = sameDay(day, new Date());
-  const savedOn = (d) => Object.values(records || {}).some((r) => r && Number.isFinite(r.sys) && r.time && sameDay(new Date(r.time), d));
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -130,7 +130,7 @@ export default function BloodPressure({ records, startOn = 'entry', onSave, onDe
     <div className="bp" ref={rootRef} role="dialog" aria-label="Blood pressure">
       <div className="bp-in">
         <div className="bp-head ui-drag" {...dragDismiss}>
-          {back && (
+          {back && !onHome && (
             <button type="button" className="bp-back" aria-label={back === 'entry' ? 'Back to new reading' : 'Back to all readings'} onClick={() => { setView(back); setTaken([]); }}>
               <svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" /></svg>
             </button>
@@ -139,7 +139,7 @@ export default function BloodPressure({ records, startOn = 'entry', onSave, onDe
             <h2>Blood pressure</h2>
             <small>{view === 'history' ? 'All readings' : sub}</small>
           </div>
-          <CloseButton label="Close blood pressure" onClick={onClose} />
+          {!onHome && <CloseButton label="Close blood pressure" onClick={onClose} />}
         </div>
 
         {view === 'history' ? (
@@ -182,9 +182,20 @@ export default function BloodPressure({ records, startOn = 'entry', onSave, onDe
           <button type="button" className="bp-save" onClick={save}>
             {taken.length ? `Save average ${shown}` : `Save ${shown}`}
           </button>
-          {!fromPage && <button type="button" className="bp-all" onClick={() => setView('history')}>All readings</button>}
-          <WeekStrip selectedDate={day} onSelect={setDay} status={(d) => (savedOn(d) ? 'full' : '')} />
+          {!fromPage && !onHome && <button type="button" className="bp-all" onClick={() => setView('history')}>All readings</button>}
         </div>
+        )}
+        {onHome && (
+          <div className="bp-foot">
+            <DayBar
+              selectedDate={day}
+              onSelect={(d) => { setDay(d); setView('entry'); setTaken([]); }}
+              status={(d) => bpDayStatus(records, d)}
+              onHome={onHome}
+              onSwitch={() => { setView(view === 'history' ? 'entry' : 'history'); setTaken([]); }}
+              switchLabel={view === 'history' ? 'New reading' : 'All readings'}
+            />
+          </div>
         )}
       </div>
     </div>

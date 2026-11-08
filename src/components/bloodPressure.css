@@ -115,3 +115,6 @@
 @media (prefers-reduced-motion: reduce) {
   .bp-taken { animation: none; }
 }
+.bp-foot { flex: none; padding-top: 10px; }
+/* With the shared bottom bar the + sits right above its switch, as on the lists. */
+.bp-in:has(.bp-foot) .bp-fab { bottom: calc(80px + env(safe-area-inset-bottom)); }

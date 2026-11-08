@@ -71,3 +71,11 @@
 .mn-sheet h6 span { color: #4b5563; font-weight: 500; letter-spacing: 0; text-transform: none; }
 .mn-sheet button.primary { background: rgba(139,92,246,.14); font-weight: 500; }
 .mn-sheet button.primary svg { color: #a78bfa; }
+.mn-dock-in > .db { flex: 1; min-width: 0; }
+
+/* Top bar: the day as plain text (tap for the calendar) and the ⋯ menu at the right. */
+.mn-date { height: 36px; padding: 0 4px; border: 0; background: none; color: #f3f4f6; font-size: 17px; font-weight: 700; display: flex; align-items: baseline; gap: 7px; }
+.mn-date small { font-size: 13px; font-weight: 500; color: #9ca3af; }
+.mn-hmore { width: 38px; height: 36px; flex: none; border: 0; border-radius: 11px; background: rgba(255,255,255,.06); color: #cbd5e1; display: grid; place-items: center; padding: 0; }
+.mn-top .mn-hmore svg { width: 20px; height: 20px; fill: currentColor; stroke: none; }
+.mn-hmore.on { background: rgba(139,92,246,.25); color: #f3f4f6; }
