@@ -8,10 +8,10 @@
 .sck-bar h2 { flex: 1; min-width: 0; margin: 0; font-size: 16px; font-weight: 600; }
 .sck-bar span { margin-right: 4px; color: #9ca3af; font-size: 13px; }
 
-.sck-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+.sck-list { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
 .sck-empty { margin: 32px 0; text-align: center; color: #6b7280; font-size: 14.5px; }
 
-.sck-row { display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 16px; border: 1px solid rgba(255,255,255,.07); border-radius: 14px; background: #101214; color: #f3f4f6; font-size: 17px; text-align: left; }
+.sck-row { display: flex; align-items: center; gap: 12px; height: 68px; padding: 0 16px; border: 1px solid rgba(255,255,255,.07); border-radius: 14px; background: #101214; color: #f3f4f6; font-size: 17px; text-align: left; }
 .sck-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sck-row i { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255,255,255,.22); }
 .sck-row:active { background: #16191c; }

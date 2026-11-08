@@ -74,22 +74,9 @@ export default function QuickActionsMenu({
         <hr />
         <Item icon="copy" label="Copy for AI" hint={`${copyDays} days`} onClick={onCopyData} />
         {tab === 'symptoms' && <Item icon="list" label="Edit symptoms" onClick={onEditSymptoms} />}
-        {tab === 'protocol' && (
-          <>
-            <Item icon="list" label="Edit protocol" onClick={onEditProtocol} />
-            <Item icon="camera" label="Log a meal" onClick={onLogMeal} />
-          </>
-        )}
+        {tab === 'protocol' && <Item icon="list" label="Edit protocol" onClick={onEditProtocol} />}
         {/* Home's grid has Blood pressure; Meal lives here instead */}
         {tab === 'home' && <Item icon="camera" label="Log a meal" onClick={onLogMeal} />}
-        {tab !== 'home' && (
-          <>
-            <hr />
-            {tab !== 'insights' && <Item icon="note" label="Notes" onClick={onEditNote} />}
-            <Item icon="heart" label="Blood pressure" hint={bloodPressureHint} primary onClick={onBloodPressure} />
-            {tab === 'symptoms' && <Item icon="bolt" label="Rapid entry" primary onClick={onRapidEntry} />}
-          </>
-        )}
       </div>
     </>
   );

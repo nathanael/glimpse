@@ -320,3 +320,6 @@ body.lr-reordering .lr-row:hover { background: none; }
 .lr.mobile .lr-two .lr-sub .lr-dose { font-size: 13px; padding: 2px 4px; margin-left: -4px; justify-self: auto; }
 .lr.mobile .lr-two .lr-desc { white-space: normal; }
 .lr.mobile .lr-tabs + .lr-sec, .lr.mobile .lr-prog + .lr-sec { padding-top: 12px; }
+.lr.mobile .lr-two { min-height: 70px; padding-top: 12px; padding-bottom: 12px; margin-bottom: 4px; }
+.lr.mobile.lr-protocol:not(.edit) .lr-row.lr-cols:not(.lr-two) { min-height: 66px; margin-bottom: 4px; }
+.lr.mobile .lr-two .lr-sub { margin-top: 3px; }
