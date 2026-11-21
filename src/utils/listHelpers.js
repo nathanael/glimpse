@@ -1,9 +1,11 @@
 import { getDateKey } from './helpers';
 import { NA_SEVERITY, trackingModes } from './constants';
 
-// Whether a symptom is tracked in a given period (null applicablePeriods = all)
+// Whether a symptom is tracked in a given period (null applicablePeriods = all).
+// AM/PM-only settings don't apply in Simple mode ('daily'): every symptom shows there,
+// and the setting is kept for when AM/PM mode comes back.
 export const isApplicable = (symptom, periodId) =>
-  !symptom.applicablePeriods || symptom.applicablePeriods.includes(periodId);
+  periodId === 'daily' || !symptom.applicablePeriods || symptom.applicablePeriods.includes(periodId);
 
 // Date keys for the `days` days ending at (and including) endDate, oldest first
 export const getStripDateKeys = (endDate, days = 14) => {

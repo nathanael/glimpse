@@ -366,7 +366,7 @@ export const generateAIDataExport = (days, entries, symptoms, stackItems, stackE
         const entry = entries[`${dateKey}-${symptom.id}-${period.id}`];
         if (entry) {
           row.push(entry.severity === NA_SEVERITY ? 'N/A' : entry.severity.toString());
-        } else if (symptom.applicablePeriods && !symptom.applicablePeriods.includes(period.id)) {
+        } else if (period.id !== 'daily' && symptom.applicablePeriods && !symptom.applicablePeriods.includes(period.id)) {
           row.push('N/A');
         } else {
           row.push('-');

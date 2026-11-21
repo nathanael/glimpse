@@ -9,6 +9,10 @@ describe('isApplicable', () => {
     expect(isApplicable({ applicablePeriods: ['evening'] }, 'morning')).toBe(false);
     expect(isApplicable({ applicablePeriods: ['evening'] }, 'evening')).toBe(true);
   });
+  it('shows AM-only and PM-only symptoms in Simple mode', () => {
+    expect(isApplicable({ applicablePeriods: ['morning'] }, 'daily')).toBe(true);
+    expect(isApplicable({ applicablePeriods: ['evening'] }, 'daily')).toBe(true);
+  });
 });
 
 describe('getStripDateKeys', () => {
