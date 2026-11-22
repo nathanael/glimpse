@@ -83,3 +83,18 @@
 .pa-btn.primary { background: #8b5cf6; border-color: #8b5cf6; color: #fff; font-weight: 600; }
 .pa-btn.ghost { background: none; border-color: transparent; color: #9ca3af; }
 @media (max-width: 760px) { .pp-tl-head, .pp-tl-row { grid-template-columns: 130px minmax(0, 1fr); } }
+
+/* Short alerts: list card for news, small action card for start/stop */
+.pa-card h2 { font-size: 20px; }
+.pa-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pa-why { margin-top: 8px !important; color: #9ca3af; font-size: 13.5px; }
+.pa-link { margin-top: 10px; padding: 0; border: 0; background: none; color: #a78bfa; font: inherit; font-size: 13px; cursor: pointer; }
+.pa-more { margin-top: 6px; font-size: 13.5px; }
+.pa-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.pa-list li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+.pa-list li:last-child { border-bottom: 0; }
+.pa-list b { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pa-list span { flex: none; color: #9ca3af; font-size: 13px; }
+.pa-minor { display: flex; justify-content: center; gap: 24px; }
+.pa-minor button { border: 0; background: none; color: #9ca3af; font: inherit; font-size: 13.5px; padding: 6px; cursor: pointer; }
+.pa-minor button:hover { color: #f3f4f6; }

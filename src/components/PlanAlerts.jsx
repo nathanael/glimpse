@@ -1,17 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import './protocolPlan.css';
-import { kindOf, SOURCE_LABELS, doseText, pendingAlerts, findByName } from '../protocolPlan/plan';
+import { SOURCE_LABELS, doseText, pendingAlerts, findByName } from '../protocolPlan/plan';
 
-// Opens over the app when the protocol plan has news: something new from Nicole, something that
-// starts today, or something whose trial is over. One card at a time; each needs a choice, so a
-// change can't slide past unread. "Later" hides it until the app is next opened.
+// Opens over the app when the protocol plan has news. Kept short on purpose:
+//  - new or revised upcoming items come as ONE list card (name + start date); details live on the Plan tab
+//  - an item starting or ending gets its own small card with the one action it needs; the why,
+//    what to watch for and the source sit behind "Details"
+// "Later" hides a card until the app is next opened.
 
-const TITLES = {
-  added: 'New in your plan',
-  updated: 'Plan updated',
-  start: 'Starts today',
-  end: 'Time to stop',
-};
+const fmtShort = (key) => new Date(`${key}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 const fmt = (key) => (key ? new Date(`${key}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) : '');
 
 export default function PlanAlerts({ plan, todayKey, stackItems, inputItems, onAddToList, onHideLinked, onOpenPlan }) {
@@ -37,80 +34,90 @@ export default function PlanAlerts({ plan, todayKey, stackItems, inputItems, onA
     });
   }, [quiet]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = alerts.filter((a) => !quiet.includes(a));
-  const alert = shown[0];
-  if (!alert) return null;
-  const { type, item } = alert;
-  const k = kindOf(item.kind);
+  const [details, setDetails] = useState(false);
+  const actionable = shown.filter((a) => a.type === 'start' || a.type === 'end');
+  const news = shown.filter((a) => a.type === 'added' || a.type === 'updated');
+  if (!actionable.length && !news.length) return null;
+
+  // One list card for everything new or revised
+  if (!actionable.length) {
+    const allUpdated = news.every((a) => a.type === 'updated');
+    const ackAll = () => news.forEach(({ item }) => plan.ack(item.itemId, 'added'));
+    return (
+      <div className="pa" role="dialog" aria-modal="true" aria-label="Plan news">
+        <div className="pa-card">
+          <div className="pa-top"><span className="pa-type added">{news.length} {allUpdated ? 'updated' : 'new'} in your plan</span></div>
+          <ul className="pa-list">
+            {news.map(({ type, item }) => (
+              <li key={item.itemId}>
+                <b>{item.name}</b>
+                <span>{type === 'updated' ? 'Updated · ' : ''}{item.startDate ? fmtShort(item.startDate) : ''}{item.condition ? ' · tentative' : ''}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="pa-actions">
+            <button className="pa-btn primary" onClick={ackAll}>Got it</button>
+            {onOpenPlan && <button className="pa-btn" onClick={() => { ackAll(); onOpenPlan(); }}>See the plan</button>}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const { type, item } = actionable[0];
   const src = item.source || {};
   const isFactor = item.kind === 'food' || item.kind === 'intervention';
   const existing = type === 'start' && !item.linked
     ? findByName(isFactor ? inputItems : stackItems, item.name) : null;
-  const done = (ackType = type === 'updated' ? 'added' : type) => plan.ack(item.itemId, ackType);
-  const snooze = () => setLater((s) => new Set(s).add(`${type}:${item.itemId}`));
+  const next = () => setDetails(false);
+  const done = () => { plan.ack(item.itemId, type); next(); };
+  const snooze = () => { setLater((s) => new Set(s).add(`${type}:${item.itemId}`)); next(); };
 
-  let actions;
+  let primary; let secondary = null;
   if (type === 'start') {
-    actions = (
-      <>
-        {item.kind === 'test' ? (
-          <button className="pa-btn primary" onClick={() => done()}>Got it</button>
-        ) : existing ? (
-          <button className="pa-btn primary" onClick={() => { plan.link(item.itemId, { kind: isFactor ? 'factor' : 'supplement', id: existing.id }); onAddToList(item, existing); done(); }}>
-            It’s on my list already{existing.active === false ? ' (show it)' : ''}
-          </button>
-        ) : (
-          <button className="pa-btn primary" onClick={() => { onAddToList(item); done(); }}>
-            Add to my {isFactor ? 'Other factors' : 'supplements'}
-          </button>
-        )}
-        <button className="pa-btn" onClick={snooze}>Later</button>
-        {item.kind !== 'test' && <button className="pa-btn ghost" onClick={() => done()}>{isFactor ? 'Got it, don’t track it' : 'I’m not starting it'}</button>}
-      </>
-    );
-  } else if (type === 'end') {
-    actions = (
-      <>
-        {item.linked
-          ? <button className="pa-btn primary" onClick={() => { onHideLinked(item); done(); }}>Stopped: hide it from my list</button>
-          : <button className="pa-btn primary" onClick={() => done()}>Got it</button>}
-        <button className="pa-btn" onClick={snooze}>Later</button>
-        {item.linked && <button className="pa-btn ghost" onClick={() => done()}>I’m keeping it</button>}
-      </>
-    );
+    if (item.kind === 'test') primary = <button className="pa-btn primary" onClick={done}>Got it</button>;
+    else if (existing) primary = <button className="pa-btn primary" onClick={() => { onAddToList(item, existing); done(); }}>Show it on my list</button>;
+    else primary = <button className="pa-btn primary" onClick={() => { onAddToList(item); done(); }}>Add to my {isFactor ? 'factors' : 'supplements'}</button>;
+    if (item.kind !== 'test') secondary = <button onClick={done}>{isFactor ? 'Don’t track' : 'Not starting'}</button>;
   } else {
-    actions = (
-      <>
-        <button className="pa-btn primary" onClick={() => done()}>Got it</button>
-        {onOpenPlan && <button className="pa-btn" onClick={() => { done(); onOpenPlan(item.itemId); }}>See the plan</button>}
-      </>
-    );
+    primary = item.linked
+      ? <button className="pa-btn primary" onClick={() => { onHideLinked(item); done(); }}>Stopped: hide it</button>
+      : <button className="pa-btn primary" onClick={done}>Got it</button>;
+    if (item.linked) secondary = <button onClick={done}>Keeping it</button>;
   }
+  const label = type === 'end' ? 'Time to stop' : item.startDate && item.startDate < todayKey ? 'In your plan now' : 'Starts today';
+  const why = type === 'end' ? item.endReason : item.reason;
 
   return (
-    <div className="pa" role="dialog" aria-modal="true" aria-label={TITLES[type]}>
+    <div className="pa" role="dialog" aria-modal="true" aria-label={label}>
       <div className="pa-card">
         <div className="pa-top">
-          <span className={`pa-type ${type}`}>{type === 'start' && item.startDate && item.startDate < todayKey ? 'Now in your plan' : TITLES[type]}</span>
-          {shown.length > 1 && <span className="pa-count">1 of {shown.length}</span>}
+          <span className={`pa-type ${type}`}>{label}</span>
+          {actionable.length > 1 && <span className="pa-count">1 of {actionable.length}</span>}
         </div>
-        <span className="pp-kind" style={{ '--c': k.color }}>{k.label}</span>
         <h2>{item.name}</h2>
-        {doseText(item) && <p className="pa-dose">{doseText(item)}</p>}
-        <p className="pa-when">
-          {type === 'end'
-            ? `Ended ${fmt(item.endedOn || item.endDate)}`
-            : item.startDate ? `${item.startDate === todayKey ? 'Today' : `${type === 'start' ? 'Started' : 'Starts'} ${fmt(item.startDate)}`}${item.endDate ? ` · until ${fmt(item.endDate)}` : ''}` : ''}
-        </p>
-        {item.condition && <p className="pp-cond">{item.condition}</p>}
-        {type === 'end' && item.endReason && <><h4>Why stop</h4><p>{item.endReason}</p></>}
-        {type !== 'end' && item.reason && <><h4>Why</h4><p>{item.reason}</p></>}
-        {item.watchFor && <><h4>{type === 'end' ? 'What to note' : 'Watch for'}</h4><p>{item.watchFor}</p></>}
-        {type === 'end' && item.outcome && <p className="pp-muted">Outcome so far: {item.outcome}</p>}
-        <p className="pp-src">
-          {SOURCE_LABELS[src.type] || 'Plan'}{src.date ? ` · ${fmt(src.date)}` : ''}
-          {src.link && <> · <a href={src.link} target="_blank" rel="noreferrer">open</a></>}
-        </p>
-        <div className="pa-actions">{actions}</div>
+        {doseText(item) && <p className="pa-dose pa-clamp">{doseText(item)}</p>}
+        {why && <p className="pa-why pa-clamp">{why}</p>}
+        {details ? (
+          <div className="pa-more">
+            {item.condition && <p className="pp-cond">{item.condition}</p>}
+            {item.watchFor && <><h4>{type === 'end' ? 'What to note' : 'Watch for'}</h4><p>{item.watchFor}</p></>}
+            {type === 'end' && item.outcome && <p className="pp-muted">Outcome: {item.outcome}</p>}
+            <p className="pp-src">
+              {SOURCE_LABELS[src.type] || 'Plan'}{src.date ? ` · ${fmt(src.date)}` : ''}
+              {src.link && <> · <a href={src.link} target="_blank" rel="noreferrer">open</a></>}
+            </p>
+          </div>
+        ) : (item.watchFor || item.condition || src.link) && (
+          <button className="pa-link" onClick={() => setDetails(true)}>Details</button>
+        )}
+        <div className="pa-actions">
+          {primary}
+          <div className="pa-minor">
+            <button onClick={snooze}>Later</button>
+            {secondary}
+          </div>
+        </div>
       </div>
     </div>
   );
