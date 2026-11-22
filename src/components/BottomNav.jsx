@@ -30,6 +30,8 @@ export default function BottomNav({
   onClear,
   onEditProtocol,
   onLogMeal,
+  onOpenPlan,
+  planHint,
   onBloodPressure,
   bloodPressureHint,
   actions,        // { buttons: [{ label, onClick, primary }], onAdd, addLabel }: the list's bar above the tabs
@@ -82,6 +84,8 @@ export default function BottomNav({
           onClear={onClear}
           onEditProtocol={onEditProtocol}
           onLogMeal={onLogMeal}
+          onOpenPlan={onOpenPlan}
+          planHint={planHint}
           onBloodPressure={onBloodPressure}
           bloodPressureHint={bloodPressureHint}
           onOpenSettings={() => {

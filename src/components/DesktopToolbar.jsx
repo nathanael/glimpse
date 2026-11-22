@@ -8,6 +8,7 @@ const TABS = [
   { id: 'symptoms', label: 'Tracking' },
   { id: 'stack', label: 'Protocol' },
   { id: 'insights', label: 'Progress' },
+  { id: 'plan', label: 'Plan' },
 ];
 
 const DAY_MS = 86400000;
@@ -63,12 +64,14 @@ export default function DesktopToolbar({
   garminSleepDays,
   showSleep,
   setShowSleep,
+  showPlan,
+  setShowPlan,
   sleepAvailable,
   editing,
 }) {
   const searchRef = useRef(null);
   const isToday = selectedDate.toDateString() === new Date().toDateString();
-  const activeTab = showSleep ? 'sleep' : showInsights ? 'insights' : appMode === 'symptoms' ? 'symptoms' : 'stack';
+  const activeTab = showPlan ? 'plan' : showSleep ? 'sleep' : showInsights ? 'insights' : appMode === 'symptoms' ? 'symptoms' : 'stack';
 
   const { score, delta, rollingAvg } = useHealthScore(selectedDate, { symptoms, entries, trackingMode });
   const scoreValue = score !== null ? score : rollingAvg;
@@ -77,7 +80,8 @@ export default function DesktopToolbar({
   const handleTabClick = (tab) => {
     onCloseSettings?.();
     setShowSleep?.(tab === 'sleep');
-    if (tab === 'sleep') {
+    setShowPlan?.(tab === 'plan');
+    if (tab === 'sleep' || tab === 'plan') {
       setShowInsights(false);
     } else if (tab === 'insights') {
       setShowInsights(true);
@@ -118,7 +122,7 @@ export default function DesktopToolbar({
           </div>
 
           <div className="dn-right">
-            {activeTab !== 'insights' && activeTab !== 'sleep' && !settingsOpen && (
+            {activeTab !== 'insights' && activeTab !== 'sleep' && activeTab !== 'plan' && !settingsOpen && (
               <label className="dn-search">
                 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
                 <input

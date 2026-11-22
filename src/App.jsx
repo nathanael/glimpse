@@ -33,6 +33,7 @@ import {
 } from './utils/constants';
 import {
   getDateKey,
+  createHistoryEntry,
   noteText,
   formatDate,
   getCurrentTimePeriod,
@@ -76,6 +77,12 @@ import { mergeBackupMeals } from './food/mealBackup';
 import Calendar from './components/Calendar';
 import Insights from './components/Insights';
 import SleepTab from './components/SleepTab';
+import ProtocolPlan from './components/ProtocolPlan';
+import PlanAlerts from './components/PlanAlerts';
+import { useProtocolPlan } from './hooks/useProtocolPlan';
+import { stackItemFrom, inputItemFrom, groupItems } from './protocolPlan/plan';
+import { makeId } from './utils/listHelpers';
+import { applySupplementPatch, applyInputPatch } from './utils/protocolHistory';
 import Settings from './components/Settings';
 import Export from './components/Export';
 import NoteModal from './components/NoteModal';
@@ -215,6 +222,7 @@ function App() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showSleep, setShowSleep] = useState(false); // desktop-only Garmin Sleep tab
+  const [showPlan, setShowPlan] = useState(false);   // Protocol plan: a desktop tab, a full-screen page on the phone
   const [insightsSubtab, setInsightsSubtab] = useState('studio');
   const [showSettings, setShowSettings] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -315,6 +323,12 @@ function App() {
 
   const garminSync = useGarminSync(firebase.user);
   // Keeps the local Garmin cache current on every device for Copy for AI / CSV / backup
+  const protocolPlan = useProtocolPlan(firebase.user);
+  const planTodayKey = getDateKey(new Date());
+  const planHint = useMemo(() => {
+    const g = groupItems(protocolPlan.items, planTodayKey);
+    return g.upcoming.length ? `${g.upcoming.length} upcoming` : g.active.length ? `${g.active.length} active` : undefined;
+  }, [protocolPlan.items, planTodayKey]);
   const { days: garminSleepDays, error: garminSleepError } = useGarminSleep(GARMIN_SYNC_ENABLED ? firebase.user : null);
   // The Sleep tab exists only once Garmin nights have synced to this account
   const sleepAvailable = GARMIN_SYNC_ENABLED && garminSleepDays.length > 0;
@@ -401,6 +415,41 @@ function App() {
     bp: bpTrend(bloodPressure),
   }), [appMode, liveStackItems, deferredStackEntries, liveSymptoms, deferredEntries, trackingMode, selectedDate, garminSleepDays, garminSleepError, firebase.user, bloodPressure]);
   const liveInputItems = useMemo(() => liveItems(inputItems), [inputItems]);
+
+  // Protocol plan → the lists. "Add to my list" creates (or re-shows) the supplement or factor and
+  // links it to the plan item; when the item ends, "hide it" hides that linked definition.
+  const addPlanToList = useCallback((item, existing) => {
+    const asFactor = item.kind === 'food' || item.kind === 'intervention';
+    const setList = asFactor ? setInputItems : setStackItems;
+    const applyPatch = asFactor ? applyInputPatch : applySupplementPatch;
+    if (existing) {
+      if (existing.active === false) setList((prev) => prev.map((i) => (i.id === existing.id ? applyPatch(i, { active: true }) : i)));
+      protocolPlan.link(item.itemId, { kind: asFactor ? 'factor' : 'supplement', id: existing.id });
+      setCopyToastMessage(`✓ ${existing.name} is on your list`);
+      setTimeout(() => setCopyToastMessage(''), 2500);
+      return;
+    }
+    const list = asFactor ? inputItems : stackItems;
+    let id = makeId(item.name);
+    while (list.some((i) => i.id === id)) id = `${id}-2`;
+    const order = list.reduce((m, i) => Math.max(m, i.order ?? 0), 0) + 1;
+    const def = asFactor ? inputItemFrom(item, id, order) : stackItemFrom(item, id, order, planTodayKey);
+    def.history = [createHistoryEntry(def)];
+    setList((prev) => [...prev, def]);
+    protocolPlan.link(item.itemId, { kind: asFactor ? 'factor' : 'supplement', id });
+    setCopyToastMessage(`✓ Added ${item.name}`);
+    setTimeout(() => setCopyToastMessage(''), 2500);
+  }, [inputItems, stackItems, protocolPlan, planTodayKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const hidePlanLinked = useCallback((item) => {
+    const linked = item.linked;
+    if (!linked?.id) return;
+    const asFactor = linked.kind === 'factor';
+    const applyPatch = asFactor ? applyInputPatch : applySupplementPatch;
+    (asFactor ? setInputItems : setStackItems)((prev) => prev.map((i) => (i.id === linked.id ? applyPatch(i, { active: false }) : i)));
+    setCopyToastMessage(`${item.name} hidden (history kept)`);
+    setTimeout(() => setCopyToastMessage(''), 2500);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeSymptoms = useMemo(() => {
     let active = liveSymptoms.filter(s => s.active);
@@ -527,7 +576,7 @@ function App() {
 
   // List keyboard entry is live only when nothing is layered over the list
   const listKeyboardEnabled = !showSettings && !showCalendar && !showExport && !showNoteModal
-    && !showSymptomGraph && !showSupplementGraph && !showInsights;
+    && !showSymptomGraph && !showSupplementGraph && !showInsights && !showPlan;
 
   // Clear every symptom entry for the selected day; undoable from the toast
   const clearSymptomDay = () => {
@@ -671,7 +720,7 @@ function App() {
       if (listOwnsKeys && trackingMode === 'ampm' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
 
       const tabKey = e.shiftKey && /^Digit[1234]$/.test(e.code) ? e.code.slice(-1) : e.key;
-      if (/^[123]$/.test(tabKey) || (tabKey === '4' && sleepAvailable)) { setShowSettings(false); setShowSleep(false); }
+      if (/^[123]$/.test(tabKey) || (tabKey === '4' && sleepAvailable)) { setShowSettings(false); setShowSleep(false); setShowPlan(false); }
       if (tabKey === '1') {
         setShowInsights(false);
         setAppMode('symptoms');
@@ -981,6 +1030,8 @@ function App() {
           garminSync={GARMIN_SYNC_ENABLED ? garminSync : null}
           garminSleepDays={garminSleepDays}
           showSleep={showSleep && sleepAvailable}
+          showPlan={showPlan}
+          setShowPlan={setShowPlan}
           editing={!showInsights && ((appMode === 'symptoms' && symptomEditMode) || (appMode === 'stack' && protocolEditMode))}
           setShowSleep={setShowSleep}
           sleepAvailable={sleepAvailable}
@@ -1019,7 +1070,9 @@ function App() {
             padding: '16px',
             paddingBottom: '80px',
           }}>
-            {showSleep && sleepAvailable ? (
+            {showPlan ? (
+              <ProtocolPlan plan={protocolPlan} todayKey={planTodayKey} isDesktop onAddToList={addPlanToList} />
+            ) : showSleep && sleepAvailable ? (
               <SleepTab
                 days={garminSleepDays}
                 symptoms={liveSymptoms}
@@ -1754,6 +1807,19 @@ function App() {
         />
       )}
 
+      {!isDesktop && showPlan && (
+        <ProtocolPlan plan={protocolPlan} todayKey={planTodayKey} isDesktop={false} onAddToList={addPlanToList} onClose={() => setShowPlan(false)} />
+      )}
+      <PlanAlerts
+        plan={protocolPlan}
+        todayKey={planTodayKey}
+        stackItems={stackItems}
+        inputItems={inputItems}
+        onAddToList={addPlanToList}
+        onHideLinked={hidePlanLinked}
+        onOpenPlan={() => { setShowPlan(true); setShowInsights(false); }}
+      />
+
       {/* Bottom Navigation - mobile only, hide when in edit modes */}
       {!isDesktop && (
         <BottomNav
@@ -1788,6 +1854,8 @@ function App() {
           onClear={protocolClearDay}
           onEditProtocol={() => { setAppMode('stack'); setShowInsights(false); setProtocolEditMode(true); }}
           onLogMeal={() => setMealSheet({})}
+          onOpenPlan={() => setShowPlan(true)}
+          planHint={planHint}
           onBloodPressure={() => setShowBloodPressure('history')}
           bloodPressureHint={bpLastValue(bloodPressure)}
           actions={listBar}

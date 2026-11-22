@@ -14,6 +14,7 @@ const icons = {
   camera: solar.camera,
   refresh: solar.refresh,
   heart: solar.heart,
+  plan: solar.yesterday,
 };
 
 // The one mobile overflow. Ordered for the thumb: rare and destructive at the top,
@@ -34,6 +35,8 @@ export default function QuickActionsMenu({
   onClear,
   onEditProtocol,
   onLogMeal,
+  onOpenPlan,
+  planHint,
   // Every tab
   onBloodPressure,
   bloodPressureHint,
@@ -77,6 +80,7 @@ export default function QuickActionsMenu({
         {tab === 'protocol' && <Item icon="list" label="Edit protocol" onClick={onEditProtocol} />}
         {/* Home's grid has Blood pressure; Meal lives here instead */}
         {tab === 'home' && <Item icon="camera" label="Log a meal" onClick={onLogMeal} />}
+        {onOpenPlan && <Item icon="plan" label="Protocol plan" hint={planHint} onClick={onOpenPlan} />}
       </div>
     </>
   );
