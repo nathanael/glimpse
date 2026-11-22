@@ -222,3 +222,50 @@ export const takingSince = (item, def) => {
   const since = def.schedule?.startDate || def.history?.find((h) => h.type === 'created')?.timestamp?.slice(0, 10);
   return since && since < item.startDate ? since : null;
 };
+
+// ---- One protocol: the plan and the lists seen together ----
+
+// Everything the Timeline shows: plan items (with "taking since" where the supplement predates
+// the plan) plus a row for each listed supplement no plan item covers.
+export const planItemsView = (planItems, stackItems, todayKey) => {
+  const all = planItems || [];
+  // Removed items still count as covering their supplement, so a removed row stays removed
+  const defs = new Map((stackItems || []).map((d) => [d.id, d]));
+  const withSince = all.filter((i) => !i.deleted).map((i) => {
+    const since = i.linked?.kind === 'supplement' ? takingSince(i, defs.get(i.linked.id)) : null;
+    return since ? { ...i, since } : i;
+  });
+  return [...withSince, ...listRows(stackItems, all, todayKey)];
+};
+
+// The plan entry behind a supplement or factor on the list: the one still running or upcoming.
+// With includeEnded, falls back to the course that ended most recently (for a hidden item's panel).
+export const planForDef = (view, kind, id, todayKey, { includeEnded = false } = {}) => {
+  const mine = (view || []).filter((p) => p.linked?.kind === kind && p.linked.id === id);
+  const live = mine.find((p) => phaseOf(p, todayKey) !== 'ended');
+  if (live || !includeEnded) return live || null;
+  return mine.sort((a, b) => (b.endedOn || b.endDate || '').localeCompare(a.endedOn || a.endDate || ''))[0] || null;
+};
+
+// What is selected in the Protocol tab, from either view: { kind, id } (a list item) or { planId }
+export const resolveSelection = (sel, { stackItems, inputItems, view, todayKey }) => {
+  if (!sel) return null;
+  const find = (kind, id) => (kind === 'factor' ? inputItems : stackItems)?.find((d) => d.id === id && !d.deletedAt) || null;
+  if (sel.planId) {
+    const plan = (view || []).find((p) => p.itemId === sel.planId);
+    if (!plan) return null;
+    const def = plan.linked?.id ? find(plan.linked.kind, plan.linked.id) : null;
+    return { def, kind: def ? plan.linked.kind : null, plan };
+  }
+  const def = find(sel.kind, sel.id);
+  if (!def) return null;
+  return { def, kind: sel.kind, plan: planForDef(view, sel.kind, sel.id, todayKey, { includeEnded: def.active === false }) };
+};
+
+// The small label on a checklist row that came from a plan: who prescribed it and until when
+export const planTag = (plan) => {
+  if (!plan || plan.fromList) return null;
+  const who = (SOURCE_LABELS[plan.source?.type] || '').startsWith('Nicole') ? 'Nicole' : '';
+  const until = plan.endDate ? `until ${new Date(`${plan.endDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : '';
+  return [who, until].filter(Boolean).join(' · ') || null;
+};

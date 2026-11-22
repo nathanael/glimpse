@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './desktopNav.css';
 import { formatDate } from '../utils/helpers';
 import { getScoreColor } from '../utils/healthScore';
@@ -8,7 +8,6 @@ const TABS = [
   { id: 'symptoms', label: 'Tracking' },
   { id: 'stack', label: 'Protocol' },
   { id: 'insights', label: 'Progress' },
-  { id: 'plan', label: 'Plan' },
 ];
 
 const DAY_MS = 86400000;
@@ -34,6 +33,8 @@ function garminStatus(sync, days) {
 
 const Chevron = ({ points }) => <svg viewBox="0 0 24 24"><polyline points={points} /></svg>;
 
+// One row: where am I (tabs), which day, the active view's own controls (portalled into the slot),
+// then the score and a single menu for everything occasional.
 export default function DesktopToolbar({
   // Date navigation
   selectedDate,
@@ -47,9 +48,6 @@ export default function DesktopToolbar({
   showInsights,
   setShowInsights,
   trackingMode,
-  // Search (filters the active list)
-  search,
-  setSearch,
   // The active view portals its scope + actions into this node
   slotRef,
   // Action handlers
@@ -58,20 +56,25 @@ export default function DesktopToolbar({
   onOpenSettings,
   onCopyData,
   copyDays,
+  onClearDay,        // clears the active list's day (Tracking or Protocol)
+  onMatchYesterday,  // Protocol only
+  onArrange,         // Tracking only: the arrange screen (order, groups)
   symptoms,
   entries,
   garminSync,
   garminSleepDays,
   showSleep,
   setShowSleep,
-  showPlan,
+  showPlan,          // Protocol's Timeline view
   setShowPlan,
   sleepAvailable,
   editing,
 }) {
-  const searchRef = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const isToday = selectedDate.toDateString() === new Date().toDateString();
-  const activeTab = showPlan ? 'plan' : showSleep ? 'sleep' : showInsights ? 'insights' : appMode === 'symptoms' ? 'symptoms' : 'stack';
+  const activeTab = showSleep ? 'sleep' : showInsights ? 'insights' : appMode === 'symptoms' ? 'symptoms' : 'stack';
+  const timeline = activeTab === 'stack' && showPlan;
 
   const { score, delta, rollingAvg } = useHealthScore(selectedDate, { symptoms, entries, trackingMode });
   const scoreValue = score !== null ? score : rollingAvg;
@@ -80,8 +83,7 @@ export default function DesktopToolbar({
   const handleTabClick = (tab) => {
     onCloseSettings?.();
     setShowSleep?.(tab === 'sleep');
-    setShowPlan?.(tab === 'plan');
-    if (tab === 'sleep' || tab === 'plan') {
+    if (tab === 'sleep') {
       setShowInsights(false);
     } else if (tab === 'insights') {
       setShowInsights(true);
@@ -91,120 +93,113 @@ export default function DesktopToolbar({
     }
   };
 
-  // ⌘K / Ctrl+K focuses search from anywhere
   useEffect(() => {
-    const onKey = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+    if (!menuOpen) return undefined;
+    const close = (e) => { if (!menuRef.current?.contains(e.target)) setMenuOpen(false); };
+    const key = (e) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('pointerdown', close, true);
+    window.addEventListener('keydown', key);
+    return () => { window.removeEventListener('pointerdown', close, true); window.removeEventListener('keydown', key); };
+  }, [menuOpen]);
 
   const relativeLabel = formatDate(selectedDate);
   const fullDate = selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  // A day only matters on the two daily lists; the timeline, Progress and Sleep carry their own range
+  const showDay = !settingsOpen && !editing && !timeline && (activeTab === 'symptoms' || activeTab === 'stack');
+  const dayList = !settingsOpen && !editing && !timeline && (activeTab === 'symptoms' || activeTab === 'stack');
+  const item = (label, fn, cls = '') => (
+    <button role="menuitem" className={cls} onClick={() => { setMenuOpen(false); fn(); }}>{label}</button>
+  );
 
   return (
-    <>
-      {/* Layer 1: where am I — identical on every tab */}
-      <div className="dn-top">
-        <div className="dn-wrap">
+    <div className="dn-top">
+      <div className="dn-wrap">
+        <div className="dn-seg" role="tablist">
+          {(sleepAvailable ? [...TABS, { id: 'sleep', label: 'Sleep' }] : TABS).map((tab) => (
+            <button key={tab.id} role="tab" aria-selected={!settingsOpen && activeTab === tab.id} className={!settingsOpen && activeTab === tab.id ? 'on' : ''} onClick={() => handleTabClick(tab.id)}>
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-          <div className="dn-seg" role="tablist">
-            {(sleepAvailable ? [...TABS, { id: 'sleep', label: 'Sleep' }] : TABS).map((tab) => (
-              <button key={tab.id} role="tab" aria-selected={!settingsOpen && activeTab === tab.id} className={!settingsOpen && activeTab === tab.id ? 'on' : ''} onClick={() => handleTabClick(tab.id)}>
-                {tab.label}
+        {showDay && (
+          <>
+            <div className="dn-step">
+              <button aria-label="Previous day" onClick={() => changeDate(-1)}><Chevron points="15 18 9 12 15 6" /></button>
+              <button
+                className="dn-date"
+                title="Open calendar"
+                onClick={() => {
+                  setCalendarMonth(new Date(selectedDate));
+                  setShowCalendar(true);
+                }}
+              >
+                {relativeLabel}
+                {relativeLabel !== fullDate && <small>{fullDate}</small>}
               </button>
-            ))}
-          </div>
-
-          <div className="dn-right">
-            {activeTab !== 'insights' && activeTab !== 'sleep' && activeTab !== 'plan' && !settingsOpen && (
-              <label className="dn-search">
-                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-                <input
-                  ref={searchRef}
-                  type="text"
-                  value={search}
-                  placeholder="Search"
-                  aria-label={activeTab === 'symptoms' ? 'Search symptoms' : 'Search protocol'}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Escape') { setSearch(''); e.target.blur(); } }}
-                />
-                <kbd>⌘K</kbd>
-              </label>
+              <button aria-label="Next day" disabled={!canGoForward} onClick={() => changeDate(1)}><Chevron points="9 18 15 12 9 6" /></button>
+            </div>
+            {!isToday && (
+              <button
+                className="dn-btn ghost"
+                onClick={() => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  setShowCalendar(false);
+                  changeDate(Math.round((today - new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())) / (1000 * 60 * 60 * 24)));
+                }}
+              >
+                Today
+              </button>
             )}
-            {scoreValue !== null && (
-              <div className="dn-score" title="Health score">
-                <span className="dn-ring" style={{ background: `conic-gradient(${scoreColor} ${scoreValue}%, rgba(255,255,255,.08) 0)` }} />
-                {scoreValue}%
-                {delta !== null && delta !== 0 && (
-                  <small style={{ color: delta > 0 ? '#22c55e' : '#ef4444' }}>{delta > 0 ? '▲' : '▼'} {Math.abs(delta)}</small>
-                )}
+          </>
+        )}
+
+        {/* The active view's own controls */}
+        <div className="dn-slot" ref={slotRef} />
+
+        <div className="dn-right">
+          {activeTab === 'stack' && !settingsOpen && !editing && (
+            <div className="dn-seg sm" role="group" aria-label="Protocol view">
+              <button className={timeline ? '' : 'on'} onClick={() => setShowPlan(false)}>Today</button>
+              <button className={timeline ? 'on' : ''} onClick={() => setShowPlan(true)}>Timeline</button>
+            </div>
+          )}
+          {scoreValue !== null && (
+            <div className="dn-score" title="Health score">
+              <span className="dn-ring" style={{ background: `conic-gradient(${scoreColor} ${scoreValue}%, rgba(255,255,255,.08) 0)` }} />
+              {scoreValue}%
+              {delta !== null && delta !== 0 && (
+                <small style={{ color: delta > 0 ? '#22c55e' : '#ef4444' }}>{delta > 0 ? '▲' : '▼'} {Math.abs(delta)}</small>
+              )}
+            </div>
+          )}
+          {/* Garmin sync status only matters on the Sleep tab */}
+          {garminSync && activeTab === 'sleep' && (() => {
+            const g = garminStatus(garminSync, garminSleepDays || []);
+            return (
+              <button className={`dn-garmin ${g.tone}${garminSync.syncing ? ' syncing' : ''}`} data-tip={garminSync.syncing ? 'Garmin: syncing…' : g.tip} aria-label={g.tip} onClick={onOpenSettings}>
+                <span className="dn-dot" />Garmin<small>{garminSync.syncing ? 'Syncing…' : g.label}</small>
+              </button>
+            );
+          })()}
+          <div className="dn-menu-wrap" ref={menuRef}>
+            <button className={`dn-icon ${menuOpen || settingsOpen ? 'on' : ''}`} aria-label="More" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
+              <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" /></svg>
+            </button>
+            {menuOpen && (
+              <div className="dn-menu" role="menu">
+                {dayList && activeTab === 'stack' && onMatchYesterday && item('Match yesterday', onMatchYesterday)}
+                {dayList && onClearDay && item('Clear day', onClearDay)}
+                {dayList && activeTab === 'symptoms' && onArrange && item('Arrange list and groups', onArrange)}
+                {dayList && <hr />}
+                {item(`Copy last ${copyDays} days for AI`, onCopyData)}
+                {item(settingsOpen ? 'Close settings' : 'Settings', onOpenSettings)}
               </div>
             )}
-            {/* Garmin sync status only matters on the Sleep tab */}
-            {garminSync && activeTab === 'sleep' && (() => {
-              const g = garminStatus(garminSync, garminSleepDays || []);
-              return (
-                <button className={`dn-garmin ${g.tone}${garminSync.syncing ? ' syncing' : ''}`} data-tip={garminSync.syncing ? 'Garmin: syncing…' : g.tip} aria-label={g.tip} onClick={onOpenSettings}>
-                  <span className="dn-dot" />Garmin<small>{garminSync.syncing ? 'Syncing…' : g.label}</small>
-                </button>
-              );
-            })()}
-            <button className="dn-icon" data-tip={`Copy last ${copyDays} days of data`} aria-label={`Copy last ${copyDays} days of data`} onClick={onCopyData}>
-              <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-            </button>
-            <button className={`dn-icon ${settingsOpen ? 'on' : ''}`} data-tip="Settings" aria-label="Settings" onClick={onOpenSettings}>
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></svg>
-            </button>
           </div>
         </div>
       </div>
-
-      {/* Layer 2: what am I looking at (left) → what can I do (right).
-          Sleep carries its own controls inside its cards, like the Garmin dashboard. */}
-      {activeTab !== 'sleep' && <div className="dn-context">
-        <div className="dn-wrap">
-          {/* Editing a list isn't about a day, so the date stepper steps aside */}
-          {activeTab !== 'insights' && activeTab !== 'sleep' && !editing && (
-            <>
-              <div className="dn-step">
-                <button aria-label="Previous day" onClick={() => changeDate(-1)}><Chevron points="15 18 9 12 15 6" /></button>
-                <button
-                  className="dn-date"
-                  title="Open calendar"
-                  onClick={() => {
-                    setCalendarMonth(new Date(selectedDate));
-                    setShowCalendar(true);
-                  }}
-                >
-                  {relativeLabel}
-                  {relativeLabel !== fullDate && <small>{fullDate}</small>}
-                </button>
-                <button aria-label="Next day" disabled={!canGoForward} onClick={() => changeDate(1)}><Chevron points="9 18 15 12 9 6" /></button>
-              </div>
-              {!isToday && (
-                <button
-                  className="dn-btn ghost"
-                  onClick={() => {
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
-                    setShowCalendar(false);
-                    changeDate(Math.round((today - new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate())) / (1000 * 60 * 60 * 24)));
-                  }}
-                >
-                  Today
-                </button>
-              )}
-            </>
-          )}
-          <div className="dn-slot" ref={slotRef} />
-        </div>
-      </div>}
-    </>
+    </div>
   );
 }

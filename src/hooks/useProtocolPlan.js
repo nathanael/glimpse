@@ -59,6 +59,8 @@ export function useProtocolPlan(user) {
   }, [col]);
 
   const ack = useCallback((itemId, type) => patch(itemId, { ack: { [type]: new Date().toISOString() } }), [patch]);
+  // Forget that an alert was seen, so it comes round again (a start moved back into the future)
+  const unack = useCallback((itemId, type) => patch(itemId, { ack: { [type]: null } }), [patch]);
   const link = useCallback((itemId, linked) => patch(itemId, { linked }), [patch]);
 
   // Nate's own plan items. Creating or editing one marks it seen, so it never alerts as "added".
@@ -108,5 +110,5 @@ export function useProtocolPlan(user) {
     patch(itemId, { status: 'ended', endedOn, endReason, outcome, updatedAt: new Date().toISOString() });
   }, [patch]);
 
-  return { items, error, ack, link, saveOwnItem, editItem, endItem, removeItem, restoreItem };
+  return { items, error, ack, unack, link, saveOwnItem, editItem, endItem, removeItem, restoreItem };
 }

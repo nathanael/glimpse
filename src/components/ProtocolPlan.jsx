@@ -3,7 +3,7 @@ import './protocolPlan.css';
 import { CloseButton } from './overlay';
 import {
   KINDS, kindOf, SOURCE_LABELS, phaseOf, timelineRange, barFor, addDaysKey, daysBetween, doseText,
-  listRows, dragDates, planSections, takingSince,
+  dragDates, planSections,
 } from '../protocolPlan/plan';
 
 // Protocol plan: what Nicole has recommended (written by the Glimpse Health MCP) and what Nate plans
@@ -82,7 +82,7 @@ export function PlanDetail({ item, todayKey, onEnd, onEdit, onRemove, onAddToLis
 
 function PlanForm({ initial, todayKey, onSave, onCancel }) {
   const [f, setF] = useState(() => ({
-    name: '', kind: 'supplement', dose: '', unit: 'mg', frequency: '', startDate: addDaysKey(todayKey, 1), endDate: '',
+    name: '', kind: 'supplement', dose: '', unit: 'mg', frequency: '', startDate: todayKey, endDate: '',
     reason: '', watchFor: '', condition: '', ...initial,
   }));
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -102,7 +102,7 @@ function PlanForm({ initial, todayKey, onSave, onCancel }) {
   };
   return (
     <div className="pp-detail pp-form">
-      <div className="pp-detail-head"><b>{initial?.itemId ? (initial.author && initial.author !== 'nate' ? 'Adjust plan item' : 'Edit plan item') : 'Plan an item'}</b><button className="pp-x" aria-label="Cancel" onClick={onCancel}>×</button></div>
+      <div className="pp-detail-head"><b>{initial?.itemId ? (initial.author && initial.author !== 'nate' ? 'Adjust plan item' : 'Edit plan item') : 'Add to the plan'}</b><button className="pp-x" aria-label="Cancel" onClick={onCancel}>×</button></div>
       <label>Name<input autoFocus value={f.name} onChange={set('name')} placeholder="Zinc carnosine" /></label>
       <div className="pp-seg">{KINDS.map((k) => <button key={k.id} type="button" className={f.kind === k.id ? 'on' : ''} onClick={() => setF((p) => ({ ...p, kind: k.id }))}>{k.label}</button>)}</div>
       <div className="pp-row">
@@ -261,9 +261,9 @@ function RowMenu({ menu, todayKey, onEdit, onEnd, onRemove, onClose }) {
   return (
     <div ref={ref} className="pp-menu" role="menu" style={{ left, top }}>
       <div className="pp-menu-title">{item.name}</div>
-      <button role="menuitem" onClick={run(onEdit)}>Edit…</button>
+      <button role="menuitem" onClick={run(onEdit)}>Open</button>
       {!ended && <button role="menuitem" onClick={run(onEnd)}>End today</button>}
-      <button role="menuitem" className="pp-danger" onClick={run(onRemove)}>Remove from plan</button>
+      <button role="menuitem" className="pp-danger" onClick={run(onRemove)}>Remove</button>
     </div>
   );
 }
@@ -292,23 +292,20 @@ function PlanList({ items, todayKey, selectedId, onSelect, renderDetail }) {
   );
 }
 
-export default function ProtocolPlan({ plan, todayKey, isDesktop, stackItems, onAddToList, onClose }) {
-  const [selectedId, setSelectedId] = useState(null);
-  const [form, setForm] = useState(null); // null | {} (new) | item (edit)
-  // The plan plus every supplement on the list that no plan item covers, so the planner holds the whole regimen
-  const items = useMemo(() => {
-    const planItems = (plan.items || []).filter((i) => !i.deleted);
-    // Removed items still count as covering their supplement, so a removed list row stays removed
-    const defs = new Map((stackItems || []).map((d) => [d.id, d]));
-    const withSince = planItems.map((i) => {
-      const since = i.linked?.kind === 'supplement' ? takingSince(i, defs.get(i.linked.id)) : null;
-      return since ? { ...i, since } : i;
-    });
-    return [...withSince, ...listRows(stackItems, plan.items || [], todayKey)];
-  }, [plan.items, stackItems, todayKey]);
+// items: the whole protocol as the Timeline shows it (planItemsView). On desktop this is the
+// Timeline view of the Protocol tab: selection, the side panel and end/remove belong to the tab, so
+// the same panel serves the Today checklist. The phone page keeps its own list, detail and form.
+export default function ProtocolPlan({
+  plan, items, todayKey, isDesktop, onAddToList, onClose,
+  selectedId: selectedProp, onSelect, panel, onEditPlan, onEndPlan, onRemovePlan, onCreate,
+}) {
+  const [ownSelected, setOwnSelected] = useState(null);
+  const selectedId = isDesktop ? selectedProp : ownSelected;
+  const setSelectedId = isDesktop ? (id) => onSelect(id ? { planId: id } : null) : setOwnSelected;
+  const [form, setForm] = useState(null); // null | {} (new) | item (edit, phone only)
   const selected = items.find((i) => i.itemId === selectedId);
   const [menu, setMenu] = useState(null); // {item, x, y}
-  const [removed, setRemoved] = useState(null); // last removed item, for Undo
+  const [removed, setRemoved] = useState(null); // last removed item, for Undo (phone)
   const undoTimer = useRef(null);
   const remove = (item) => {
     plan.removeItem(item);
@@ -319,7 +316,6 @@ export default function ProtocolPlan({ plan, todayKey, isDesktop, stackItems, on
     undoTimer.current = setTimeout(() => setRemoved(null), 8000);
   };
   const undo = () => { plan.restoreItem(removed.itemId); setRemoved(null); clearTimeout(undoTimer.current); };
-  const endToday = (i) => (i.fromList ? plan.editItem(i, { status: 'ended', endedOn: todayKey }) : plan.endItem(i.itemId, { endedOn: todayKey }));
 
   const detail = (item, closable) => (
     <PlanDetail
@@ -339,7 +335,8 @@ export default function ProtocolPlan({ plan, todayKey, isDesktop, stackItems, on
       onCancel={() => setForm(null)}
       onSave={(data) => {
         if (form.itemId) { plan.editItem(form, data); setForm(null); setSelectedId(form.itemId); return; }
-        const id = plan.saveOwnItem(data); setForm(null); setSelectedId(id);
+        const id = onCreate ? onCreate(data) : plan.saveOwnItem(data);
+        setForm(null); setSelectedId(id);
       }}
     />
   );
@@ -351,34 +348,35 @@ export default function ProtocolPlan({ plan, todayKey, isDesktop, stackItems, on
     </div>
   );
 
-  const head = (
-    <div className="pp-head">
-      <h2>Protocol plan</h2>
-      {plan.error && <span className="pp-err">{plan.error}</span>}
-      <button className="dn-btn primary" onClick={() => { setForm({}); setSelectedId(null); }}>+ Plan an item</button>
-      {onClose && <CloseButton label="Close plan" onClick={onClose} />}
-    </div>
-  );
-
   if (isDesktop) {
     return (
       <div className="pp desktop">
-        {head}
         <div className="pp-body">
-          <Timeline items={items} todayKey={todayKey} selectedId={selectedId} onSelect={(id) => { setSelectedId(id); setForm(null); }} onMove={(i, dates) => plan.editItem(i, dates)} onMenu={(item, x, y) => setMenu({ item, x, y })} />
-          {(formEl || selected) && <aside className="pp-side">{formEl || detail(selected, true)}</aside>}
+          <div>
+            <Timeline items={items} todayKey={todayKey} selectedId={selectedId} onSelect={(id) => { setSelectedId(selectedId === id ? null : id); setForm(null); }} onMove={onEditPlan} onMenu={(item, x, y) => setMenu({ item, x, y })} />
+            <div className="pp-foot">
+              <button className="pp-addrow" onClick={() => { setForm({}); setSelectedId(null); }}>+ Add to the plan</button>
+              {plan.error && <span className="pp-err">{plan.error}</span>}
+              <span className="pp-muted">Drag a bar to move it, or an edge to change its start or end.</span>
+            </div>
+          </div>
+          {(formEl || panel) && <aside className="pp-side">{formEl || panel}</aside>}
         </div>
         {menu && (
           <RowMenu menu={menu} todayKey={todayKey} onClose={() => setMenu(null)}
-            onEdit={(i) => { setSelectedId(i.itemId); setForm(i); }} onEnd={endToday} onRemove={remove} />
+            onEdit={(i) => { setForm(null); setSelectedId(i.itemId); }} onEnd={onEndPlan} onRemove={onRemovePlan} />
         )}
-        {undoBar}
       </div>
     );
   }
   return (
     <div className="pp mobile">
-      {head}
+      <div className="pp-head">
+        <h2>Protocol plan</h2>
+        {plan.error && <span className="pp-err">{plan.error}</span>}
+        <button className="dn-btn primary" onClick={() => { setForm({}); setSelectedId(null); }}>+ Plan an item</button>
+        {onClose && <CloseButton label="Close plan" onClick={onClose} />}
+      </div>
       <div className="pp-scroll">
         {formEl}
         {undoBar}
