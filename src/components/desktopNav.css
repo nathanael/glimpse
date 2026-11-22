@@ -84,3 +84,11 @@
 .dn-menu button:hover { background: #374151; }
 .dn-menu button.danger { color: #f87171; }
 .dn-menu hr { border: 0; border-top: 1px solid #374151; margin: 4px 0; }
+
+/* The one "more" menu on the right of the toolbar */
+.dn-menu-wrap { position: relative; }
+.dn-icon svg circle { fill: currentColor; stroke: none; }
+.dn-menu { position: absolute; top: 38px; right: 0; z-index: 300; min-width: 210px; padding: 4px; border-radius: 6px; background: #1f2937; border: 1px solid #374151; box-shadow: 0 12px 32px rgba(0,0,0,.5); display: flex; flex-direction: column; }
+.dn-menu button { height: 32px; padding: 0 10px; border: 0; border-radius: 4px; background: none; color: #d1d5db; font-size: 13px; text-align: left; white-space: nowrap; }
+.dn-menu button:hover { background: #374151; color: #fff; }
+.dn-menu hr { width: 100%; margin: 4px 0; border: 0; border-top: 1px solid #374151; }

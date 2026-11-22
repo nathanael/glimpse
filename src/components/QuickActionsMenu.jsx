@@ -11,7 +11,6 @@ const icons = {
   gear: solar.gear,
   trash: solar.trash,
   bolt: solar.bolt,
-  camera: solar.camera,
   refresh: solar.refresh,
   heart: solar.heart,
   plan: solar.yesterday,
@@ -34,7 +33,6 @@ export default function QuickActionsMenu({
   // Stack page actions
   onClear,
   onEditProtocol,
-  onLogMeal,
   onOpenPlan,
   planHint,
   // Every tab
@@ -78,8 +76,6 @@ export default function QuickActionsMenu({
         <Item icon="copy" label="Copy for AI" hint={`${copyDays} days`} onClick={onCopyData} />
         {tab === 'symptoms' && <Item icon="list" label="Edit symptoms" onClick={onEditSymptoms} />}
         {tab === 'protocol' && <Item icon="list" label="Edit protocol" onClick={onEditProtocol} />}
-        {/* Home's grid has Blood pressure; Meal lives here instead */}
-        {tab === 'home' && <Item icon="camera" label="Log a meal" onClick={onLogMeal} />}
         {onOpenPlan && <Item icon="plan" label="Protocol plan" hint={planHint} onClick={onOpenPlan} />}
       </div>
     </>

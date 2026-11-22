@@ -29,7 +29,6 @@ export default function BottomNav({
   dayStatus,          // (date) => 'full' | 'part' | '' for the list on screen
   onClear,
   onEditProtocol,
-  onLogMeal,
   onOpenPlan,
   planHint,
   onBloodPressure,
@@ -83,7 +82,6 @@ export default function BottomNav({
           onRapidEntry={onRapidEntry}
           onClear={onClear}
           onEditProtocol={onEditProtocol}
-          onLogMeal={onLogMeal}
           onOpenPlan={onOpenPlan}
           planHint={planHint}
           onBloodPressure={onBloodPressure}

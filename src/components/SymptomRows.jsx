@@ -66,6 +66,7 @@ export default function SymptomRows({
   const [focus, setFocus] = useState(() => ({ id: null, period: defaultPeriod() }));
   const [expandedId, setExpandedId] = useState(null);
   const [showHidden, setShowHidden] = useState(true);
+  const [listHidden, setListHidden] = useState(false); // desktop list: the Hidden fold
   const [adding, setAdding] = useState(false);
   const [addingWellbeing, setAddingWellbeing] = useState(false);
 
@@ -200,7 +201,6 @@ export default function SymptomRows({
     const onKey = (e) => {
       if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
       const symptom = rows.find((s) => s.id === focus.id);
-      if (e.key === 'e' || e.key === 'E') { setEditing(true); e.preventDefault(); return; }
       if (!symptom) return;
       if (/^[0-5]$/.test(e.key)) {
         if (isApplicable(symptom, focus.period)) rate(symptom, focus.period, Number(e.key));
@@ -524,6 +524,35 @@ export default function SymptomRows({
     );
   };
 
+  // Desktop: a click on a symptom's name edits it right there in the list (no edit mode)
+  const renderInline = (symptom) => {
+    const wellbeing = isWellbeing(symptom);
+    return (
+      <div className="lr-inline" onClick={(e) => e.stopPropagation()}>
+        <div className="lr-fields">
+          <DraftInput className="lr-input boxed name" value={symptom.name} placeholder="Name" autoFocus onCommit={(v) => commitName(symptom, v)} />
+          <DraftInput className="lr-input boxed desc" value={symptom.description} placeholder="Add a description" onCommit={(v) => patchSymptom(symptom.id, { description: v.trim() })} />
+        </div>
+        <div className="lr-inline-row">
+          {!wellbeing && <label>Group {renderGroupSelect(symptom)}</label>}
+          {timePeriods.length > 1 && (
+            <label>Tracked in {timePeriods.map((p) => (
+              <button key={p.id} className={`lr-toggle ${isApplicable(symptom, p.id) ? 'on' : ''}`} onClick={() => togglePeriod(symptom, p.id)}>{p.label}</button>
+            ))}</label>
+          )}
+          <label>Type
+            <button className={`lr-toggle kind ${wellbeing ? '' : 'on'}`} onClick={() => wellbeing && patchSymptom(symptom.id, { kind: 'symptom' })}>Symptom</button>
+            <button className={`lr-toggle kind ${wellbeing ? 'on' : ''}`} onClick={() => !wellbeing && patchSymptom(symptom.id, { kind: WELLBEING, group: null })}>Wellbeing</button>
+          </label>
+          <span className="lr-spacer" />
+          <button className="lr-link" onClick={() => { patchSymptom(symptom.id, { active: false }); setExpandedId(null); setLastAction(`${symptom.name} hidden (history kept)`); }}>Hide</button>
+          <button className="dn-btn" onClick={() => setExpandedId(null)}>Done</button>
+        </div>
+        {renderLog(symptom)}
+      </div>
+    );
+  };
+
   // ---- Render ----
   const rootClass = `lr sym ${isDesktop ? 'desktop' : 'mobile'} ${editing ? 'edit' : ''}`;
   const rootStyle = { '--lr-periods': timePeriods.length };
@@ -573,9 +602,8 @@ export default function SymptomRows({
       {/* Grouping help sits with the grouping control it affects */}
       {editing && <button className={`dn-btn ${proposal ? 'on' : ''}`} onClick={() => (proposal ? setProposal(null) : openProposal())}>Suggest grouping</button>}
       <span className="lr-spacer" />
-      {isDesktop && !editing && hasEntriesToday && <button className="dn-btn ghost" onClick={onClearDay}>Clear day</button>}
-      {isDesktop && !editing && <button className="dn-btn" onClick={onEditNote}>Notes</button>}
-      {(isDesktop || editing) && <button className={`dn-btn ${editing ? 'primary' : ''}`} onClick={toggleEdit}>{editing ? 'Done' : 'Edit list'}</button>}
+      {isDesktop && !editing && <button className="dn-btn ghost" onClick={onEditNote}>Notes</button>}
+      {editing && <button className="dn-btn primary" onClick={toggleEdit}>Done</button>}
     </>,
     barSlot
   ) : null;
@@ -674,11 +702,36 @@ export default function SymptomRows({
     );
   }
 
+  // Desktop: add and restore live in the list too
+  const desktopExtras = (
+    <>
+      {adding ? (
+        <div className="lr-row lr-add lr-addline">
+          <DraftInput className="lr-input name" value="" placeholder="New symptom name" autoFocus onCommit={addSymptom} onAbandon={() => setAdding(false)} />
+        </div>
+      ) : (
+        <div className="lr-row lr-add lr-addline" onClick={() => setAdding(true)}>+ Add symptom</div>
+      )}
+      {hiddenSymptoms.length > 0 && (
+        <>
+          <div className="lr-fold lr-foldsec" onClick={() => setListHidden((v) => !v)}>{listHidden ? '▾' : '▸'} Hidden · {hiddenSymptoms.length} · history is kept</div>
+          {listHidden && hiddenSymptoms.map((s) => (
+            <div key={s.id} className="lr-row lr-hiddenline">
+              <div className="lr-name">{s.name}{s.description && <small>{s.description}</small>}</div>
+              <button className="lr-link" onClick={() => { patchSymptom(s.id, { active: true }); setLastAction(`${s.name} restored`); }}>Restore</button>
+              {onDeleteSymptom && <button className="lr-link danger" onClick={() => onDeleteSymptom(s)}>Delete</button>}
+            </div>
+          ))}
+        </>
+      )}
+    </>
+  );
+
   return (
     <div ref={rootRef} className={rootClass} style={rootStyle}>
       {bar}
       {activeSymptoms.length === 0 ? (
-        hiddenMatches.length ? null : <div className="lr-empty">{symptomSearch ? `No symptoms match "${symptomSearch}"` : (isDesktop ? 'Nothing tracked yet. Use Edit list to add a symptom or wellbeing signal.' : 'Nothing tracked yet. Tap + to add a symptom.')}</div>
+        hiddenMatches.length ? null : <>{<div className="lr-empty">{symptomSearch ? `No symptoms match "${symptomSearch}"` : (isDesktop ? 'Nothing tracked yet.' : 'Nothing tracked yet. Tap + to add a symptom.')}</div>}{isDesktop && desktopExtras}</>
       ) : (
         <>
           {!isDesktop && hasGroups && groupByControl}
@@ -726,7 +779,9 @@ export default function SymptomRows({
               >
                 <div className="lr-name">
                   {pinnedSymptoms?.has(symptom.id) && <span className="lr-pin">⊙</span>}
-                  {symptom.name}{symptom.description && <small>{symptom.description}</small>}
+                  {isDesktop
+                    ? <span className="lr-nametext" title="Rename, group or hide" onClick={(e) => { e.stopPropagation(); setExpandedId(expandedId === symptom.id ? null : symptom.id); }}>{symptom.name}</span>
+                    : symptom.name}{symptom.description && <small>{symptom.description}</small>}
                   {rowNotes(symptom) && <span className="lr-noted" title={rowNotes(symptom)}>{open && !isDesktop ? rowNotes(symptom) : 'note'}</span>}
                 </div>
                 {/* Desktop: while a row is open, the rating keys take the chart's place on the same row */}
@@ -785,11 +840,13 @@ export default function SymptomRows({
                     <button className="lr-key wide" onClick={() => onOpenGraph?.(symptom.id)}>History</button>
                   </div>
                 )}
+                {isDesktop && expandedId === symptom.id && renderInline(symptom)}
               </div>
               </SwipeRow>
             );
             }))];
           })}
+          {isDesktop && desktopExtras}
           {isDesktop && (
             <div className="lr-hintbar">
               <span><i className="lr-lastdot" />last time</span>
@@ -805,7 +862,6 @@ export default function SymptomRows({
                 <span><kbd>←</kbd><kbd>→</kbd> day</span>
               )}
               <span><kbd>⌫</kbd> clear</span>
-              <span><kbd>E</kbd> edit</span>
             </div>
           )}
         </>

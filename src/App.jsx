@@ -66,11 +66,9 @@ import { primeRemoteAudio } from './voice/webrtcConnection';
 import SymptomRows from './components/SymptomRows';
 import UndoToast from './components/UndoToast';
 import ProtocolRows from './components/ProtocolRows';
-import MealCapture from './components/MealCapture';
 import BloodPressure from './components/BloodPressure';
 import SleepNight from './components/SleepNight';
-import MealList from './components/MealList';
-import { mealKey, mealDateKey } from './food/mealKey';
+import { mealKey } from './food/mealKey';
 import { trackingDayStatus, protocolDayStatus } from './utils/dayStatus';
 import { lastValue as bpLastValue } from './utils/bloodPressure';
 import { mergeBackupMeals } from './food/mealBackup';
@@ -80,7 +78,8 @@ import SleepTab from './components/SleepTab';
 import ProtocolPlan from './components/ProtocolPlan';
 import PlanAlerts from './components/PlanAlerts';
 import { useProtocolPlan } from './hooks/useProtocolPlan';
-import { stackItemFrom, inputItemFrom, groupItems } from './protocolPlan/plan';
+import { stackItemFrom, inputItemFrom, groupItems, planItemsView, resolveSelection, planTag, phaseOf, findByName } from './protocolPlan/plan';
+import ItemPanel from './components/ItemPanel';
 import { makeId } from './utils/listHelpers';
 import { applySupplementPatch, applyInputPatch } from './utils/protocolHistory';
 import Settings from './components/Settings';
@@ -222,7 +221,8 @@ function App() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showSleep, setShowSleep] = useState(false); // desktop-only Garmin Sleep tab
-  const [showPlan, setShowPlan] = useState(false);   // Protocol plan: a desktop tab, a full-screen page on the phone
+  const [showPlan, setShowPlan] = useState(false);   // Protocol plan: the Protocol tab's Timeline view on desktop, a full-screen page on the phone
+  const [protocolSel, setProtocolSel] = useState(null); // desktop Protocol tab: what the side panel shows, { kind, id } | { planId }
   const [insightsSubtab, setInsightsSubtab] = useState('studio');
   const [showSettings, setShowSettings] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -232,12 +232,8 @@ function App() {
   const [showSimpleProtocol, setShowSimpleProtocol] = useState(false);
   const [showTalkMode, setShowTalkMode] = useState(false);
   const [showVoiceNote, setShowVoiceNote] = useState(false);
-  // null = closed; { key } opens an existing meal for editing; {} opens a fresh capture
-  const [mealSheet, setMealSheet] = useState(null);
   const [showBloodPressure, setShowBloodPressure] = useState(null);   // null | 'entry' | 'history'
   const [showSleepNight, setShowSleepNight] = useState(false); // Sleep page from Home's Sleep tile
-  // One-shot: Home's "Today's meals" sets this so MealList scrolls itself into view on mount.
-  const [scrollToMeals, setScrollToMeals] = useState(false);
   const [talkCost, setTalkCost] = useState(null); // stats of the last conversation, until dismissed
   const [showSymptomGraph, setShowSymptomGraph] = useState(null);
   const [showSupplementGraph, setShowSupplementGraph] = useState(null);
@@ -307,19 +303,6 @@ function App() {
     // The simple screens over Home have their own week strip; closing them snaps back to today.
     if (onHome && !showRapidEntry && !showSimpleProtocol && getDateKey(selectedDate) !== getDateKey(new Date())) setSelectedDate(new Date());
   }, [onHome, selectedDate, showRapidEntry, showSimpleProtocol]);
-
-  // One-shot: "Today's meals" sets it, MealList consumes it on its next mount. If the user
-  // leaves Protocol before the timeout fires, clear it immediately instead of leaving it
-  // armed for the next visit.
-  useEffect(() => {
-    if (!scrollToMeals) return;
-    if (appMode !== 'stack') {
-      setScrollToMeals(false);
-      return;
-    }
-    const id = setTimeout(() => setScrollToMeals(false), 400);
-    return () => clearTimeout(id);
-  }, [scrollToMeals, appMode]);
 
   const garminSync = useGarminSync(firebase.user);
   // Keeps the local Garmin cache current on every device for Copy for AI / CSV / backup
@@ -447,6 +430,94 @@ function App() {
     (asFactor ? setInputItems : setStackItems)((prev) => prev.map((i) => (i.id === linked.id ? applyPatch(i, { active: false }) : i)));
     if (!silent) { setCopyToastMessage(`${item.name} hidden (history kept)`); setTimeout(() => setCopyToastMessage(''), 2500); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- One protocol (desktop): the Today checklist and the Timeline share a selection and one editor ----
+  const planView = useMemo(() => planItemsView(protocolPlan.items, stackItems, planTodayKey), [protocolPlan.items, stackItems, planTodayKey]);
+  const protocolTarget = useMemo(
+    () => resolveSelection(protocolSel, { stackItems: liveStackItems, inputItems: liveInputItems, view: planView, todayKey: planTodayKey }),
+    [protocolSel, liveStackItems, liveInputItems, planView, planTodayKey],
+  );
+  const planTags = useMemo(() => {
+    const tags = new Map();
+    for (const p of planView) {
+      if (!p.linked?.id || phaseOf(p, planTodayKey) === 'ended') continue;
+      const tag = planTag(p);
+      if (tag) tags.set(`${p.linked.kind}:${p.linked.id}`, tag);
+    }
+    return tags;
+  }, [planView, planTodayKey]);
+  const planUpcoming = useMemo(
+    () => planView.filter((p) => p.kind !== 'test' && phaseOf(p, planTodayKey) === 'upcoming').sort((a, b) => (a.startDate || '9').localeCompare(b.startDate || '9')),
+    [planView, planTodayKey],
+  );
+  const setDefActive = (kind, id, active) => (kind === 'factor' ? setInputItems : setStackItems)((prev) =>
+    prev.map((i) => (i.id === id && (i.active !== false) !== active ? (kind === 'factor' ? applyInputPatch : applySupplementPatch)(i, { active }) : i)));
+  const defOfPlan = (item) => (item.linked?.id ? (item.linked.kind === 'factor' ? liveInputItems : liveStackItems).find((d) => d.id === item.linked.id) || null : null);
+  const targetOfPlan = (item) => { const def = defOfPlan(item); return { def, kind: def ? item.linked.kind : null, plan: item }; };
+
+  // Edit a plan item from the panel or by dragging its bar. The checklist follows the dates: a start
+  // moved into the future takes the item off today's list until then (its start card brings it back);
+  // a start moved to today or earlier puts it on.
+  const editPlanItem = (item, fields) => {
+    protocolPlan.editItem(item, fields);
+    if (!('startDate' in fields) || !item.linked?.id || item.status === 'ended') return;
+    const end = 'endDate' in fields ? fields.endDate : item.endDate;
+    if (fields.startDate > planTodayKey) {
+      setDefActive(item.linked.kind, item.linked.id, false);
+      protocolPlan.unack(item.itemId, 'start');
+    } else if (!end || end >= planTodayKey) {
+      setDefActive(item.linked.kind, item.linked.id, true);
+    }
+  };
+  // Stop it today: ended on the plan (with why and what was noticed), off the checklist, history kept
+  const endProtocolItem = ({ def, kind, plan }, { endReason = '', outcome = '' } = {}) => {
+    if (plan) {
+      const data = { endedOn: planTodayKey, endReason, outcome };
+      if (plan.fromList) protocolPlan.editItem(plan, { status: 'ended', ...data }); else protocolPlan.endItem(plan.itemId, data);
+      protocolPlan.ack(plan.itemId, 'end'); // he ended it himself: no "time to stop" card
+    }
+    if (def) setDefActive(kind, def.id, false);
+    setLastAction(`${def?.name || plan.name} ${plan ? 'ended' : 'hidden'} (history kept)`);
+  };
+  const removeProtocolItem = ({ def, kind, plan }) => {
+    if (!plan) return;
+    const wasActive = def && def.active !== false;
+    protocolPlan.removeItem(plan);
+    if (wasActive) setDefActive(kind, def.id, false);
+    setProtocolSel(null);
+    setUndoToast({
+      message: `Removed ${def?.name || plan.name}`,
+      onUndo: () => { protocolPlan.restoreItem(plan.itemId); if (wasActive) setDefActive(kind, def.id, true); },
+    });
+  };
+  const restoreProtocolItem = ({ def, kind }) => { if (def) { setDefActive(kind, def.id, true); setLastAction(`Restored ${def.name}`); } };
+  // "+ Add to the plan": something starting today or earlier goes straight onto the checklist
+  const createPlanItem = (data) => {
+    const itemId = protocolPlan.saveOwnItem(data);
+    if (data.kind !== 'test' && data.startDate <= planTodayKey && (!data.endDate || data.endDate >= planTodayKey)) {
+      const asFactor = data.kind === 'food' || data.kind === 'intervention';
+      addPlanToList({ ...data, itemId }, findByName(asFactor ? inputItems : stackItems, data.name) || undefined, { silent: true });
+      protocolPlan.ack(itemId, 'start');
+    }
+    return itemId;
+  };
+  const protocolPanel = protocolTarget && (
+    <ItemPanel
+      {...protocolTarget}
+      todayKey={planTodayKey}
+      dateKey={getDateKey(selectedDate)}
+      setStackItems={setStackItems}
+      setInputItems={setInputItems}
+      setStackEntries={setStackEntries}
+      onEditPlan={editPlanItem}
+      onEnd={endProtocolItem}
+      onRemove={removeProtocolItem}
+      onRestore={restoreProtocolItem}
+      onDelete={(item, kind) => { softDeleteItem(kind, item); setProtocolSel(null); }}
+      onClose={() => setProtocolSel(null)}
+      setLastAction={setLastAction}
+    />
+  );
 
   const activeSymptoms = useMemo(() => {
     let active = liveSymptoms.filter(s => s.active);
@@ -742,6 +813,7 @@ function App() {
         if (showSymptomGraph) setShowSymptomGraph(null);
         else if (showSupplementGraph) setShowSupplementGraph(null);
         else if (showSettings) setShowSettings(false);
+        else if (protocolSel) setProtocolSel(null);
         else if (showCalendar) setShowCalendar(false);
         else if (showExport) setShowExport(false);
         else if (showNoteModal) setShowNoteModal(false);
@@ -751,7 +823,7 @@ function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isDesktop, listKeyboardEnabled, appMode, symptomEditMode, trackingMode, showSettings, showCalendar, showExport, showNoteModal, showSymptomGraph, showSupplementGraph, showInsights, showSleep, sleepAvailable]);
+  }, [isDesktop, listKeyboardEnabled, appMode, symptomEditMode, trackingMode, showSettings, showCalendar, showExport, showNoteModal, showSymptomGraph, showSupplementGraph, showInsights, showSleep, sleepAvailable, protocolSel]);
 
   // Handlers
   const changeDate = useCallback((days) => {
@@ -830,31 +902,8 @@ function App() {
     setShowTalkMode(true);
   }, [talkEngine]);
 
-  // The meal capture sheet reports a Date; the key is derived here rather than trusted from the
-  // sheet, and derived OUTSIDE the setMeals updater — an updater must be pure, and mealKey() pulls
-  // in a random suffix, so generating it inside would make the updater's result depend on how many
-  // times React happens to invoke it (StrictMode invokes render-phase updaters twice).
-  const saveMeal = useCallback(({ name, ingredients, at, source }) => {
-    const existingKey = mealSheet?.key;
-    const candidateKey = mealKey(at);
-    // Editing keeps the original key so the record updates in place — unless the new time falls on
-    // a different day, in which case the key must move with it: the day list filters by the key's
-    // date and sync shards by its month, so an unchanged key would leave the meal filed (and
-    // synced) under its old day.
-    const sameDay = existingKey && mealDateKey(existingKey) === mealDateKey(candidateKey);
-    const key = sameDay ? existingKey : candidateKey;
-    setMeals((prev) => {
-      const next = { ...prev };
-      if (existingKey && existingKey !== key) delete next[existingKey];
-      next[key] = { time: at.toISOString(), name, ingredients, source };
-      return next;
-    });
-    haptic('light');
-    setLastAction(name ? `Logged ${name}` : 'Meal logged');
-  }, [mealSheet, setMeals, setLastAction]);
-
-  // One to three cuff readings arrive already averaged; the key is made here, outside the updater,
-  // for the same reason as saveMeal's. Undo is the only way back from a mistap: there is no edit.
+  // One to three cuff readings arrive already averaged; the key is made here, outside the updater
+  // (it carries a random suffix, and an updater must be pure). Undo is the only way back from a mistap: there is no edit.
   const saveBloodPressure = useCallback((record, at = new Date()) => {
     const key = mealKey(at);
     setBloodPressure((prev) => ({ ...prev, [key]: { time: at.toISOString(), ...record } }));
@@ -882,24 +931,6 @@ function App() {
       onUndo: () => setBloodPressure((prev) => ({ ...prev, [key]: removed })),
     });
   }, [bloodPressure, setBloodPressure]);
-
-  const deleteMeal = useCallback((key) => {
-    // Captured from the current `meals` state (closure), not from inside the setMeals updater —
-    // an updater can run more than once (StrictMode double-invokes render-phase updaters), and
-    // reading the about-to-be-removed record back out of `prev` there would race the undo toast,
-    // which is built synchronously right after this call.
-    const removed = meals[key];
-    if (!removed) return;
-    setMeals((prev) => {
-      const next = { ...prev };
-      delete next[key];
-      return next;
-    });
-    setUndoToast({
-      message: 'Meal deleted',
-      onUndo: () => setMeals((prev) => ({ ...prev, [key]: removed })),
-    });
-  }, [meals, setMeals]);
 
   const quickCopyData = useCallback(() => {
     const insights = getInsights(copyDays, entries, liveSymptoms);
@@ -1007,20 +1038,14 @@ function App() {
           showInsights={showInsights}
           setShowInsights={setShowInsights}
           trackingMode={trackingMode}
-          search={appMode === 'symptoms' ? symptomSearch : protocolSearch}
-          setSearch={appMode === 'symptoms' ? setSymptomSearch : setProtocolSearch}
           slotRef={setNavSlot}
           symptoms={liveSymptoms}
           entries={deferredEntries}
-          setCopyToastMessage={setCopyToastMessage}
-          onEditNote={() => setShowNoteModal(true)}
           onCopyData={quickCopyData}
           copyDays={copyDays}
-          onEditSymptoms={() => { setAppMode('symptoms'); setShowInsights(false); setSymptomEditMode(true); }}
-          onCheckAll={protocolCheckAll}
-          onClear={protocolClearDay}
+          onClearDay={appMode === 'symptoms' ? clearSymptomDay : protocolClearDay}
           onMatchYesterday={protocolMatchYesterday}
-          onEditProtocol={() => { setAppMode('stack'); setShowInsights(false); setProtocolEditMode(true); }}
+          onArrange={() => setSymptomEditMode(true)}
           settingsOpen={showSettings}
           onCloseSettings={() => setShowSettings(false)}
           onOpenSettings={() => setShowSettings((open) => !open)}
@@ -1067,9 +1092,7 @@ function App() {
             padding: '16px',
             paddingBottom: '80px',
           }}>
-            {showPlan ? (
-              <ProtocolPlan plan={protocolPlan} todayKey={planTodayKey} isDesktop stackItems={stackItems} onAddToList={addPlanToList} />
-            ) : showSleep && sleepAvailable ? (
+            {showSleep && sleepAvailable ? (
               <SleepTab
                 days={garminSleepDays}
                 symptoms={liveSymptoms}
@@ -1096,8 +1119,24 @@ function App() {
                 trackingMode={trackingMode}
                 setStackItems={setStackItems}
               />
+            ) : appMode === 'stack' && showPlan ? (
+              <ProtocolPlan
+                plan={protocolPlan} items={planView} todayKey={planTodayKey} isDesktop
+                selectedId={protocolTarget?.plan?.itemId || null}
+                onSelect={setProtocolSel}
+                panel={protocolPanel}
+                onEditPlan={editPlanItem}
+                onEndPlan={(item) => endProtocolItem(targetOfPlan(item))}
+                onRemovePlan={(item) => removeProtocolItem(targetOfPlan(item))}
+                onCreate={createPlanItem}
+              />
             ) : appMode === 'stack' ? (
+              <div className="pt-body">
               <ProtocolRows
+                selection={protocolSel}
+                onSelect={setProtocolSel}
+                planTags={planTags}
+                upcoming={planUpcoming}
                 stackItems={liveStackItems}
                 allStackItems={stackItems}
                 allInputItems={inputItems}
@@ -1126,15 +1165,9 @@ function App() {
                 barSlot={navSlot}
                 tab={protocolTab}
                 onTab={setProtocolTab}
-                mealsSlot={(
-                  <MealList
-                    meals={meals}
-                    dateKey={getDateKey(selectedDate)}
-                    onOpen={(key) => setMealSheet({ key })}
-                    onAdd={() => setMealSheet({})}
-                  />
-                )}
               />
+              {protocolPanel && <aside className="pp-side">{protocolPanel}</aside>}
+              </div>
             ) : (
               <SymptomRows
                 symptoms={liveSymptoms}
@@ -1175,7 +1208,6 @@ function App() {
           <Home
             summary={summaryLines({
               entries: deferredEntries,
-              meals,
               stackItems: liveStackItems,
               stackEntries: deferredStackEntries,
               date: selectedDate,
@@ -1280,15 +1312,6 @@ function App() {
                 barSlot={navSlot}
                 tab={protocolTab}
                 onTab={setProtocolTab}
-                mealsSlot={(
-                  <MealList
-                    meals={meals}
-                    dateKey={getDateKey(selectedDate)}
-                    scrollIntoViewOnMount={scrollToMeals}
-                    onOpen={(key) => setMealSheet({ key })}
-                    onAdd={() => setMealSheet({})}
-                  />
-                )}
               />
             )}
           </div>
@@ -1374,17 +1397,6 @@ function App() {
           onCost={talkShowCost ? setTalkCost : undefined}
           setCopyToastMessage={setCopyToastMessage}
           onClose={() => setShowTalkMode(false)}
-        />
-      )}
-
-      {/* Meal capture / review */}
-      {mealSheet && (
-        <MealCapture
-          existing={mealSheet.key ? { key: mealSheet.key, ...meals[mealSheet.key] } : null}
-          startManual={!!mealSheet.startManual}
-          onSave={saveMeal}
-          onDelete={deleteMeal}
-          onClose={() => setMealSheet(null)}
         />
       )}
 
@@ -1805,7 +1817,7 @@ function App() {
       )}
 
       {!isDesktop && showPlan && (
-        <ProtocolPlan plan={protocolPlan} todayKey={planTodayKey} isDesktop={false} stackItems={stackItems} onAddToList={addPlanToList} onClose={() => setShowPlan(false)} />
+        <ProtocolPlan plan={protocolPlan} items={planView} todayKey={planTodayKey} isDesktop={false} onAddToList={addPlanToList} onClose={() => setShowPlan(false)} />
       )}
       <PlanAlerts
         plan={protocolPlan}
@@ -1814,7 +1826,7 @@ function App() {
         inputItems={inputItems}
         onAddToList={addPlanToList}
         onHideLinked={hidePlanLinked}
-        onOpenPlan={() => { setShowPlan(true); setShowInsights(false); }}
+        onOpenPlan={() => { setShowPlan(true); setShowInsights(false); if (isDesktop) { setAppMode('stack'); setShowSleep(false); setShowSettings(false); } }}
       />
 
       {/* Bottom Navigation - mobile only, hide when in edit modes */}
@@ -1850,7 +1862,6 @@ function App() {
           onCheckAll={protocolCheckAll}
           onClear={protocolClearDay}
           onEditProtocol={() => { setAppMode('stack'); setShowInsights(false); setProtocolEditMode(true); }}
-          onLogMeal={() => setMealSheet({})}
           onOpenPlan={() => setShowPlan(true)}
           planHint={planHint}
           onBloodPressure={() => setShowBloodPressure('history')}

@@ -70,9 +70,13 @@ export default function ProtocolRows({
   isDesktop,
   barSlot,
   onEditItem,         // mobile: a row's swipe Edit opens the item's full-screen page
-  mealsSlot,
   tab: tabProp,
   onTab,
+  // Desktop: one editor beside the list instead of an edit mode
+  selection,          // { kind, id } | { planId } | null: what the side panel shows
+  onSelect,           // (selection) => void
+  planTags,           // Map 'kind:id' -> 'Nicole · until Dec 19'
+  upcoming,           // plan items that haven't started: [{ itemId, name, kind, startDate }]
 }) {
   const dateKey = getDateKey(selectedDate);
   const isToday = selectedDate.toDateString() === new Date().toDateString();
@@ -82,6 +86,8 @@ export default function ProtocolRows({
   const [expandedId, setExpandedId] = useState(null);
   const [scheduleDraft, setScheduleDraft] = useState(null);
   const [showAllHidden, setShowAllHidden] = useState(false);
+  const [showMore, setShowMore] = useState(false);     // desktop: not due today + starting soon
+  const [showHidden, setShowHidden] = useState(false); // desktop: hidden items
   const [adding, setAdding] = useState(null); // 'supplement' | 'factor'
   const [ownTab, setOwnTab] = useState('s'); // phone list: 's' supplements | 'f' other factors
   const tab = tabProp ?? ownTab;
@@ -199,7 +205,7 @@ export default function ProtocolRows({
     const onKey = (e) => {
       if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
       const row = navRows.find((r) => r.id === focusId);
-      if (e.key === 'e' || e.key === 'E') setEditing(true);
+      if (e.key === 'Enter' && row && onSelect) onSelect({ kind: row.kind, id: row.id });
       else if (e.key === 'ArrowDown') moveFocus(1);
       else if (e.key === 'ArrowUp') moveFocus(-1);
       else if (row && (e.key === ' ' || e.key === 'x' || e.key === 'X')) { toggleRow(row); moveFocus(1); }
@@ -221,12 +227,16 @@ export default function ProtocolRows({
   // ---- Edit mode ----
   const activeSupplements = useMemo(() => stackItems.filter((i) => i.active).sort(byOrder), [stackItems]);
   const activeFactors = useMemo(() => inputItems.filter((i) => i.active).sort(byOrder), [inputItems]);
+  // Hidden means stopped. Something that simply hasn't started yet is listed under "starting soon" instead.
   const hiddenRows = useMemo(
-    () => [
-      ...stackItems.filter((i) => !i.active).map((item) => ({ item, kind: 'supplement' })),
-      ...inputItems.filter((i) => !i.active).map((item) => ({ item, kind: 'factor' })),
-    ],
-    [stackItems, inputItems]
+    () => {
+      const waiting = new Set((upcoming || []).filter((u) => u.linked?.id).map((u) => `${u.linked.kind}:${u.linked.id}`));
+      return [
+        ...stackItems.filter((i) => !i.active && !waiting.has(`supplement:${i.id}`)).map((item) => ({ item, kind: 'supplement' })),
+        ...inputItems.filter((i) => !i.active && !waiting.has(`factor:${i.id}`)).map((item) => ({ item, kind: 'factor' })),
+      ];
+    },
+    [stackItems, inputItems, upcoming]
   );
 
   const patchSupplement = (id, patch) =>
@@ -278,11 +288,13 @@ export default function ProtocolRows({
       item.history = [createHistoryEntry(item)];
       setStackItems((prev) => [...prev, item]);
       setExpandedId(item.id);
+      onSelect?.({ kind: 'supplement', id: item.id });
     } else {
       const item = { id: makeId(name), name, description: '', category: 'food', active: true, order, verdict: null, verdictDate: null };
       item.history = [{ timestamp: new Date().toISOString(), type: 'created', snapshot: { name, description: '', category: 'food', active: true, verdict: null } }];
       setInputItems((prev) => [...prev, item]);
       setExpandedId(item.id);
+      onSelect?.({ kind: 'factor', id: item.id });
     }
     setLastAction(`Added ${name}`);
   };
@@ -448,22 +460,19 @@ export default function ProtocolRows({
 
   // Scope + actions live in the nav's context bar (desktop) or the second row of the mobile top bar
   // Desktop bar mirrors Symptoms: nothing on the left, actions on the right with Edit last
-  const bar = barSlot ? createPortal(
+  // Mobile's edit mode keeps its count and Done in the top bar; desktop has no mode and no bar buttons
+  const bar = barSlot && editing ? createPortal(
     <>
-      {editing && <span className="dn-progress"><b>{activeSupplements.length + activeFactors.length}</b> active</span>}
+      <span className="dn-progress"><b>{activeSupplements.length + activeFactors.length}</b> active</span>
       <span className="lr-spacer" />
-      {/* Clear day, Match yesterday and Check all all set the day's checkmarks, so desktop shows them as one control */}
-      {isDesktop && !editing && (
-        <span className="dn-seg lr-dayacts" role="group" aria-label="Day's checkmarks">
-          {hasAnyToday && <button onClick={onClearDay}>Clear day</button>}
-          <button onClick={onMatchYesterday}>Match yesterday</button>
-          <button onClick={onCheckAll}>Check all</button>
-        </span>
-      )}
-      {(isDesktop || editing) && <button className={`dn-btn ${editing ? 'primary' : ''}`} onClick={() => { setEditing(!editing); setExpandedId(null); }}>{editing ? 'Done' : 'Edit protocol'}</button>}
+      <button className="dn-btn primary" onClick={() => { setEditing(false); setExpandedId(null); }}>Done</button>
     </>,
     barSlot
   ) : null;
+
+  const isSel = (kind, id) => !!selection && selection.kind === kind && selection.id === id;
+  const tagFor = (kind, id) => planTags?.get(`${kind}:${id}`);
+  const open = (kind, id) => onSelect?.(isSel(kind, id) ? null : { kind, id });
 
   if (editing) {
     const visibleHidden = showAllHidden ? hiddenRows : hiddenRows.slice(0, HIDDEN_PREVIEW);
@@ -531,12 +540,15 @@ export default function ProtocolRows({
     return (
       <div
         key={item.id}
-        className={`lr-row lr-cols ${isDesktop ? '' : 'lr-two'} ${focused ? 'focus' : ''} ${entry ? 'done' : ''} ${due ? '' : 'muted'}`}
+        className={`lr-row lr-cols ${isDesktop ? '' : 'lr-two'} ${focused ? 'focus' : ''} ${entry ? 'done' : ''} ${due ? '' : 'muted'} ${isSel('supplement', item.id) ? 'sel' : ''}`}
+        data-reorder-id={isDesktop && due ? item.id : undefined}
+        data-reorder-group={isDesktop && due ? 'supplement' : undefined}
         onMouseMove={isDesktop && due && !focused ? () => setFocusId(item.id) : undefined}
-        onClick={() => { if (due) setFocusId(item.id); if (!isDesktop) toggleSupplement(item); }}
+        onClick={() => { if (due) setFocusId(item.id); if (!isDesktop) toggleSupplement(item); else open('supplement', item.id); }}
       >
+        {isDesktop && (due ? <span className="lr-grip" title="Drag to reorder" onClick={(e) => e.stopPropagation()} {...gripProps(item.id, 'supplement')}>⠿</span> : <span />)}
         {isDesktop ? (
-          <div className="lr-name">{item.name}{item.description && <small>{item.description}</small>}</div>
+          <div className="lr-name">{item.name}{tagFor('supplement', item.id) && <span className="lr-plantag">{tagFor('supplement', item.id)}</span>}{item.description && <small>{item.description}</small>}</div>
         ) : (
           <div className="lr-name">
             {item.name}
@@ -584,12 +596,16 @@ export default function ProtocolRows({
     return (
       <div
         key={item.id}
-        className={`lr-row lr-cols ${focused ? 'focus' : ''} ${entry ? 'done' : ''}`}
+        className={`lr-row lr-cols ${focused ? 'focus' : ''} ${entry ? 'done' : ''} ${isSel('factor', item.id) ? 'sel' : ''}`}
+        data-reorder-id={isDesktop ? item.id : undefined}
+        data-reorder-group={isDesktop ? 'factor' : undefined}
         onMouseMove={isDesktop && !focused ? () => setFocusId(item.id) : undefined}
-        onClick={() => { setFocusId(item.id); if (!isDesktop) setFactorCount(item, count ? 0 : 1); }}
+        onClick={() => { setFocusId(item.id); if (!isDesktop) setFactorCount(item, count ? 0 : 1); else open('factor', item.id); }}
       >
+        {isDesktop && <span className="lr-grip" title="Drag to reorder" onClick={(e) => e.stopPropagation()} {...gripProps(item.id, 'factor')}>⠿</span>}
         <div className="lr-name">
           {item.name}
+          {tagFor('factor', item.id) && <span className="lr-plantag">{tagFor('factor', item.id)}</span>}
           {item.verdict && <span className="lr-verdict" style={{ color: VERDICT_COLORS[item.verdict], borderColor: `${VERDICT_COLORS[item.verdict]}55` }}>{item.verdict}</span>}
           {item.description && <small>{item.description}</small>}
         </div>
@@ -603,6 +619,30 @@ export default function ProtocolRows({
         ) : isNo(raw) ? <span className="lr-no">No</span> : <span />}
         <button className={`lr-pill ${entry ? 'on' : 'empty'}`} onClick={(e) => { e.stopPropagation(); setFocusId(item.id); setFactorCount(item, count ? 0 : 1); }}>✓</button>
       </div>
+    );
+  };
+
+  // Desktop: one quiet line for what isn't on today's checklist (off-schedule, or not started yet)
+  const upSupps = (upcoming || []).filter((u) => u.kind === 'supplement');
+  const upFactors = (upcoming || []).filter((u) => u.kind === 'food' || u.kind === 'intervention');
+  const shortDate = (key) => new Date(`${key}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const renderMore = (notDue, soon) => {
+    if (!notDue.length && !soon.length) return null;
+    const label = [notDue.length && `${notDue.length} not due today`, soon.length && `${soon.length} starting soon`].filter(Boolean).join(' · ');
+    const isOpen = showMore || !!search;
+    return (
+      <>
+        <div className="lr-fold" onClick={() => setShowMore((v) => !v)}>{isOpen ? '▾' : '▸'} {label}</div>
+        {isOpen && notDue.map((item) => renderSupplementRow(item, false))}
+        {isOpen && soon.map((u) => (
+          <div key={u.itemId} className={`lr-row lr-cols muted ${selection?.planId === u.itemId || (u.linked?.id && isSel(u.linked.kind, u.linked.id)) ? 'sel' : ''}`} onClick={() => onSelect?.(selection?.planId === u.itemId ? null : { planId: u.itemId })}>
+            <span />
+            <div className="lr-name">{u.name}</div>
+            <span /><span />
+            <span className="lr-due">{u.startDate ? `starts ${shortDate(u.startDate)}` : 'not started'}</span>
+          </div>
+        ))}
+      </>
     );
   };
 
@@ -620,14 +660,14 @@ export default function ProtocolRows({
       {showS && !isDesktop && dueItems.length > 0 && (
         <div className="lr-prog"><i style={{ width: `${Math.round((takenCount / dueItems.length) * 100)}%` }} /></div>
       )}
-      {showS && isDesktop && timeSections.length === 1 && (
+      {showS && isDesktop && (
         <div className="lr-sec">
           <b>SUPPLEMENTS</b> {takenCount} of {dueItems.length} taken
-          {isDesktop && <span>LAST 14 DAYS</span>}
+          {takenCount < dueItems.length && <button type="button" className="lr-secact" onClick={onCheckAll}>Check all</button>}
         </div>
       )}
       {showS && dueItems.length === 0 && otherItems.length === 0 && !(search && hiddenMatches.length) && (
-        <div className="lr-empty">{search ? `Nothing matches "${search}"` : isDesktop ? 'No supplements yet. Use Edit protocol to add one.' : 'No supplements yet. Tap + to add one.'}</div>
+        <div className="lr-empty">{search ? `Nothing matches "${search}"` : isDesktop ? 'No supplements yet. Add one below.' : 'No supplements yet. Tap + to add one.'}</div>
       )}
       {showS && timeSections.map((sec) => [
         sec.label && (
@@ -638,23 +678,30 @@ export default function ProtocolRows({
         ),
         ...sec.items.map((item) => renderSupplementRow(item, true)),
       ])}
-      {showS && otherItems.map((item) => renderSupplementRow(item, false))}
-      {isDesktop && <div className="lr-sec"><b>OTHER FACTORS</b> {loggedCount} of {factors.length} {isToday ? 'today' : 'logged'}</div>}
-      {showF && factors.length === 0 && !(search && hiddenMatches.length) && <div className="lr-empty">{search ? `Nothing matches "${search}"` : 'No factors yet.'}</div>}
+      {showS && !isDesktop && otherItems.map((item) => renderSupplementRow(item, false))}
+      {isDesktop && renderMore(otherItems, upSupps)}
+      {isDesktop && renderAddRow('supplement', 'Add supplement')}
+      {isDesktop && <div className="lr-sec"><b>DIET AND LIFESTYLE</b> {loggedCount} of {factors.length} {isToday ? 'today' : 'logged'}</div>}
+      {showF && factors.length === 0 && !(search && hiddenMatches.length) && <div className="lr-empty">{search ? `Nothing matches "${search}"` : isDesktop ? 'Nothing here yet. Add foods, habits or activities you want to check off each day.' : 'No factors yet.'}</div>}
       {showF && factors.map(renderFactorRow)}
+      {isDesktop && upFactors.length > 0 && renderMore([], upFactors)}
+      {isDesktop && renderAddRow('factor', 'Add item')}
       <HiddenSearchResults matches={hiddenMatches} onRestore={(m) => {
         if (m.deleted) onRestoreDeleted?.(m.kind, m.item);
         else { patch(m.kind, m.item.id, { active: true }); setLastAction(`Restored ${m.item.name}`); }
       }} />
-      {isDesktop && mealsSlot}
-      {isDesktop && (
-        <div className="lr-hintbar">
-          <span><kbd>Space</kbd> check</span>
-          <span><kbd>D</kbd> dose</span>
-          <span><kbd>↑</kbd><kbd>↓</kbd> move</span>
-          <span><kbd>←</kbd><kbd>→</kbd> day</span>
-          <span><kbd>E</kbd> edit</span>
-        </div>
+      {isDesktop && hiddenRows.length > 0 && (
+        <>
+          <div className="lr-fold lr-foldsec" onClick={() => setShowHidden((v) => !v)}>{showHidden ? '▾' : '▸'} Hidden · {hiddenRows.length} · history is kept</div>
+          {showHidden && hiddenRows.map(({ item, kind }) => (
+            <div key={item.id} className={`lr-row lr-cols lr-hiddenrow ${isSel(kind, item.id) ? 'sel' : ''}`} onClick={() => open(kind, item.id)}>
+              <span />
+              <div className="lr-name">{item.name}{item.description && <small>{item.description}</small>}</div>
+              <span /><span />
+              <button className="lr-link" onClick={(e) => { e.stopPropagation(); patch(kind, item.id, { active: true }); setLastAction(`Restored ${item.name}`); }}>Restore</button>
+            </div>
+          ))}
+        </>
       )}
     </div>
   );
