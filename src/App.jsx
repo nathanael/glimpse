@@ -1189,6 +1189,8 @@ function App() {
                 onClearDay={clearSymptomDay}
                 onDeleteSymptom={(symptom) => softDeleteItem('symptom', symptom)}
                 onEditItem={(symptom) => setItemPage({ kind: 'symptom', id: symptom.id })}
+                dayNote={noteText(dailyNotes[getDateKey(selectedDate)])}
+                onFlareAnswer={addDayNote}
                 editing={symptomEditMode}
                 setEditing={setSymptomEditMode}
                 keyboardEnabled={listKeyboardEnabled}
@@ -1276,6 +1278,8 @@ function App() {
                 onClearDay={clearSymptomDay}
                 onDeleteSymptom={(symptom) => softDeleteItem('symptom', symptom)}
                 onEditItem={(symptom) => setItemPage({ kind: 'symptom', id: symptom.id })}
+                dayNote={noteText(dailyNotes[getDateKey(selectedDate)])}
+                onFlareAnswer={addDayNote}
                 editing={symptomEditMode}
                 setEditing={setSymptomEditMode}
                 keyboardEnabled={listKeyboardEnabled}

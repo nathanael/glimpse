@@ -17,6 +17,8 @@ import {
 } from '../utils/symptomHistory';
 import { SEVERITIES, SEV_BG, SEV_FG, STRIP_COLOR } from './severityStyle';
 import { isWellbeing, colorIndex, WELLBEING } from '../utils/wellbeing';
+import { symptomsUp, flareAnswered, flareNoteLine, MIN_SYMPTOMS_UP } from '../utils/flareCheck';
+import FlareCheck from './FlareCheck';
 
 const SYMPTOMS_COLOR = '#fb7185';
 const WELLBEING_COLOR = '#2dd4bf';
@@ -56,6 +58,8 @@ export default function SymptomRows({
   isDesktop,
   barSlot,
   onEditItem,         // mobile: a row's swipe Edit opens the item's full-screen page
+  dayNote,            // the viewed day's note text: the flare question is asked once per day
+  onFlareAnswer,      // (line) => void: the answer, added to that day's note
 }) {
   const dateKey = getDateKey(selectedDate);
   const rootRef = useRef(null);
@@ -67,6 +71,7 @@ export default function SymptomRows({
   const [expandedId, setExpandedId] = useState(null);
   const [showHidden, setShowHidden] = useState(true);
   const [listHidden, setListHidden] = useState(false); // desktop list: the Hidden fold
+  const [flareSkipped, setFlareSkipped] = useState(() => new Set()); // days the flare question was put off
   const [adding, setAdding] = useState(false);
   const [addingWellbeing, setAddingWellbeing] = useState(false);
 
@@ -553,6 +558,29 @@ export default function SymptomRows({
     );
   };
 
+  // The flare question: several symptoms above their own normal on the day being viewed, not answered yet
+  const flareUp = useMemo(
+    () => (onFlareAnswer && !flareAnswered(dayNote) ? symptomsUp(symptoms, entries, selectedDate) : []),
+    [onFlareAnswer, dayNote, symptoms, entries, dateKey], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const flareDue = !editing && flareUp.length >= MIN_SYMPTOMS_UP && !flareSkipped.has(dateKey);
+  // Wait for a pause in logging before the pop-up opens, so it doesn't interrupt mid-entry
+  const [flareOpen, setFlareOpen] = useState(false);
+  useEffect(() => {
+    if (!flareDue) { setFlareOpen(false); return undefined; }
+    const t = setTimeout(() => setFlareOpen(true), 1500);
+    return () => clearTimeout(t);
+  }, [flareDue, flareUp.length, dateKey]);
+  const flareCard = flareDue && flareOpen && (
+    <FlareCheck
+      key={dateKey}
+      up={flareUp}
+      isToday={selectedDate.toDateString() === new Date().toDateString()}
+      onAnswer={({ flare, causes }) => { onFlareAnswer(flareNoteLine({ flare, up: flareUp, causes })); setLastAction("Saved to the day's note"); }}
+      onDismiss={() => setFlareSkipped((prev) => new Set(prev).add(dateKey))}
+    />
+  );
+
   // ---- Render ----
   const rootClass = `lr sym ${isDesktop ? 'desktop' : 'mobile'} ${editing ? 'edit' : ''}`;
   const rootStyle = { '--lr-periods': timePeriods.length };
@@ -730,6 +758,7 @@ export default function SymptomRows({
   return (
     <div ref={rootRef} className={rootClass} style={rootStyle}>
       {bar}
+      {flareCard}
       {activeSymptoms.length === 0 ? (
         hiddenMatches.length ? null : <>{<div className="lr-empty">{symptomSearch ? `No symptoms match "${symptomSearch}"` : (isDesktop ? 'Nothing tracked yet.' : 'Nothing tracked yet. Tap + to add a symptom.')}</div>}{isDesktop && desktopExtras}</>
       ) : (
