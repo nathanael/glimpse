@@ -3,6 +3,7 @@ import HiddenSearchResults, { findHiddenMatches } from './HiddenSearchResults';
 import { createPortal } from 'react-dom';
 import './listUi.css';
 import { INPUT_CATEGORIES, VERDICT_COLORS } from '../utils/constants';
+import { isYes, isNo, countOf, amountLabel } from '../utils/dailyFactors';
 import {
   getDateKey,
   haptic,
@@ -108,7 +109,7 @@ export default function ProtocolRows({
   const factors = useMemo(() => {
     const active = inputItems.filter((i) => i.active);
     const activeIds = new Set(active.map((i) => i.id));
-    const logged = inputItems.filter((i) => !activeIds.has(i.id) && inputEntries[`${dateKey}-${i.id}`]);
+    const logged = inputItems.filter((i) => !activeIds.has(i.id) && isYes(inputEntries[`${dateKey}-${i.id}`]));
     return [...active, ...logged].sort(byOrder).filter((i) => matches(i, search));
   }, [inputItems, inputEntries, dateKey, search]);
 
@@ -133,7 +134,7 @@ export default function ProtocolRows({
   const takenCount = dueItems.filter((i) => stackEntries[`${dateKey}-${i.id}`]).length;
   // Mobile groups the day's supplements by time of day (one plain section when none has a time)
   const timeSections = useMemo(() => (isDesktop ? [{ id: 'all', label: null, items: dueItems }] : groupByTime(dueItems)), [isDesktop, dueItems]);
-  const loggedCount = factors.filter((i) => inputEntries[`${dateKey}-${i.id}`]).length;
+  const loggedCount = factors.filter((i) => isYes(inputEntries[`${dateKey}-${i.id}`])).length;
   const hasAnyToday = takenCount + loggedCount > 0;
 
   // ---- Logging ----
@@ -172,9 +173,9 @@ export default function ProtocolRows({
         delete next[key];
         return next;
       }
-      return { ...prev, [key]: { ...(prev[key] || { date: dateKey, inputId: item.id, logged: true }), count } };
+      return { ...prev, [key]: { ...(prev[key] || { date: dateKey, inputId: item.id }), logged: true, count } };
     });
-    setLastAction(count <= 0 ? `Removed ${item.name}` : count === 1 ? `Logged ${item.name}` : `${item.name} x${count}`);
+    setLastAction(count <= 0 ? `Removed ${item.name}` : count === 1 ? `Logged ${item.name}` : `${item.name} ${amountLabel(item, count)}`);
   };
 
   const toggleRow = (row) => {
@@ -183,7 +184,7 @@ export default function ProtocolRows({
       if (item) toggleSupplement(item);
     } else {
       const item = factors.find((i) => i.id === row.id);
-      if (item) setFactorCount(item, inputEntries[`${dateKey}-${item.id}`] ? 0 : 1);
+      if (item) setFactorCount(item, isYes(inputEntries[`${dateKey}-${item.id}`]) ? 0 : 1);
     }
   };
 
@@ -346,6 +347,15 @@ export default function ProtocolRows({
           <>
             <div className="lr-field"><label>Category</label>{segmented(INPUT_CATEGORIES.map((c) => ({ value: c.id, label: c.label })), item.category, (v) => patchFactor(item.id, { category: v }))}</div>
             <div className="lr-field"><label>Verdict</label>{segmented(VERDICTS, item.verdict || null, (v) => patchFactor(item.id, { verdict: v }))}</div>
+            <div className="lr-field">
+              <label>Amount unit</label>
+              <input className="lr-input boxed" placeholder="e.g. drinks, squares (optional)" defaultValue={item.unit || ''} maxLength={24}
+                onBlur={(e) => { const u = e.target.value.trim(); if (u !== (item.unit || '')) patchFactor(item.id, { unit: u || null }); }} />
+            </div>
+            <div className="lr-field">
+              <label>Daily check-in</label>
+              {segmented([{ value: true, label: 'Ask in Rapid entry' }, { value: false, label: 'Don’t ask' }], item.askDaily !== false, (v) => patchFactor(item.id, { askDaily: v }))}
+            </div>
           </>
         )}
         <ChangeLog
@@ -484,7 +494,8 @@ export default function ProtocolRows({
   const renderStrip = (id, entryMap, schedule, onClick) => (
     <div className="lr-strip check" title={onClick ? 'Open chart' : undefined} onClick={onClick ? (e) => { e.stopPropagation(); onClick(); } : undefined} style={onClick ? undefined : { cursor: 'default' }}>
       {stripKeys.map((k) => {
-        const on = !!entryMap[`${k}-${id}`];
+        const e = entryMap[`${k}-${id}`];
+        const on = !!e && e.logged !== false;
         const skip = !on && schedule && !isScheduledForDate(schedule, new Date(`${k}T12:00:00`));
         return <i key={k} className={on ? 'y' : skip ? 'skip' : ''} />;
       })}
@@ -566,8 +577,9 @@ export default function ProtocolRows({
     <SwipeRow key={item.id} actions={swipeActions(item, 'factor')}>{renderFactorRowInner(item)}</SwipeRow>
   );
   const renderFactorRowInner = (item) => {
-    const entry = inputEntries[`${dateKey}-${item.id}`];
-    const count = entry ? entry.count || 1 : 0;
+    const raw = inputEntries[`${dateKey}-${item.id}`];
+    const entry = isYes(raw) ? raw : null;
+    const count = countOf(raw);
     const focused = isDesktop && focusId === item.id;
     return (
       <div
@@ -585,10 +597,10 @@ export default function ProtocolRows({
         {count > 0 ? (
           <div className="lr-stepper" onClick={(e) => e.stopPropagation()}>
             <button onClick={() => setFactorCount(item, count - 1)}>−</button>
-            <span>×{count}</span>
+            <span>{amountLabel(item, count)}</span>
             <button onClick={() => setFactorCount(item, count + 1)}>+</button>
           </div>
-        ) : <span />}
+        ) : isNo(raw) ? <span className="lr-no">No</span> : <span />}
         <button className={`lr-pill ${entry ? 'on' : 'empty'}`} onClick={(e) => { e.stopPropagation(); setFocusId(item.id); setFactorCount(item, count ? 0 : 1); }}>✓</button>
       </div>
     );

@@ -10,9 +10,11 @@ import * as queue from '../voice/checkinQueue';
 import { isWellbeing, colorIndex, WELLBEING_LABELS } from '../utils/wellbeing';
 import DayBar from './DayBar';
 import { trackingDayStatus } from '../utils/dayStatus';
+import { factorKey, isAnswered, isYes, isNo, countOf, noEntry, yesEntry, dailyFactors, factorPeriodId, amountLabel } from '../utils/dailyFactors';
 
 // Full-screen, one-symptom-at-a-time logging. Rating jumps to the next unlogged symptom;
-// finishing a period offers the other one, then closes with confetti.
+// finishing a period offers the other one, then closes with confetti. Once a day (the last
+// period) the active Other factors follow the symptoms: No, or how many.
 export default function RapidEntry({
   symptoms, // active symptoms in list order
   entries,
@@ -21,6 +23,9 @@ export default function RapidEntry({
   trackingMode,
   timePeriods,
   quickLog,
+  inputItems = [],     // Other factors, asked once a day after the symptoms
+  inputEntries = {},
+  setInputEntries,
   setCopyToastMessage,
   onSelectDate,  // (date): the day chips move the day being logged
   onAdvanced,    // the switch: the Advanced Tracking list
@@ -30,12 +35,26 @@ export default function RapidEntry({
 }) {
   const dateKey = getDateKey(selectedDate);
   const entryKey = (symptom, periodId) => queue.entryKey(dateKey, symptom.id, periodId);
-  const listFor = (periodId) => queue.listFor(symptoms, periodId);
+  const factors = useMemo(() => (setInputEntries ? dailyFactors(inputItems) : []), [inputItems, setInputEntries]);
+  const factorPeriod = factorPeriodId(timePeriods);
+  const factorEntry = (item, dk = dateKey) => inputEntries[factorKey(dk, item.id)];
+  const listFor = (periodId) => [
+    ...queue.listFor(symptoms, periodId),
+    ...(periodId === factorPeriod ? factors.map((f) => ({ ...f, _factor: true })) : []),
+  ];
+  const loggedOn = (item, periodId, dk = dateKey) =>
+    item._factor ? isAnswered(factorEntry(item, dk)) : !!entries[queue.entryKey(dk, item.id, periodId)];
+  const leftIn = (periodId, dk = dateKey) => listFor(periodId).filter((i) => !loggedOn(i, periodId, dk)).length;
+  // Start in the current period, or the first other one with anything left if this one is complete
+  const startPeriod = (dk) => {
+    const now = timePeriods.find((p) => p.id === getCurrentTimePeriod(trackingMode))?.id || timePeriods[0].id;
+    if (leftIn(now, dk) > 0) return now;
+    return timePeriods.find((p) => leftIn(p.id, dk) > 0)?.id || now;
+  };
 
-  // Start in the current period, or the other one if this one is already complete
-  const [period, setPeriod] = useState(() => queue.initialPeriod(symptoms, entries, dateKey, timePeriods, getCurrentTimePeriod(trackingMode)));
-  const list = useMemo(() => listFor(period), [symptoms, period]);
-  const isLogged = (symptom) => !!entries[entryKey(symptom, period)];
+  const [period, setPeriod] = useState(() => startPeriod(dateKey));
+  const list = useMemo(() => listFor(period), [symptoms, factors, period]); // eslint-disable-line react-hooks/exhaustive-deps
+  const isLogged = (item) => loggedOn(item, period);
 
   const [index, setIndex] = useState(() => Math.max(0, list.findIndex((s) => !isLogged(s))));
   const [done, setDone] = useState(() => list.every(isLogged));
@@ -44,7 +63,10 @@ export default function RapidEntry({
   const dragDismiss = useDragDismiss(rootRef, onClose);
   const current = list[Math.min(index, list.length - 1)];
   const periodLabel = timePeriods.length > 1 ? timePeriods.find((p) => p.id === period)?.label : '';
-  const otherIncomplete = queue.otherIncomplete(symptoms, entries, dateKey, timePeriods, period);
+  const otherIncomplete = timePeriods
+    .filter((p) => p.id !== period)
+    .map((p) => ({ ...p, left: leftIn(p.id) }))
+    .find((p) => p.left > 0);
 
   // A new day from the week strip starts that day's queue afresh, as opening Rapid entry on it would.
   const firstDay = useRef(dateKey);
@@ -52,12 +74,12 @@ export default function RapidEntry({
   useEffect(() => {
     if (firstDay.current === dateKey) return;
     firstDay.current = dateKey;
-    const p = queue.initialPeriod(symptoms, entries, dateKey, timePeriods, getCurrentTimePeriod(trackingMode));
+    const p = startPeriod(dateKey);
     const l = listFor(p);
     setPeriod(p);
-    setIndex(Math.max(0, l.findIndex((s) => !entries[queue.entryKey(dateKey, s.id, p)])));
+    setIndex(Math.max(0, l.findIndex((s) => !loggedOn(s, p))));
     quiet.current = true;
-    setDone(l.every((s) => !!entries[queue.entryKey(dateKey, s.id, p)]));
+    setDone(l.every((s) => loggedOn(s, p)));
   }, [dateKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const foot = onHome && (
@@ -81,7 +103,7 @@ export default function RapidEntry({
   const switchPeriod = (periodId) => {
     const next = listFor(periodId);
     setPeriod(periodId);
-    setIndex(Math.max(0, next.findIndex((s) => !entries[entryKey(s, periodId)])));
+    setIndex(Math.max(0, next.findIndex((s) => !loggedOn(s, periodId))));
     setDone(false);
   };
 
@@ -99,8 +121,33 @@ export default function RapidEntry({
     onClose();
   };
 
+  const advanceFrom = (item) => {
+    const next = nextUnlogged(index, item.id);
+    if (next === -1) finish();
+    else setIndex(next);
+  };
+
+  // A factor: 0 is "No", any other number is "Yes, this many". Tapping the chosen answer again clears it.
+  const answerFactor = (count) => {
+    const item = current;
+    const key = factorKey(dateKey, item.id);
+    const prev = inputEntries[key];
+    const same = count === 0 ? isNo(prev) : countOf(prev) === count;
+    const wasAnswered = isAnswered(prev);
+    setInputEntries((all) => {
+      const next = { ...all };
+      if (same) delete next[key];
+      else next[key] = count === 0 ? noEntry(dateKey, item.id) : yesEntry(dateKey, item.id, count, all[key]);
+      return next;
+    });
+    if (same || wasAnswered) return; // clearing or editing an earlier answer: stay put
+    if (count > 5) return;           // "More": stay for the stepper
+    advanceFrom(item);
+  };
+
   const rate = (severity) => {
     if (!current) return;
+    if (current._factor) return answerFactor(severity === NA_SEVERITY ? 0 : severity);
     const key = entryKey(current, period);
     // Tapping the selected value again clears it
     if (entries[key]?.severity === severity) {
@@ -114,9 +161,7 @@ export default function RapidEntry({
     const wasLogged = isLogged(current);
     quickLog(current.id, severity, period);
     if (wasLogged) return; // editing an earlier answer: stay put
-    const next = nextUnlogged(index, current.id);
-    if (next === -1) finish();
-    else setIndex(next);
+    advanceFrom(current);
   };
 
   const step = (dir) => setIndex((i) => (i + dir + list.length) % list.length);
@@ -129,9 +174,16 @@ export default function RapidEntry({
   const startOver = () => {
     setEntries((prev) => {
       const next = { ...prev };
-      list.forEach((s) => delete next[entryKey(s, period)]);
+      list.forEach((s) => { if (!s._factor) delete next[entryKey(s, period)]; });
       return next;
     });
+    if (list.some((s) => s._factor)) {
+      setInputEntries((prev) => {
+        const next = { ...prev };
+        factors.forEach((f) => delete next[factorKey(dateKey, f.id)]);
+        return next;
+      });
+    }
     setIndex(0);
     setDone(false);
   };
@@ -151,7 +203,7 @@ export default function RapidEntry({
 
   // Most recent earlier rating for this symptom + period, to hint the likely answer
   const lastSeverity = useMemo(
-    () => (current ? getLastSeverity(entries, current.id, period, selectedDate) : null),
+    () => (current && !current._factor ? getLastSeverity(entries, current.id, period, selectedDate) : null),
     [current?.id, period, dateKey, entries]
   );
 
@@ -190,7 +242,9 @@ export default function RapidEntry({
     );
   }
 
-  const currentSeverity = entries[entryKey(current, period)]?.severity;
+  const currentSeverity = current._factor ? undefined : entries[entryKey(current, period)]?.severity;
+  const currentFactor = current._factor ? factorEntry(current) : undefined;
+  const factorCount = countOf(currentFactor);
   const loggedCount = list.filter(isLogged).length;
 
   return (
@@ -202,6 +256,10 @@ export default function RapidEntry({
           <div className="re-count"><span>{onHome ? periodLabel : <>{formatDate(selectedDate)}{periodLabel && ` · ${periodLabel}`}</>}</span><span><b>{loggedCount}</b> of {list.length} logged</span></div>
           <div className="re-ticks">
             {list.map((s) => {
+              if (s._factor) {
+                const fe = factorEntry(s);
+                return <i key={`f-${s.id}`} className={s.id === current.id ? 'cur' : isYes(fe) ? 'done' : isNo(fe) ? 'na' : ''} />;
+              }
               const entry = entries[entryKey(s, period)];
               return <i key={s.id} className={s.id === current.id ? 'cur' : entry ? (entry.severity === NA_SEVERITY ? 'na' : 'done') : ''} />;
             })}
@@ -209,7 +267,8 @@ export default function RapidEntry({
         </div>
 
         <div className="re-symptom">
-          {isWellbeing(current) && <span className="re-kind">Wellbeing · 0 absent, 5 excellent</span>}
+          {current._factor && <span className="re-kind factor">Today · {current.unit ? `how many ${current.unit}?` : 'how many?'}</span>}
+          {!current._factor && isWellbeing(current) && <span className="re-kind">Wellbeing · 0 absent, 5 excellent</span>}
           <h1>{current.name}</h1>
           <p>{current.description}</p>
           {lastSeverity !== null && currentSeverity === undefined && (
@@ -223,6 +282,32 @@ export default function RapidEntry({
             <button aria-label="Next symptom" onClick={() => step(1)}><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg></button>
             <button aria-label="Next unlogged symptom" onClick={skipToUnlogged}>Next unlogged<svg viewBox="0 0 24 24"><polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" /></svg></button>
           </div>
+          {current._factor ? (
+          <div className="re-scores" role="group" aria-label="How many">
+            <div className="re-keys">
+              {[0, 1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  className={`re-key ${n === 0 ? 'no' : ''} ${(n === 0 ? isNo(currentFactor) : factorCount === n) ? 'on' : ''}`}
+                  style={{ '--c': n === 0 ? '#94a3b8' : '#a78bfa' }}
+                  onClick={() => answerFactor(n)}
+                >
+                  {n === 0 ? 'No' : n}
+                </button>
+              ))}
+            </div>
+            {factorCount > 5 ? (
+              <div className="re-more">
+                <button aria-label="Fewer" onClick={() => answerFactor(factorCount - 1)}>−</button>
+                <b>{amountLabel(current, factorCount)}</b>
+                <button aria-label="More" onClick={() => answerFactor(factorCount + 1)}>+</button>
+                <button className="go" onClick={() => advanceFrom(current)}>Next</button>
+              </div>
+            ) : (
+              <button className="re-key na" onClick={() => answerFactor(6)}><b>6+</b><small>More than 5</small></button>
+            )}
+          </div>
+          ) : (
           <div className="re-scores" role="group" aria-label="Score">
           <div className="re-keys">
             {[0, 1, 2, 3, 4, 5].map((severity) => (
@@ -241,6 +326,7 @@ export default function RapidEntry({
             <b>N/A</b><small>Not applicable right now</small>
           </button>
           </div>
+          )}
           {foot}
         </div>
       </div>

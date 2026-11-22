@@ -1255,6 +1255,9 @@ function App() {
           trackingMode={trackingMode}
           timePeriods={timePeriods}
           quickLog={quickLog}
+          inputItems={liveInputItems}
+          inputEntries={inputEntries}
+          setInputEntries={setInputEntries}
           setCopyToastMessage={setCopyToastMessage}
           onSelectDate={selectDate}
           onAdvanced={() => toList('symptoms')}

@@ -323,3 +323,4 @@ body.lr-reordering .lr-row:hover { background: none; }
 .lr.mobile .lr-two { min-height: 70px; padding-top: 12px; padding-bottom: 12px; margin-bottom: 4px; }
 .lr.mobile.lr-protocol:not(.edit) .lr-row.lr-cols:not(.lr-two) { min-height: 66px; margin-bottom: 4px; }
 .lr.mobile .lr-two .lr-sub { margin-top: 3px; }
+.lr-no { justify-self: end; font-size: 12px; color: #6b7280; }

@@ -66,3 +66,11 @@
   .re-key.na { height: 54px; }
   .re-keys .re-key { aspect-ratio: 1.35; }
 }
+
+/* Daily factors (alcohol, chocolate…): No or how many, asked once a day after the symptoms */
+.re-kind.factor { color: #c4b5fd; background: rgba(167,139,250,.1); border-color: rgba(167,139,250,.3); }
+.re-key.no { font-size: 20px; }
+.re-more { height: 68px; display: grid; grid-template-columns: 56px 1fr 56px 1.2fr; align-items: center; gap: 8px; }
+.re-more button { height: 100%; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: #0e0f11; color: #f3f4f6; font-size: 22px; }
+.re-more button.go { font-size: 15px; font-weight: 600; background: #8b5cf6; border-color: #8b5cf6; }
+.re-more b { text-align: center; font-size: 20px; font-weight: 600; color: #c4b5fd; }
