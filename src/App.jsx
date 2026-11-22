@@ -418,15 +418,14 @@ function App() {
 
   // Protocol plan → the lists. "Add to my list" creates (or re-shows) the supplement or factor and
   // links it to the plan item; when the item ends, "hide it" hides that linked definition.
-  const addPlanToList = useCallback((item, existing) => {
+  const addPlanToList = useCallback((item, existing, { silent = false } = {}) => {
     const asFactor = item.kind === 'food' || item.kind === 'intervention';
     const setList = asFactor ? setInputItems : setStackItems;
     const applyPatch = asFactor ? applyInputPatch : applySupplementPatch;
     if (existing) {
       if (existing.active === false) setList((prev) => prev.map((i) => (i.id === existing.id ? applyPatch(i, { active: true }) : i)));
       protocolPlan.link(item.itemId, { kind: asFactor ? 'factor' : 'supplement', id: existing.id });
-      setCopyToastMessage(`✓ ${existing.name} is on your list`);
-      setTimeout(() => setCopyToastMessage(''), 2500);
+      if (!silent) { setCopyToastMessage(`✓ ${existing.name} is on your list`); setTimeout(() => setCopyToastMessage(''), 2500); }
       return;
     }
     const list = asFactor ? inputItems : stackItems;
@@ -437,18 +436,16 @@ function App() {
     def.history = [createHistoryEntry(def)];
     setList((prev) => [...prev, def]);
     protocolPlan.link(item.itemId, { kind: asFactor ? 'factor' : 'supplement', id });
-    setCopyToastMessage(`✓ Added ${item.name}`);
-    setTimeout(() => setCopyToastMessage(''), 2500);
+    if (!silent) { setCopyToastMessage(`✓ Added ${item.name}`); setTimeout(() => setCopyToastMessage(''), 2500); }
   }, [inputItems, stackItems, protocolPlan, planTodayKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hidePlanLinked = useCallback((item) => {
+  const hidePlanLinked = useCallback((item, { silent = false } = {}) => {
     const linked = item.linked;
     if (!linked?.id) return;
     const asFactor = linked.kind === 'factor';
     const applyPatch = asFactor ? applyInputPatch : applySupplementPatch;
     (asFactor ? setInputItems : setStackItems)((prev) => prev.map((i) => (i.id === linked.id ? applyPatch(i, { active: false }) : i)));
-    setCopyToastMessage(`${item.name} hidden (history kept)`);
-    setTimeout(() => setCopyToastMessage(''), 2500);
+    if (!silent) { setCopyToastMessage(`${item.name} hidden (history kept)`); setTimeout(() => setCopyToastMessage(''), 2500); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeSymptoms = useMemo(() => {
@@ -1071,7 +1068,7 @@ function App() {
             paddingBottom: '80px',
           }}>
             {showPlan ? (
-              <ProtocolPlan plan={protocolPlan} todayKey={planTodayKey} isDesktop onAddToList={addPlanToList} />
+              <ProtocolPlan plan={protocolPlan} todayKey={planTodayKey} isDesktop stackItems={stackItems} onAddToList={addPlanToList} />
             ) : showSleep && sleepAvailable ? (
               <SleepTab
                 days={garminSleepDays}
@@ -1808,7 +1805,7 @@ function App() {
       )}
 
       {!isDesktop && showPlan && (
-        <ProtocolPlan plan={protocolPlan} todayKey={planTodayKey} isDesktop={false} onAddToList={addPlanToList} onClose={() => setShowPlan(false)} />
+        <ProtocolPlan plan={protocolPlan} todayKey={planTodayKey} isDesktop={false} stackItems={stackItems} onAddToList={addPlanToList} onClose={() => setShowPlan(false)} />
       )}
       <PlanAlerts
         plan={protocolPlan}

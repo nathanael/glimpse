@@ -98,3 +98,23 @@
 .pa-minor { display: flex; justify-content: center; gap: 24px; }
 .pa-minor button { border: 0; background: none; color: #9ca3af; font: inherit; font-size: 13.5px; padding: 6px; cursor: pointer; }
 .pa-minor button:hover { color: #f3f4f6; }
+
+/* Dragging bars on the timeline */
+.pp-tl-row { cursor: pointer; }
+.pp-bar.draggable { cursor: grab; touch-action: none; user-select: none; overflow: visible; }
+.pp-bar.drag { cursor: grabbing; box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 60%, transparent); z-index: 2; }
+.pp-bar-label { display: block; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.pp-bar.drag .pp-bar-label { overflow: visible; }
+.pp-h { position: absolute; top: -1px; bottom: -1px; width: 8px; cursor: ew-resize; z-index: 1; }
+.pp-h.l { left: -4px; }
+.pp-h.r { right: -4px; }
+.pp-h::after { content: ''; position: absolute; top: 5px; bottom: 5px; left: 3px; width: 2px; border-radius: 1px; background: var(--c); opacity: 0; transition: opacity .12s; }
+.pp-bar.draggable:hover .pp-h::after, .pp-bar.drag .pp-h::after { opacity: .9; }
+.pp-tl.dragging, .pp-tl.dragging * { cursor: grabbing !important; }
+
+/* Start card: delay options */
+.pa-delay p { margin: 4px 0 8px; font-size: 13px; color: #9ca3af; }
+.pa-delay-opts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pa-delay-opts button { padding: 11px 0; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #f3f4f6; font-size: 14px; font-weight: 600; cursor: pointer; }
+.pa-delay-opts button:hover { background: rgba(139,92,246,.18); border-color: rgba(139,92,246,.5); }
+.pa-delay .pa-minor { margin-top: 10px; }

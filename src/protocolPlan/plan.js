@@ -118,3 +118,73 @@ export const findByName = (list, name) => {
   const n = (name || '').trim().toLowerCase();
   return (list || []).find((i) => !i.deletedAt && (i.name || '').trim().toLowerCase() === n) || null;
 };
+
+// Nate's edits to an item Claude added live in `edits` (an app-owned field the connector can't
+// overwrite), so moving a date in the app survives a later revision from the MCP. The app shows
+// the edited values; `planned` keeps what the plan originally said for the detail panel.
+export const EDITABLE = ['name', 'kind', 'dose', 'unit', 'frequency', 'startDate', 'endDate', 'condition', 'reason', 'watchFor'];
+export const applyEdits = (item) => {
+  if (!item?.edits || item.author === 'nate') return item;
+  const planned = {};
+  for (const k of Object.keys(item.edits)) if (EDITABLE.includes(k) && item.edits[k] !== item[k]) planned[k] = item[k] ?? null;
+  return { ...item, ...item.edits, planned };
+};
+// Only the fields that differ from the original become edits; a field set back to the original drops out.
+export const editsFor = (raw, fields) => {
+  const edits = { ...(raw.edits || {}) };
+  for (const k of EDITABLE) {
+    if (!(k in fields)) continue;
+    if ((fields[k] ?? null) === (raw[k] ?? null)) delete edits[k];
+    else edits[k] = fields[k] ?? null;
+  }
+  return edits;
+};
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const scheduleText = (s) => {
+  if (!s || s.type === 'daily') return 'daily';
+  if (s.type === 'days') return (s.days || []).map((d) => DAY_NAMES[d]).join(', ');
+  if (s.type === 'interval') return `every ${s.interval} days`;
+  return '';
+};
+export const listItemId = (defId) => `list-${defId}`;
+
+// Every supplement on the list that no plan item covers yet, shown as a plan row so the planner holds
+// the whole regimen. It becomes a real plan item (author 'nate', already linked and seen) the first
+// time Nate moves or edits it.
+export const listRows = (stackItems, planItems, todayKey) => {
+  const covered = new Set();
+  for (const p of planItems || []) {
+    if (p.linked?.kind === 'supplement' && p.linked.id) covered.add(p.linked.id);
+  }
+  return (stackItems || [])
+    .filter((s) => s && !s.deletedAt && s.active !== false && !covered.has(s.id)
+      && !(s.planItemId && (planItems || []).some((p) => p.itemId === s.planItemId)))
+    .map((s) => {
+      const created = s.history?.find((h) => h.type === 'created')?.timestamp?.slice(0, 10);
+      const startDate = s.schedule?.startDate || created || null;
+      return {
+        itemId: listItemId(s.id), name: s.name, kind: 'supplement',
+        dose: s.defaultDose || null, unit: s.unit || null, frequency: scheduleText(s.schedule) || null,
+        startDate: startDate && startDate <= todayKey ? startDate : startDate || null, endDate: null,
+        reason: s.description || null, author: 'nate', source: { type: 'nate' }, status: 'active',
+        linked: { kind: 'supplement', id: s.id }, fromList: true,
+      };
+    });
+};
+
+// Dragging a bar: 'move' shifts both dates, 'start' and 'end' move one edge (never past the other).
+export const dragDates = (item, mode, delta, todayKey, fallbackEnd = null) => {
+  const start = item.startDate || todayKey;
+  const end = item.endDate || null;
+  if (!delta) return null;
+  if (mode === 'move') return { startDate: addDaysKey(start, delta), endDate: end ? addDaysKey(end, delta) : null };
+  if (mode === 'start') {
+    const s = addDaysKey(start, delta);
+    return { startDate: end && s > end ? end : s, endDate: end };
+  }
+  const base = end || (item.kind === 'test' ? start : fallbackEnd);
+  if (!base) return null;
+  const e = addDaysKey(base, delta);
+  return { startDate: start, endDate: e < start ? start : e };
+};
