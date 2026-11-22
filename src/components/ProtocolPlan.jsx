@@ -1,9 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import './protocolPlan.css';
 import { CloseButton } from './overlay';
 import {
-  KINDS, kindOf, SOURCE_LABELS, phaseOf, timelineRange, barFor, addDaysKey, daysBetween, doseText, groupItems,
-  listRows, dragDates,
+  KINDS, kindOf, SOURCE_LABELS, phaseOf, timelineRange, barFor, addDaysKey, daysBetween, doseText,
+  listRows, dragDates, planSections, takingSince,
 } from '../protocolPlan/plan';
 
 // Protocol plan: what Nicole has recommended (written by the Glimpse Health MCP) and what Nate plans
@@ -21,7 +21,7 @@ const spanText = (item) => {
   return `${start} → ${fmt(end)} · ${len}`;
 };
 
-export function PlanDetail({ item, todayKey, onEnd, onEdit, onAddToList, onClose }) {
+export function PlanDetail({ item, todayKey, onEnd, onEdit, onRemove, onAddToList, onClose }) {
   const [ending, setEnding] = useState(false);
   const [endReason, setEndReason] = useState('');
   const [outcome, setOutcome] = useState('');
@@ -38,6 +38,7 @@ export function PlanDetail({ item, todayKey, onEnd, onEdit, onAddToList, onClose
       <h3>{item.name}</h3>
       {doseText(item) && <p className="pp-dose">{doseText(item)}</p>}
       <p className="pp-when">{spanText(item)}</p>
+      {item.since && <p className="pp-muted">You've been taking it since {fmt(item.since, { month: 'short', day: 'numeric', year: 'numeric' })}; the plan continues it from here.</p>}
       {item.planned && (item.planned.startDate !== undefined || item.planned.endDate !== undefined) && (
         <p className="pp-muted">You changed the dates. The plan said {item.planned.startDate !== undefined ? `start ${fmt(item.planned.startDate) || 'unset'}` : ''}{item.planned.startDate !== undefined && item.planned.endDate !== undefined ? ', ' : ''}{item.planned.endDate !== undefined ? `end ${fmt(item.planned.endDate) || 'open'}` : ''}.</p>
       )}
@@ -72,6 +73,7 @@ export function PlanDetail({ item, todayKey, onEnd, onEdit, onAddToList, onClose
           {phase === 'active' && !item.linked && item.kind !== 'test' && onAddToList && <button className="dn-btn primary" onClick={() => onAddToList(item)}>Add to my list</button>}
           {phase !== 'ended' && <button className="dn-btn" onClick={() => setEnding(true)}>End</button>}
           {onEdit && <button className="dn-btn ghost" onClick={() => onEdit(item)}>Edit</button>}
+          {onRemove && <button className="dn-btn ghost pp-danger" onClick={() => onRemove(item)}>Remove from plan</button>}
         </div>
       )}
     </div>
@@ -126,7 +128,7 @@ function PlanForm({ initial, todayKey, onSave, onCancel }) {
 
 // Desktop timeline. Drag a bar to move it, or its edges to change the start or end (one-day steps);
 // a plain click selects. Ended items stay put.
-function Timeline({ items, todayKey, selectedId, onSelect, onMove }) {
+function Timeline({ items, todayKey, selectedId, onSelect, onMove, onMenu }) {
   const [drag, setDrag] = useState(null); // {itemId, mode, x0, dayW, delta, fallbackEnd}
   const moved = useRef(false);
   const shown = useMemo(() => (drag
@@ -134,13 +136,9 @@ function Timeline({ items, todayKey, selectedId, onSelect, onMove }) {
     : items), [items, drag, todayKey]);
   const range = useMemo(() => timelineRange(items, todayKey), [items, todayKey]);
   // Rows keep their place while dragging (grouped by where they were before the drag)
-  const base = useMemo(() => groupItems(items, todayKey), [items, todayKey]);
+  const base = useMemo(() => planSections(items, todayKey), [items, todayKey]);
   const byId = useMemo(() => new Map(shown.map((i) => [i.itemId, i])), [shown]);
-  const rows = [
-    ...base.active.map((i) => ['Active now', byId.get(i.itemId)]),
-    ...base.upcoming.map((i) => ['Upcoming', byId.get(i.itemId)]),
-    ...base.ended.filter((i) => barFor(i, range)).map((i) => ['Ended', byId.get(i.itemId)]),
-  ];
+  const rows = base.flatMap(([title, list]) => list.filter((i) => barFor(i, range) || phaseOf(i, todayKey) !== 'ended').map((i) => [title, byId.get(i.itemId)]));
   const ticks = [];
   for (let d = 0; d < range.days; d++) {
     const key = addDaysKey(range.from, d);
@@ -187,7 +185,7 @@ function Timeline({ items, todayKey, selectedId, onSelect, onMove }) {
         const k = kindOf(item.kind);
         const head = group !== lastGroup ? (lastGroup = group) : null;
         const phase = phaseOf(item, todayKey);
-        const canDrag = onMove && group !== 'Ended';
+        const canDrag = onMove && phase !== 'ended';
         const isDragging = drag?.itemId === item.itemId;
         return (
           <div key={item.itemId}>
@@ -197,11 +195,22 @@ function Timeline({ items, todayKey, selectedId, onSelect, onMove }) {
               className={`pp-tl-row ${selectedId === item.itemId ? 'on' : ''}`}
               onClick={() => { if (moved.current) { moved.current = false; return; } onSelect(item.itemId); }}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(item.itemId); } }}
+              onContextMenu={onMenu ? (e) => { e.preventDefault(); onMenu(item, e.clientX, e.clientY); } : undefined}
             >
-              <div className="pp-tl-name"><b>{item.name}</b><small>{doseText(item) || k.label}</small></div>
+              <div className="pp-tl-name">
+                <b>{item.name}</b><small>{doseText(item) || k.label}</small>
+                {onMenu && (
+                  <button type="button" className="pp-more" aria-label={`Options for ${item.name}`}
+                    onClick={(e) => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); onMenu(item, r.left, r.bottom + 4); }}>⋯</button>
+                )}
+              </div>
               <div className="pp-tl-track">
                 {ticks.map((t) => <i key={t.key} className="pp-grid" style={{ left: `${t.left * 100}%` }} />)}
                 <i className="pp-today" style={{ left: `${todayLeft * 100}%` }} />
+                {item.since && (() => {
+                  const pre = barFor({ startDate: item.since, endDate: addDaysKey(item.startDate, -1) }, range);
+                  return pre && <span className="pp-pre" style={{ left: `${pre.left * 100}%`, width: `${pre.width * 100}%`, '--c': k.color }} title={`Taking since ${fmt(item.since)}`} />;
+                })()}
                 {bar && (
                   <span
                     className={`pp-bar ${phase} ${bar.open ? 'open' : ''} ${canDrag ? 'draggable' : ''} ${isDragging ? 'drag' : ''}`}
@@ -227,8 +236,40 @@ function Timeline({ items, todayKey, selectedId, onSelect, onMove }) {
   );
 }
 
+// Right-click (or ⋯) menu on a timeline row
+function RowMenu({ menu, todayKey, onEdit, onEnd, onRemove, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const close = (e) => { if (!ref.current?.contains(e.target)) onClose(); };
+    const key = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('pointerdown', close, true);
+    window.addEventListener('keydown', key);
+    window.addEventListener('scroll', onClose, true);
+    window.addEventListener('resize', onClose);
+    return () => {
+      window.removeEventListener('pointerdown', close, true);
+      window.removeEventListener('keydown', key);
+      window.removeEventListener('scroll', onClose, true);
+      window.removeEventListener('resize', onClose);
+    };
+  }, [onClose]);
+  const { item, x, y } = menu;
+  const ended = phaseOf(item, todayKey) === 'ended';
+  const left = Math.min(x, window.innerWidth - 200);
+  const top = Math.min(y, window.innerHeight - 150);
+  const run = (fn) => () => { onClose(); fn(item); };
+  return (
+    <div ref={ref} className="pp-menu" role="menu" style={{ left, top }}>
+      <div className="pp-menu-title">{item.name}</div>
+      <button role="menuitem" onClick={run(onEdit)}>Edit…</button>
+      {!ended && <button role="menuitem" onClick={run(onEnd)}>End today</button>}
+      <button role="menuitem" className="pp-danger" onClick={run(onRemove)}>Remove from plan</button>
+    </div>
+  );
+}
+
 function PlanList({ items, todayKey, selectedId, onSelect, renderDetail }) {
-  const g = useMemo(() => groupItems(items, todayKey), [items, todayKey]);
+  const groups = useMemo(() => planSections(items, todayKey), [items, todayKey]);
   const section = (title, list) => list.length > 0 && (
     <div className="pp-list-sec" key={title}>
       <div className="pp-tl-group">{title}</div>
@@ -246,9 +287,7 @@ function PlanList({ items, todayKey, selectedId, onSelect, renderDetail }) {
   return (
     <div className="pp-list">
       {items.length === 0 && <div className="pp-empty">Nothing planned yet. Items Claude adds from your calls with Nicole show up here, or plan one yourself.</div>}
-      {section('Active now', g.active)}
-      {section('Upcoming', g.upcoming)}
-      {section('Ended', g.ended.slice(0, 20))}
+      {groups.map(([title, list]) => section(title, title === 'Ended' ? list.slice(0, 20) : list))}
     </div>
   );
 }
@@ -259,9 +298,28 @@ export default function ProtocolPlan({ plan, todayKey, isDesktop, stackItems, on
   // The plan plus every supplement on the list that no plan item covers, so the planner holds the whole regimen
   const items = useMemo(() => {
     const planItems = (plan.items || []).filter((i) => !i.deleted);
-    return [...planItems, ...listRows(stackItems, planItems, todayKey)];
+    // Removed items still count as covering their supplement, so a removed list row stays removed
+    const defs = new Map((stackItems || []).map((d) => [d.id, d]));
+    const withSince = planItems.map((i) => {
+      const since = i.linked?.kind === 'supplement' ? takingSince(i, defs.get(i.linked.id)) : null;
+      return since ? { ...i, since } : i;
+    });
+    return [...withSince, ...listRows(stackItems, plan.items || [], todayKey)];
   }, [plan.items, stackItems, todayKey]);
   const selected = items.find((i) => i.itemId === selectedId);
+  const [menu, setMenu] = useState(null); // {item, x, y}
+  const [removed, setRemoved] = useState(null); // last removed item, for Undo
+  const undoTimer = useRef(null);
+  const remove = (item) => {
+    plan.removeItem(item);
+    if (selectedId === item.itemId) setSelectedId(null);
+    setForm(null);
+    setRemoved(item);
+    clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setRemoved(null), 8000);
+  };
+  const undo = () => { plan.restoreItem(removed.itemId); setRemoved(null); clearTimeout(undoTimer.current); };
+  const endToday = (i) => (i.fromList ? plan.editItem(i, { status: 'ended', endedOn: todayKey }) : plan.endItem(i.itemId, { endedOn: todayKey }));
 
   const detail = (item, closable) => (
     <PlanDetail
@@ -269,6 +327,7 @@ export default function ProtocolPlan({ plan, todayKey, isDesktop, stackItems, on
       todayKey={todayKey}
       onEnd={(i, data) => (i.fromList ? plan.editItem(i, { status: 'ended', ...data }) : plan.endItem(i.itemId, data))}
       onEdit={(i) => setForm(i)}
+      onRemove={remove}
       onAddToList={onAddToList}
       onClose={closable ? () => setSelectedId(null) : null}
     />
@@ -285,6 +344,13 @@ export default function ProtocolPlan({ plan, todayKey, isDesktop, stackItems, on
     />
   );
 
+  const undoBar = removed && (
+    <div className="pp-undo" role="status">
+      <span>Removed {removed.name} from your plan{removed.linked ? '. It stays on your list.' : '.'}</span>
+      <button onClick={undo}>Undo</button>
+    </div>
+  );
+
   const head = (
     <div className="pp-head">
       <h2>Protocol plan</h2>
@@ -299,9 +365,14 @@ export default function ProtocolPlan({ plan, todayKey, isDesktop, stackItems, on
       <div className="pp desktop">
         {head}
         <div className="pp-body">
-          <Timeline items={items} todayKey={todayKey} selectedId={selectedId} onSelect={(id) => { setSelectedId(id); setForm(null); }} onMove={(i, dates) => plan.editItem(i, dates)} />
+          <Timeline items={items} todayKey={todayKey} selectedId={selectedId} onSelect={(id) => { setSelectedId(id); setForm(null); }} onMove={(i, dates) => plan.editItem(i, dates)} onMenu={(item, x, y) => setMenu({ item, x, y })} />
           {(formEl || selected) && <aside className="pp-side">{formEl || detail(selected, true)}</aside>}
         </div>
+        {menu && (
+          <RowMenu menu={menu} todayKey={todayKey} onClose={() => setMenu(null)}
+            onEdit={(i) => { setSelectedId(i.itemId); setForm(i); }} onEnd={endToday} onRemove={remove} />
+        )}
+        {undoBar}
       </div>
     );
   }
@@ -310,6 +381,7 @@ export default function ProtocolPlan({ plan, todayKey, isDesktop, stackItems, on
       {head}
       <div className="pp-scroll">
         {formEl}
+        {undoBar}
         <PlanList items={items} todayKey={todayKey} selectedId={selectedId} onSelect={setSelectedId} renderDetail={(i) => detail(i, false)} />
       </div>
     </div>

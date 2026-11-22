@@ -91,9 +91,22 @@ export function useProtocolPlan(user) {
     patch(item.itemId, { edits: editsFor(rawItem, fields), editedAt: now }, { replace: true });
   }, [patch]);
 
+  // Remove from the plan: a soft delete (deleted + deletedAt) so it can be undone and Claude's later
+  // revisions can't bring it back. A supplement row that isn't a plan item yet is stored as removed.
+  const removeItem = useCallback((item) => {
+    const now = new Date().toISOString();
+    if (!itemsRef.current.some((i) => i.itemId === item.itemId)) {
+      const { fromList, planned, ...base } = item; // eslint-disable-line no-unused-vars
+      patch(item.itemId, { ...base, author: 'nate', createdAt: now, updatedAt: now, ack: { added: now, start: now }, deleted: true, deletedAt: now });
+      return;
+    }
+    patch(item.itemId, { deleted: true, deletedAt: now });
+  }, [patch]);
+  const restoreItem = useCallback((itemId) => patch(itemId, { deleted: false, deletedAt: null }), [patch]);
+
   const endItem = useCallback((itemId, { endedOn, endReason = '', outcome = '' }) => {
     patch(itemId, { status: 'ended', endedOn, endReason, outcome, updatedAt: new Date().toISOString() });
   }, [patch]);
 
-  return { items, error, ack, link, saveOwnItem, editItem, endItem };
+  return { items, error, ack, link, saveOwnItem, editItem, endItem, removeItem, restoreItem };
 }

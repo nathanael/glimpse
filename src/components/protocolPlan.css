@@ -118,3 +118,18 @@
 .pa-delay-opts button { padding: 11px 0; border-radius: 10px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: #f3f4f6; font-size: 14px; font-weight: 600; cursor: pointer; }
 .pa-delay-opts button:hover { background: rgba(139,92,246,.18); border-color: rgba(139,92,246,.5); }
 .pa-delay .pa-minor { margin-top: 10px; }
+
+/* Row menu, remove, undo */
+.pp-tl-name { position: relative; padding-right: 34px; }
+.pp-more { position: absolute; right: 6px; top: 50%; margin-top: -13px; width: 26px; height: 26px; border: 0; border-radius: 7px; background: none; color: #9ca3af; font-size: 16px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .12s; }
+.pp-tl-row:hover .pp-more, .pp-tl-row.on .pp-more, .pp-more:focus-visible { opacity: 1; }
+.pp-more:hover { background: rgba(255,255,255,.08); color: #fff; }
+.pp-menu { position: fixed; z-index: 1000; min-width: 190px; padding: 6px; border-radius: 12px; background: #1b1d24; border: 1px solid rgba(255,255,255,.1); box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+.pp-menu-title { padding: 6px 10px 8px; font-size: 12px; color: #9ca3af; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; border-bottom: 1px solid rgba(255,255,255,.06); margin-bottom: 4px; }
+.pp-menu button { display: block; width: 100%; text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: none; color: #f3f4f6; font: inherit; font-size: 14px; cursor: pointer; }
+.pp-menu button:hover, .pp-menu button:focus-visible { background: rgba(255,255,255,.07); outline: none; }
+.pp-danger { color: #f87171 !important; }
+.pp-menu button.pp-danger:hover { background: rgba(248,113,113,.12); }
+.pp-undo { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 1000; display: flex; align-items: center; gap: 16px; padding: 10px 12px 10px 16px; border-radius: 12px; background: #1b1d24; border: 1px solid rgba(255,255,255,.12); box-shadow: 0 12px 32px rgba(0,0,0,.5); color: #e5e7eb; font-size: 14px; max-width: calc(100vw - 32px); }
+.pp-undo button { border: 0; background: rgba(139,92,246,.2); color: #c4b5fd; font: inherit; font-weight: 600; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+.pp-pre { position: absolute; top: 50%; height: 8px; margin-top: -4px; border-radius: 4px 0 0 4px; background: color-mix(in srgb, var(--c) 35%, transparent); pointer-events: none; }

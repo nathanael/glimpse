@@ -188,3 +188,37 @@ export const dragDates = (item, mode, delta, todayKey, fallbackEnd = null) => {
   const e = addDaysKey(base, delta);
   return { startDate: start, endDate: e < start ? start : e };
 };
+
+// Rows for the plan, grouped the way the practitioner wrote the plan when the items say so
+// (source.section, source.order, written by the MCP), then Nate's own items, then the rest of his
+// list. Without sections it falls back to Active now / Upcoming / Ended.
+export const planSections = (items, todayKey) => {
+  const all = (items || []).filter((i) => i && !i.deleted);
+  const withSection = all.filter((i) => i.source?.section);
+  if (!withSection.length) {
+    const g = groupItems(all, todayKey);
+    return [['Active now', g.active], ['Upcoming', g.upcoming], ['Ended', g.ended]].filter(([, l]) => l.length);
+  }
+  const ord = (i) => (Number.isFinite(i.source?.order) ? i.source.order : 999);
+  const bySection = new Map();
+  for (const i of withSection) {
+    const s = i.source.section;
+    if (!bySection.has(s)) bySection.set(s, []);
+    bySection.get(s).push(i);
+  }
+  const sections = [...bySection.entries()]
+    .map(([title, list]) => [title, list.sort((a, b) => ord(a) - ord(b) || (a.startDate || '').localeCompare(b.startDate || ''))])
+    .sort((a, b) => Math.min(...a[1].map(ord)) - Math.min(...b[1].map(ord)));
+  const byStart = (a, b) => (a.startDate || '').localeCompare(b.startDate || '');
+  const rest = all.filter((i) => !i.source?.section);
+  const own = rest.filter((i) => !i.fromList).sort(byStart);
+  const list = rest.filter((i) => i.fromList).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  return [...sections, ['Your own plan', own], ['Also on your list', list]].filter(([, l]) => l.length);
+};
+
+// When a linked supplement was taken before the plan's start, the date it really started
+export const takingSince = (item, def) => {
+  if (!def || !item.startDate) return null;
+  const since = def.schedule?.startDate || def.history?.find((h) => h.type === 'created')?.timestamp?.slice(0, 10);
+  return since && since < item.startDate ? since : null;
+};

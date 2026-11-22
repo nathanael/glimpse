@@ -89,3 +89,32 @@ describe('dragDates', () => {
   });
   it('no change for zero delta', () => expect(dragDates(it0, 'move', 0, 'x')).toBeNull());
 });
+
+import { planSections, takingSince } from '../plan';
+
+describe('planSections', () => {
+  const t = '2026-11-22';
+  it('groups by the plan sections in order, then own items, then the list', () => {
+    const items = [
+      { itemId: 'b', name: 'B', startDate: '2026-11-21', source: { section: 'Microbiome', order: 7 } },
+      { itemId: 'a', name: 'A', startDate: '2026-11-21', source: { section: 'Core', order: 1 } },
+      { itemId: 'c', name: 'C', startDate: '2026-11-21', source: { section: 'Core', order: 2 } },
+      { itemId: 'n', name: 'N', startDate: '2026-12-01', author: 'nate', source: { type: 'nate' } },
+      { itemId: 'l', name: 'L', fromList: true },
+      { itemId: 'x', name: 'X', deleted: true, source: { section: 'Core', order: 0 } },
+    ];
+    expect(planSections(items, t).map(([s, l]) => [s, l.map((i) => i.itemId)])).toEqual([
+      ['Core', ['a', 'c']], ['Microbiome', ['b']], ['Your own plan', ['n']], ['Also on your list', ['l']],
+    ]);
+  });
+  it('falls back to phases without sections', () => {
+    expect(planSections([{ itemId: 'a', startDate: '2026-11-01' }], t)[0][0]).toBe('Active now');
+  });
+});
+
+describe('takingSince', () => {
+  it('returns the earlier list start only', () => {
+    expect(takingSince({ startDate: '2026-11-21' }, { schedule: { startDate: '2026-09-10' } })).toBe('2026-09-10');
+    expect(takingSince({ startDate: '2026-11-21' }, { schedule: { startDate: '2026-11-22' } })).toBeNull();
+  });
+});
