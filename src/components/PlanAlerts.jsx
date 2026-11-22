@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './protocolPlan.css';
 import { kindOf, SOURCE_LABELS, doseText, pendingAlerts, findByName } from '../protocolPlan/plan';
 
@@ -20,7 +20,24 @@ export default function PlanAlerts({ plan, todayKey, stackItems, inputItems, onA
     () => pendingAlerts(plan.items, todayKey).filter((a) => !later.has(`${a.type}:${a.item.itemId}`)),
     [plan.items, todayKey, later],
   );
-  const alert = alerts[0];
+  // An item that starts while it is already on the list (same name, shown) needs no card:
+  // link it quietly so a plan full of things Nate already takes doesn't open with a stack of alerts.
+  const quiet = useMemo(() => alerts.filter((a) => {
+    if (a.type !== 'start' || a.item.linked) return false;
+    const isF = a.item.kind === 'food' || a.item.kind === 'intervention';
+    const ex = findByName(isF ? inputItems : stackItems, a.item.name);
+    return ex && ex.active !== false;
+  }), [alerts, stackItems, inputItems]);
+  useEffect(() => {
+    quiet.forEach(({ item }) => {
+      const isF = item.kind === 'food' || item.kind === 'intervention';
+      const ex = findByName(isF ? inputItems : stackItems, item.name);
+      plan.link(item.itemId, { kind: isF ? 'factor' : 'supplement', id: ex.id });
+      plan.ack(item.itemId, 'start');
+    });
+  }, [quiet]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = alerts.filter((a) => !quiet.includes(a));
+  const alert = shown[0];
   if (!alert) return null;
   const { type, item } = alert;
   const k = kindOf(item.kind);
@@ -47,7 +64,7 @@ export default function PlanAlerts({ plan, todayKey, stackItems, inputItems, onA
           </button>
         )}
         <button className="pa-btn" onClick={snooze}>Later</button>
-        {item.kind !== 'test' && <button className="pa-btn ghost" onClick={() => done()}>I’m not starting it</button>}
+        {item.kind !== 'test' && <button className="pa-btn ghost" onClick={() => done()}>{isFactor ? 'Got it, don’t track it' : 'I’m not starting it'}</button>}
       </>
     );
   } else if (type === 'end') {
@@ -73,8 +90,8 @@ export default function PlanAlerts({ plan, todayKey, stackItems, inputItems, onA
     <div className="pa" role="dialog" aria-modal="true" aria-label={TITLES[type]}>
       <div className="pa-card">
         <div className="pa-top">
-          <span className={`pa-type ${type}`}>{TITLES[type]}</span>
-          {alerts.length > 1 && <span className="pa-count">1 of {alerts.length}</span>}
+          <span className={`pa-type ${type}`}>{type === 'start' && item.startDate && item.startDate < todayKey ? 'Now in your plan' : TITLES[type]}</span>
+          {shown.length > 1 && <span className="pa-count">1 of {shown.length}</span>}
         </div>
         <span className="pp-kind" style={{ '--c': k.color }}>{k.label}</span>
         <h2>{item.name}</h2>
