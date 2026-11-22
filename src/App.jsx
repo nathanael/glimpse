@@ -795,11 +795,11 @@ function App() {
       } else if (tabKey === '2') {
         setShowInsights(false);
         setAppMode('stack');
-      } else if (tabKey === '3') {
-        setShowInsights(true);
-      } else if (tabKey === '4' && sleepAvailable) {
+      } else if (tabKey === '3' && sleepAvailable) {
         setShowInsights(false);
         setShowSleep(true);
+      } else if (tabKey === '3' || (tabKey === '4' && sleepAvailable)) {
+        setShowInsights(true); // Progress is always the last tab
       } else if (e.key === 'ArrowLeft' || e.key === '[') {
         e.preventDefault();
         changeDate(-1);
@@ -1037,10 +1037,7 @@ function App() {
           setAppMode={setAppMode}
           showInsights={showInsights}
           setShowInsights={setShowInsights}
-          trackingMode={trackingMode}
           slotRef={setNavSlot}
-          symptoms={liveSymptoms}
-          entries={deferredEntries}
           onCopyData={quickCopyData}
           copyDays={copyDays}
           onClearDay={appMode === 'symptoms' ? clearSymptomDay : protocolClearDay}
@@ -1068,9 +1065,6 @@ function App() {
           canGoForward={canGoForward}
           setShowCalendar={setShowCalendar}
           setCalendarMonth={setCalendarMonth}
-          symptoms={liveSymptoms}
-          entries={deferredEntries}
-          trackingMode={trackingMode}
           showInsights={showInsights}
           slotRef={setNavSlot}
           onMore={() => setShowQuickActions(!showQuickActions)}

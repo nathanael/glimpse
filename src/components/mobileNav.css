@@ -15,8 +15,6 @@
 .mn-top .dn-step { height: 36px; border-radius: 11px; }
 .mn-top .dn-step button { min-width: 36px; }
 .mn-top .dn-step .dn-date { min-width: 0; padding: 0 10px; gap: 6px; font-size: 14px; }
-.mn-top .dn-score { height: 36px; border-radius: 11px; flex: none; }
-.mn-top .dn-ring::after { background: #0e0f11; }
 .mn-top .dn-btn { height: 30px; font-size: 12.5px; flex: none; }
 .mn-top .dn-btn.ghost { padding: 0 6px; }
 .mn-top .dn-progress i { width: 44px; }

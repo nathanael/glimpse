@@ -62,3 +62,24 @@ export const nextDayEffect = ({ date, todayStr, scoreFor, symptomFor, symptoms, 
 
   return { pending, score, movers, pattern };
 };
+
+const MAJOR_SCORE_SHIFT = 10; // points on the 0–100 health score the next day, either way
+const MAJOR_SYMPTOM_SHIFT = 2; // ...or one symptom jumping this far on the 0–5 scale
+
+// How much the day after stood out, on one scale: 1 = just major. 0 when there is nothing to judge yet.
+const eventWeight = (effect) => {
+  if (!effect || effect.pending) return 0;
+  const score = effect.score ? Math.abs(effect.score.delta) / MAJOR_SCORE_SHIFT : 0;
+  const mover = effect.movers?.length ? effect.movers[0].delta / MAJOR_SYMPTOM_SHIFT : 0;
+  return Math.max(score, mover);
+};
+
+/**
+ * The one-off days worth a line on a zoomed-out chart: only those whose next day clearly stood out,
+ * the strongest `max` of them, back in their original (date) order.
+ */
+export const majorEvents = (markers, max) => {
+  const major = (markers || []).map((m) => ({ m, w: eventWeight(m.effect) })).filter((x) => x.w >= 1);
+  const keep = new Set(major.sort((a, b) => b.w - a.w).slice(0, max).map((x) => x.m));
+  return (markers || []).filter((m) => keep.has(m));
+};
