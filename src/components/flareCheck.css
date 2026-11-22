@@ -1,12 +1,16 @@
-.fc { display: flex; align-items: flex-start; gap: 16px; margin: 0 0 14px; padding: 12px 14px; border-radius: 10px; background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.25); color: #e5e7eb; font-size: 13.5px; line-height: 1.45; }
-.fc-text { flex: 1; min-width: 0; }
-.fc-text b { font-weight: 600; color: #fcd34d; }
-.fc-text small { display: block; margin-top: 2px; color: #9ca3af; font-size: 12px; }
-.fc-text textarea { display: block; width: 100%; margin-top: 8px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.25); color: #f3f4f6; font: inherit; resize: vertical; }
-.fc-text textarea:focus { outline: none; border-color: #f59e0b; }
-.fc-acts { display: flex; gap: 6px; flex: none; }
-.fc button { font-family: inherit; cursor: pointer; }
-.lr.mobile .fc { flex-direction: column; gap: 10px; margin: 4px 2px 12px; }
-.lr.mobile .fc .dn-btn { height: 38px; padding: 0 16px; border-radius: 8px; border: 0; background: #374151; color: #e5e7eb; font-size: 14px; }
-.lr.mobile .fc .dn-btn.primary { background: #2563eb; color: #fff; }
-.lr.mobile .fc .dn-btn.ghost { background: none; color: #9ca3af; }
+.fc-back { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0,0,0,.55); backdrop-filter: blur(2px); animation: fc-fade .15s ease-out; }
+.fc { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; width: 100%; max-width: 420px; padding: 22px 22px 18px; border-radius: 14px; background: #1f2937; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 20px 50px rgba(0,0,0,.5); color: #e5e7eb; font-size: 14px; line-height: 1.5; animation: fc-pop .18s ease-out; }
+.fc h3 { margin: 0 0 6px; font-size: 17px; font-weight: 600; color: #f9fafb; }
+.fc p { margin: 0; color: #9ca3af; }
+.fc textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 8px; padding: 10px 12px; border-radius: 8px; border: 1px solid transparent; background: rgba(0,0,0,.28); color: #f3f4f6; font: inherit; resize: vertical; }
+.fc textarea:focus { outline: none; border-color: #f59e0b; }
+.fc-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.fc-btn { height: 36px; padding: 0 16px; border-radius: 8px; border: 0; background: #374151; color: #e5e7eb; font: inherit; font-weight: 500; cursor: pointer; }
+.fc-btn:hover { background: #4b5563; }
+.fc-btn.primary { background: #2563eb; color: #fff; }
+.fc-btn.primary:hover { background: #1d4ed8; }
+.fc-btn.ghost { background: none; color: #9ca3af; margin-right: auto; }
+.fc-btn.ghost:hover { color: #e5e7eb; background: rgba(255,255,255,.06); }
+@keyframes fc-fade { from { opacity: 0; } }
+@keyframes fc-pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+@media (max-width: 520px) { .fc-back { align-items: flex-end; padding: 12px; } .fc-btn { height: 42px; } }

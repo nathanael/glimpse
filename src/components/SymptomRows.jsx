@@ -563,7 +563,15 @@ export default function SymptomRows({
     () => (onFlareAnswer && !flareAnswered(dayNote) ? symptomsUp(symptoms, entries, selectedDate) : []),
     [onFlareAnswer, dayNote, symptoms, entries, dateKey], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const flareCard = !editing && flareUp.length >= MIN_SYMPTOMS_UP && !flareSkipped.has(dateKey) && (
+  const flareDue = !editing && flareUp.length >= MIN_SYMPTOMS_UP && !flareSkipped.has(dateKey);
+  // Wait for a pause in logging before the pop-up opens, so it doesn't interrupt mid-entry
+  const [flareOpen, setFlareOpen] = useState(false);
+  useEffect(() => {
+    if (!flareDue) { setFlareOpen(false); return undefined; }
+    const t = setTimeout(() => setFlareOpen(true), 1500);
+    return () => clearTimeout(t);
+  }, [flareDue, flareUp.length, dateKey]);
+  const flareCard = flareDue && flareOpen && (
     <FlareCheck
       key={dateKey}
       up={flareUp}
