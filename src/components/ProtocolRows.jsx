@@ -128,9 +128,25 @@ export default function ProtocolRows({
   const stripKeys = useMemo(() => getStripDateKeys(selectedDate, 14), [dateKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rows reachable from the keyboard, in display order
+  // Desktop shows two groups, and a row can be dragged from one to the other: psyllium husk is a
+  // "factor" in the data (a yes/no with a count) but belongs with the supplements. `section` on the
+  // item says which group it sits in; without it a supplement is in Supplements and a factor in
+  // Diet and lifestyle. The data type, its history and its daily check-in question stay as they were.
+  const deskSections = useMemo(() => {
+    const rows = [
+      ...dueItems.map((item) => ({ item, kind: 'supplement', section: item.section || 'supp' })),
+      ...factors.map((item) => ({ item, kind: 'factor', section: item.section || 'life' })),
+    ];
+    const native = (r) => (r.kind === 'supplement' ? 'supp' : 'life');
+    const inOrder = (sec) => rows.filter((r) => r.section === sec)
+      .sort((a, b) => (a.item.order || 0) - (b.item.order || 0) || (a.section === native(a) ? -1 : 1));
+    return { supp: inOrder('supp'), life: inOrder('life') };
+  }, [dueItems, factors]);
   const navRows = useMemo(
-    () => [...dueItems.map((i) => ({ id: i.id, kind: 'supplement' })), ...factors.map((i) => ({ id: i.id, kind: 'factor' }))],
-    [dueItems, factors]
+    () => (isDesktop
+      ? [...deskSections.supp, ...deskSections.life].map((r) => ({ id: r.item.id, kind: r.kind }))
+      : [...dueItems.map((i) => ({ id: i.id, kind: 'supplement' })), ...factors.map((i) => ({ id: i.id, kind: 'factor' }))]),
+    [isDesktop, deskSections, dueItems, factors]
   );
 
   useEffect(() => {
@@ -299,7 +315,24 @@ export default function ProtocolRows({
     setLastAction(`Added ${name}`);
   };
 
-  const commitReorder = (fromId, toId, group) => {
+  const commitReorder = (fromId, toId, group, order) => {
+    if (group === 'protocol') {
+      // `order` is the desktop list as it now looks: 's:<id>' / 'f:<id>' rows with 'group:<section>'
+      // headers between. Each row takes the section it sits under and its place on screen.
+      let section = 'supp';
+      const place = new Map();
+      order.forEach((id, idx) => { if (id.startsWith('group:')) section = id.slice(6); else place.set(id, { section, order: idx }); });
+      const apply = (prefix, home) => (prev) => prev.map((i) => {
+        const at = place.get(`${prefix}:${i.id}`);
+        if (!at) return i;
+        const sec = at.section === home ? null : at.section;
+        return i.order === at.order && (i.section || null) === sec ? i : { ...i, order: at.order, section: sec };
+      });
+      setStackItems(apply('s', 'supp'));
+      setInputItems(apply('f', 'life'));
+      haptic('medium');
+      return;
+    }
     const list = group === 'supplement' ? activeSupplements : activeFactors;
     const ids = reorder(list.map((i) => i.id), fromId, toId);
     const apply = (prev) => prev.map((i) => {
@@ -541,14 +574,14 @@ export default function ProtocolRows({
       <div
         key={item.id}
         className={`lr-row lr-cols ${isDesktop ? '' : 'lr-two'} ${focused ? 'focus' : ''} ${entry ? 'done' : ''} ${due ? '' : 'muted'} ${isSel('supplement', item.id) ? 'sel' : ''}`}
-        data-reorder-id={isDesktop && due ? item.id : undefined}
-        data-reorder-group={isDesktop && due ? 'supplement' : undefined}
+        data-reorder-id={isDesktop && due ? `s:${item.id}` : undefined}
+        data-reorder-group={isDesktop && due ? 'protocol' : undefined}
         onMouseMove={isDesktop && due && !focused ? () => setFocusId(item.id) : undefined}
         onClick={() => { if (due) setFocusId(item.id); if (!isDesktop) toggleSupplement(item); else open('supplement', item.id); }}
       >
-        {isDesktop && (due ? <span className="lr-grip" title="Drag to reorder" onClick={(e) => e.stopPropagation()} {...gripProps(item.id, 'supplement')}>⠿</span> : <span />)}
+        {isDesktop && due && <span className="lr-grip lr-gutter" title="Drag to reorder, or into the other group" onClick={(e) => e.stopPropagation()} {...gripProps(`s:${item.id}`, 'protocol')}>⠿</span>}
         {isDesktop ? (
-          <div className="lr-name">{item.name}{tagFor('supplement', item.id) && <span className="lr-plantag">{tagFor('supplement', item.id)}</span>}{item.description && <small>{item.description}</small>}</div>
+          <div className="lr-name">{item.name}{tagFor('supplement', item.id) && <i className="lr-plandot" title={`On your plan · ${tagFor('supplement', item.id)}`} />}{item.description && <small>{item.description}</small>}</div>
         ) : (
           <div className="lr-name">
             {item.name}
@@ -597,15 +630,15 @@ export default function ProtocolRows({
       <div
         key={item.id}
         className={`lr-row lr-cols ${focused ? 'focus' : ''} ${entry ? 'done' : ''} ${isSel('factor', item.id) ? 'sel' : ''}`}
-        data-reorder-id={isDesktop ? item.id : undefined}
-        data-reorder-group={isDesktop ? 'factor' : undefined}
+        data-reorder-id={isDesktop ? `f:${item.id}` : undefined}
+        data-reorder-group={isDesktop ? 'protocol' : undefined}
         onMouseMove={isDesktop && !focused ? () => setFocusId(item.id) : undefined}
         onClick={() => { setFocusId(item.id); if (!isDesktop) setFactorCount(item, count ? 0 : 1); else open('factor', item.id); }}
       >
-        {isDesktop && <span className="lr-grip" title="Drag to reorder" onClick={(e) => e.stopPropagation()} {...gripProps(item.id, 'factor')}>⠿</span>}
+        {isDesktop && <span className="lr-grip lr-gutter" title="Drag to reorder, or into the other group" onClick={(e) => e.stopPropagation()} {...gripProps(`f:${item.id}`, 'protocol')}>⠿</span>}
         <div className="lr-name">
           {item.name}
-          {tagFor('factor', item.id) && <span className="lr-plantag">{tagFor('factor', item.id)}</span>}
+          {tagFor('factor', item.id) && <i className="lr-plandot" title={`On your plan · ${tagFor('factor', item.id)}`} />}
           {item.verdict && <span className="lr-verdict" style={{ color: VERDICT_COLORS[item.verdict], borderColor: `${VERDICT_COLORS[item.verdict]}55` }}>{item.verdict}</span>}
           {item.description && <small>{item.description}</small>}
         </div>
@@ -636,7 +669,6 @@ export default function ProtocolRows({
         {isOpen && notDue.map((item) => renderSupplementRow(item, false))}
         {isOpen && soon.map((u) => (
           <div key={u.itemId} className={`lr-row lr-cols muted ${selection?.planId === u.itemId || (u.linked?.id && isSel(u.linked.kind, u.linked.id)) ? 'sel' : ''}`} onClick={() => onSelect?.(selection?.planId === u.itemId ? null : { planId: u.itemId })}>
-            <span />
             <div className="lr-name">{u.name}</div>
             <span /><span />
             <span className="lr-due">{u.startDate ? `starts ${shortDate(u.startDate)}` : 'not started'}</span>
@@ -646,6 +678,7 @@ export default function ProtocolRows({
     );
   };
 
+  const deskDone = (r) => (r.kind === 'supplement' ? !!stackEntries[`${dateKey}-${r.item.id}`] : isYes(inputEntries[`${dateKey}-${r.item.id}`]));
   const showS = isDesktop || tab === 's';
   const showF = isDesktop || tab === 'f';
   return (
@@ -660,16 +693,10 @@ export default function ProtocolRows({
       {showS && !isDesktop && dueItems.length > 0 && (
         <div className="lr-prog"><i style={{ width: `${Math.round((takenCount / dueItems.length) * 100)}%` }} /></div>
       )}
-      {showS && isDesktop && (
-        <div className="lr-sec">
-          <b>SUPPLEMENTS</b> {takenCount} of {dueItems.length} taken
-          {takenCount < dueItems.length && <button type="button" className="lr-secact" onClick={onCheckAll}>Check all</button>}
-        </div>
+      {showS && !isDesktop && dueItems.length === 0 && otherItems.length === 0 && !(search && hiddenMatches.length) && (
+        <div className="lr-empty">{search ? `Nothing matches "${search}"` : 'No supplements yet. Tap + to add one.'}</div>
       )}
-      {showS && dueItems.length === 0 && otherItems.length === 0 && !(search && hiddenMatches.length) && (
-        <div className="lr-empty">{search ? `Nothing matches "${search}"` : isDesktop ? 'No supplements yet. Add one below.' : 'No supplements yet. Tap + to add one.'}</div>
-      )}
-      {showS && timeSections.map((sec) => [
+      {showS && !isDesktop && timeSections.map((sec) => [
         sec.label && (
           <div key={`t-${sec.id}`} className="lr-sec lr-tsec">
             <b>{sec.label.toUpperCase()}</b>
@@ -679,13 +706,25 @@ export default function ProtocolRows({
         ...sec.items.map((item) => renderSupplementRow(item, true)),
       ])}
       {showS && !isDesktop && otherItems.map((item) => renderSupplementRow(item, false))}
-      {isDesktop && renderMore(otherItems, upSupps)}
-      {isDesktop && renderAddRow('supplement', 'Add supplement')}
-      {isDesktop && <div className="lr-sec"><b>DIET AND LIFESTYLE</b> {loggedCount} of {factors.length} {isToday ? 'today' : 'logged'}</div>}
-      {showF && factors.length === 0 && !(search && hiddenMatches.length) && <div className="lr-empty">{search ? `Nothing matches "${search}"` : isDesktop ? 'Nothing here yet. Add foods, habits or activities you want to check off each day.' : 'No factors yet.'}</div>}
-      {showF && factors.map(renderFactorRow)}
-      {isDesktop && upFactors.length > 0 && renderMore([], upFactors)}
-      {isDesktop && renderAddRow('factor', 'Add item')}
+      {showF && !isDesktop && factors.length === 0 && !(search && hiddenMatches.length) && <div className="lr-empty">{search ? `Nothing matches "${search}"` : 'No factors yet.'}</div>}
+      {showF && !isDesktop && factors.map(renderFactorRow)}
+      {isDesktop && [['supp', 'SUPPLEMENTS', 'taken'], ['life', 'DIET AND LIFESTYLE', isToday ? 'today' : 'logged']].map(([sec, title, word]) => {
+        const rows = deskSections[sec];
+        const done = rows.filter(deskDone).length;
+        const untakenSupps = rows.some((r) => r.kind === 'supplement' && !deskDone(r));
+        return (
+          <div key={sec}>
+            <div className="lr-sec" data-reorder-id={`group:${sec}`} data-reorder-group="protocol">
+              <b>{title}</b> {done} of {rows.length} {word}
+              {sec === 'supp' && untakenSupps && <button type="button" className="lr-secact" onClick={onCheckAll}>Check all</button>}
+            </div>
+            {rows.length === 0 && <div className="lr-fold lr-hintline">{search ? `Nothing matches "${search}"` : sec === 'supp' ? 'No supplements yet. Add one below.' : 'Foods, habits and activities to check off each day. Add one below, or drag one here.'}</div>}
+            {rows.map((r) => (r.kind === 'supplement' ? renderSupplementRow(r.item, true) : renderFactorRow(r.item)))}
+            {sec === 'supp' ? renderMore(otherItems, upSupps) : renderMore([], upFactors)}
+            {renderAddRow(sec === 'supp' ? 'supplement' : 'factor', sec === 'supp' ? 'Add supplement' : 'Add item')}
+          </div>
+        );
+      })}
       <HiddenSearchResults matches={hiddenMatches} onRestore={(m) => {
         if (m.deleted) onRestoreDeleted?.(m.kind, m.item);
         else { patch(m.kind, m.item.id, { active: true }); setLastAction(`Restored ${m.item.name}`); }
@@ -695,7 +734,6 @@ export default function ProtocolRows({
           <div className="lr-fold lr-foldsec" onClick={() => setShowHidden((v) => !v)}>{showHidden ? '▾' : '▸'} Hidden · {hiddenRows.length} · history is kept</div>
           {showHidden && hiddenRows.map(({ item, kind }) => (
             <div key={item.id} className={`lr-row lr-cols lr-hiddenrow ${isSel(kind, item.id) ? 'sel' : ''}`} onClick={() => open(kind, item.id)}>
-              <span />
               <div className="lr-name">{item.name}{item.description && <small>{item.description}</small>}</div>
               <span /><span />
               <button className="lr-link" onClick={(e) => { e.stopPropagation(); patch(kind, item.id, { active: true }); setLastAction(`Restored ${item.name}`); }}>Restore</button>

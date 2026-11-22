@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import './protocolPlan.css';
 import { INPUT_CATEGORIES } from '../utils/constants';
 import { reconstructStateAtEntry } from '../utils/helpers';
@@ -23,13 +23,20 @@ const VERDICTS = [
 const fmt = (key, opts = { month: 'short', day: 'numeric', year: 'numeric' }) =>
   (key ? new Date(`${key}T12:00:00`).toLocaleDateString('en-US', opts) : '');
 
-// A textarea that saves when focus leaves it
+// A textarea that grows to show all of its text and saves when focus leaves it
 function DraftArea({ value, placeholder, onCommit }) {
   const [v, setV] = useState(value || '');
+  const ref = useRef(null);
   useEffect(() => setV(value || ''), [value]);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + 2}px`;
+  }, [v]);
   return (
     <textarea
-      rows={2} value={v} placeholder={placeholder}
+      ref={ref} rows={1} value={v} placeholder={placeholder}
       onChange={(e) => setV(e.target.value)}
       onBlur={() => { if (v.trim() !== (value || '')) onCommit(v.trim()); }}
     />
@@ -108,26 +115,31 @@ export default function ItemPanel({
     ? (() => { const d = daysBetween(plan.startDate, plan.endedOn || plan.endDate) + 1; return d % 7 === 0 ? `${d / 7} week${d === 7 ? '' : 's'}` : `${d} days`; })()
     : null;
 
+  const datesNote = [
+    span,
+    plan?.since && phase !== 'upcoming' && `taking it since ${fmt(plan.since)}`,
+    plan?.planned && (plan.planned.startDate !== undefined || plan.planned.endDate !== undefined)
+      && `you changed the dates; the plan said ${[plan.planned.startDate !== undefined && `start ${fmt(plan.planned.startDate) || 'unset'}`, plan.planned.endDate !== undefined && `end ${fmt(plan.planned.endDate) || 'open'}`].filter(Boolean).join(', ')}`,
+  ].filter(Boolean).join(' · ');
+  const status = phase === 'upcoming' ? 'Upcoming' : hidden ? 'Not on your list' : phase === 'active' ? 'Active' : 'Ended';
+
   return (
     <div className="pp-detail ip">
-      <div className="pp-detail-head">
-        <span className="pp-kind" style={{ '--c': k.color }}>{kindLabel}</span>
-        <span className={`pp-phase ${hidden && phase !== 'upcoming' ? 'ended' : phase}`}>{phase === 'upcoming' ? 'Upcoming' : hidden ? 'Not on your list' : phase === 'active' ? 'Active' : 'Ended'}</span>
+      <div className="ip-head">
+        <span className="ip-kind" style={{ '--c': k.color }}><i />{kindLabel}</span>
+        <span className={`pp-phase ${hidden ? 'ended' : phase}`}>{status}</span>
         <button className="pp-x" aria-label="Close" onClick={onClose}>×</button>
       </div>
 
       <DraftInput className="ip-name" value={def?.name ?? plan.name} placeholder="Name" onCommit={rename} />
-      {def && <DraftInput className="ip-note" value={def.description} placeholder="Add a note" onCommit={(v) => patchDef({ description: v.trim() })} />}
 
       {def && isSupp && (
-        <div className="ip-grid">
-          <label>Dose
-            <span className="ip-dose">
-              <DraftInput inputMode="decimal" value={def.defaultDose} onCommit={commitDose} />
-              <select value={def.unit} onChange={(e) => patchDef({ unit: e.target.value })}>
-                {(UNITS.includes(def.unit) ? UNITS : [def.unit, ...UNITS]).map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </span>
+        <div className="ip-grid three">
+          <label>Dose<DraftInput inputMode="decimal" value={def.defaultDose} onCommit={commitDose} /></label>
+          <label>Unit
+            <select value={def.unit} onChange={(e) => patchDef({ unit: e.target.value })}>
+              {(UNITS.includes(def.unit) ? UNITS : [def.unit, ...UNITS]).map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
           </label>
           <label>Schedule
             <button type="button" className="ip-chip" onClick={() => { setScheduleOpen((o) => !o); setScheduleDraft(null); }}>{formatSchedule(def.schedule) || 'Daily'}</button>
@@ -151,107 +163,94 @@ export default function ItemPanel({
           <label>Unit<DraftInput value={plan.unit ?? ''} onCommit={(v) => onEditPlan(plan, { unit: v.trim() || null })} /></label>
         </div>
       )}
-      {plan && !plan.fromList && (!def || (fromPractitioner && plan.frequency)) && (
-        <label className="ip-field">{def ? 'How the plan says to take it' : 'How often'}
-          <DraftInput value={plan.frequency ?? ''} placeholder="twice daily with food" onCommit={(v) => onEditPlan(plan, { frequency: v.trim() || null })} />
-        </label>
-      )}
 
       {plan && (
-        <div className="ip-grid">
+        <div className="ip-grid" title={datesNote || undefined}>
           <label>Start<input type="date" value={plan.startDate || ''} onChange={setDate('startDate')} disabled={phase === 'ended'} /></label>
-          <label>{plan.status === 'ended' ? 'Ended' : 'End (optional)'}<input type="date" value={(plan.status === 'ended' && plan.endedOn) || plan.endDate || ''} onChange={setDate('endDate')} disabled={plan.status === 'ended'} /></label>
+          <label>{plan.status === 'ended' ? 'Ended' : 'End'}{plan.planned && <em className="ip-edited" title={datesNote}>edited</em>}<input type="date" value={(plan.status === 'ended' && plan.endedOn) || plan.endDate || ''} onChange={setDate('endDate')} disabled={plan.status === 'ended'} /></label>
         </div>
       )}
-      {span && <p className="pp-muted ip-span">{span}</p>}
-      {plan?.since && phase !== 'upcoming' && <p className="pp-muted">Taking it since {fmt(plan.since)}; the plan continues it from here.</p>}
-      {plan?.planned && (plan.planned.startDate !== undefined || plan.planned.endDate !== undefined) && (
-        <p className="pp-muted">You changed the dates. The plan said {plan.planned.startDate !== undefined ? `start ${fmt(plan.planned.startDate) || 'unset'}` : ''}{plan.planned.startDate !== undefined && plan.planned.endDate !== undefined ? ', ' : ''}{plan.planned.endDate !== undefined ? `end ${fmt(plan.planned.endDate) || 'open'}` : ''}.</p>
-      )}
+
+      {/* One line for how to take it: the note on the list item, falling back to what the plan says */}
+      {def
+        ? <DraftInput className="ip-line" value={def.description || (plan && !plan.fromList && plan.frequency) || ''} placeholder="How to take it" onCommit={(v) => patchDef({ description: v.trim() })} />
+        : plan && plan.kind !== 'test' && <DraftInput className="ip-line" value={plan.frequency ?? ''} placeholder="How to take it" onCommit={(v) => onEditPlan(plan, { frequency: v.trim() || null })} />}
       {plan?.condition && <p className="pp-cond">{plan.condition}</p>}
 
-      {plan && !plan.fromList && (
+      {plan && (
         <>
-          <label className="ip-field">Why<DraftArea value={plan.reason} placeholder="What it is for" onCommit={(v) => onEditPlan(plan, { reason: v || null })} /></label>
+          <label className="ip-field">Why<DraftArea value={plan.fromList ? '' : plan.reason} placeholder="What it is for" onCommit={(v) => onEditPlan(plan, { reason: v || null })} /></label>
           <label className="ip-field">Watch for<DraftArea value={plan.watchFor} placeholder="Side effects, what to note" onCommit={(v) => onEditPlan(plan, { watchFor: v || null })} /></label>
         </>
       )}
       {plan && (plan.endReason || plan.outcome) && (
-        <>
-          <h4>How it ended</h4>
-          {plan.endReason && <p>{plan.endReason}</p>}
-          {plan.outcome && <p className="pp-muted">Outcome: {plan.outcome}</p>}
-        </>
+        <label className="ip-field">How it ended
+          <p className="ip-static">{[plan.endReason, plan.outcome && `Outcome: ${plan.outcome}`].filter(Boolean).join('\n')}</p>
+        </label>
       )}
 
       {def && !isSupp && (
         <div className="ip-factor">
           <div className="lr-field"><label>Category</label>{segmented(INPUT_CATEGORIES.map((c) => ({ value: c.id, label: c.label })), def.category, (v) => patchDef({ category: v }))}</div>
           <div className="lr-field"><label>Verdict</label>{segmented(VERDICTS, def.verdict || null, (v) => patchDef({ verdict: v }))}</div>
-          <div className="lr-field"><label>Amount unit</label>
+          <div className="lr-field"><label>Counted in</label>
             <input className="lr-input boxed" placeholder="drinks, squares (optional)" defaultValue={def.unit || ''} maxLength={24} key={def.id}
               onBlur={(e) => { const u = e.target.value.trim(); if (u !== (def.unit || '')) patchDef({ unit: u || null }); }} />
           </div>
-          <div className="lr-field"><label>Daily check-in</label>
-            {segmented([{ value: true, label: 'Ask' }, { value: false, label: 'Don’t ask' }], def.askDaily !== false, (v) => patchDef({ askDaily: v }))}
+          <div className="lr-field" title="Rapid entry asks about it once a day"><label>Check-in</label>
+            {segmented([{ value: true, label: 'Ask daily' }, { value: false, label: 'Don’t ask' }], def.askDaily !== false, (v) => patchDef({ askDaily: v }))}
           </div>
         </div>
       )}
 
-      {plan && !plan.fromList && (
-        <p className="pp-src">
-          {SOURCE_LABELS[src.type] || 'Source'}{src.date ? ` · ${fmt(src.date)}` : ''}
-          {src.link && <> · <a href={src.link} target="_blank" rel="noreferrer">open</a></>}
-          {fromPractitioner && <span className="pp-muted"> · added by Claude. Your changes are kept if the plan is revised.</span>}
-        </p>
-      )}
-
-      {def && (
-        <>
-          <button type="button" className="ip-more" onClick={() => setMore((m) => !m)}>{more ? '▾' : '▸'} History{isSupp ? ' and chart settings' : ''}</button>
-          {more && (
-            <div className="ip-morebody">
-              {isSupp && (
-                <div className="lr-field">
-                  <label>Decay rate</label>
-                  <select className="lr-input boxed" value={def.halfLifeCategory || ''} onChange={(e) => patchDef({ halfLifeCategory: e.target.value || null })}>
-                    <option value="">Auto (moderate)</option>
-                    <option value="fast">Fast (~12 hours)</option>
-                    <option value="moderate">Moderate (~3 days)</option>
-                    <option value="slow">Slow (~21 days)</option>
-                  </select>
-                </div>
-              )}
-              <ChangeLog history={def.history} format={isSupp ? (e) => formatSupplementChange(e, def.unit) : formatInputChange} onRevert={isSupp ? revert : null} />
+      {more && def && (
+        <div className="ip-morebody">
+          {isSupp && (
+            <div className="lr-field" title="Used by the body-level chart">
+              <label>Decay rate</label>
+              <select className="lr-input boxed" value={def.halfLifeCategory || ''} onChange={(e) => patchDef({ halfLifeCategory: e.target.value || null })}>
+                <option value="">Auto (moderate)</option>
+                <option value="fast">Fast (~12 hours)</option>
+                <option value="moderate">Moderate (~3 days)</option>
+                <option value="slow">Slow (~21 days)</option>
+              </select>
             </div>
           )}
-        </>
+          <ChangeLog history={def.history} format={isSupp ? (e) => formatSupplementChange(e, def.unit) : formatInputChange} onRevert={isSupp ? revert : null} />
+        </div>
       )}
 
       {ending ? (
         <div className="pp-form ip-end">
-          <label>Why stop<input autoFocus value={endReason} onChange={(e) => setEndReason(e.target.value)} placeholder="Trial finished, side effects…" /></label>
-          <label>What you noticed<input value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="Less bloating, no change…" /></label>
+          <input autoFocus value={endReason} onChange={(e) => setEndReason(e.target.value)} placeholder="Why stop (optional)" />
+          <input value={outcome} onChange={(e) => setOutcome(e.target.value)} placeholder="What you noticed (optional)" />
           <div className="pp-actions">
             <button className="dn-btn primary" onClick={() => { onEnd(target, { endReason: endReason.trim(), outcome: outcome.trim() }); setEnding(false); }}>End today</button>
             <button className="dn-btn ghost" onClick={() => setEnding(false)}>Cancel</button>
           </div>
         </div>
       ) : (
-        <div className="pp-actions">
+        <div className="ip-foot">
           {hidden || (plan && phase === 'ended') ? (
             <>
-              {def && hidden && <button className="dn-btn" onClick={() => onRestore(target)}>Restore to my list</button>}
-              {def && hidden && onDelete && <button className="dn-btn ghost pp-danger" onClick={() => onDelete(def, kind)}>Delete</button>}
+              {def && hidden && <button className="dn-btn" onClick={() => onRestore(target)}>Restore</button>}
+              {def && hidden && onDelete && <button className="dn-btn ghost pp-danger" title="Delete it for good" onClick={() => onDelete(def, kind)}>Delete</button>}
             </>
           ) : (
-            phase !== 'upcoming' && <button className="dn-btn" onClick={() => (plan ? setEnding(true) : onEnd(target, {}))}>{plan ? 'End…' : 'Hide'}</button>
+            phase !== 'upcoming' && <button className="dn-btn" title={plan ? 'Stop it today. Its history is kept.' : 'Take it off the list. Its history is kept.'} onClick={() => (plan ? setEnding(true) : onEnd(target, {}))}>{plan ? 'End' : 'Hide'}</button>
           )}
-          {plan && <button className="dn-btn ghost pp-danger" onClick={() => onRemove(target)}>Remove</button>}
+          {plan && <button className="dn-btn ghost pp-danger" title="For something added by mistake. Can be undone." onClick={() => onRemove(target)}>Remove</button>}
+          <span className="ip-spacer" />
+          {plan && !plan.fromList && (
+            <span className="ip-src" title={`${SOURCE_LABELS[src.type] || 'Source'}${src.date ? ` · ${fmt(src.date)}` : ''}${fromPractitioner ? ' · added by Claude. Your changes are kept if the plan is revised.' : ''}`}>
+              {src.link ? <a href={src.link} target="_blank" rel="noreferrer">{(SOURCE_LABELS[src.type] || 'Source').split(' · ')[0]}{src.date ? ` · ${fmt(src.date, { month: 'short', day: 'numeric' })}` : ''}</a>
+                : <>{(SOURCE_LABELS[src.type] || 'Source').split(' · ')[0]}{src.date ? ` · ${fmt(src.date, { month: 'short', day: 'numeric' })}` : ''}</>}
+            </span>
+          )}
+          {def && <button type="button" className={`ip-hist ${more ? 'on' : ''}`} title="Change history and chart settings" aria-label="History" onClick={() => setMore((m) => !m)}>
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+          </button>}
         </div>
-      )}
-      {!ending && !hidden && phase === 'active' && (
-        <p className="pp-muted ip-hint">{plan ? 'End stops it today and keeps its history. Remove is for something added by mistake.' : 'Hide takes it off the list and keeps its history.'}</p>
       )}
     </div>
   );
