@@ -1,12 +1,10 @@
 import './desktopNav.css';
 import './mobileNav.css';
 import { formatDate } from '../utils/helpers';
-import { getScoreColor } from '../utils/healthScore';
-import { useHealthScore } from '../hooks/useHealthScore';
 
 
 // Mobile top bar: the day on the left (tap for the calendar; the day chips at the bottom step
-// days), or the Insights view switch; score and the ⋯ menu on the right.
+// days), or the Insights view switch; the ⋯ menu on the right.
 // Row two is filled by the active list: progress left, its one primary action right.
 export default function Header({
   selectedDate,
@@ -14,16 +12,11 @@ export default function Header({
   canGoForward,
   setShowCalendar,
   setCalendarMonth,
-  symptoms,
-  entries,
-  trackingMode,
   showInsights,
   slotRef,
   onMore,      // the ⋯ menu (Settings, Copy for AI, Clear day, Edit list…)
   moreOn,
 }) {
-  const { score, delta, rollingAvg } = useHealthScore(selectedDate, { symptoms, entries, trackingMode });
-  const scoreValue = score !== null ? score : rollingAvg;
   const isToday = selectedDate.toDateString() === new Date().toDateString();
 
   return (
@@ -45,15 +38,6 @@ export default function Header({
             </button>
             <span style={{ marginLeft: 'auto' }} />
           </>
-        )}
-        {scoreValue !== null && (
-          <div className="dn-score">
-            <span className="dn-ring" style={{ background: `conic-gradient(${getScoreColor(scoreValue)} ${scoreValue}%, rgba(255,255,255,.08) 0)` }} />
-            {scoreValue}%
-            {delta !== null && delta !== 0 && (
-              <small style={{ color: delta > 0 ? '#22c55e' : '#ef4444' }}>{delta > 0 ? '▲' : '▼'}{Math.abs(delta)}</small>
-            )}
-          </div>
         )}
         {onMore && (
           <button type="button" className={`mn-hmore${moreOn ? ' on' : ''}`} aria-label="More actions" aria-haspopup="menu" onClick={onMore}>

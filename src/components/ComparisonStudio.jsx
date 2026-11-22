@@ -14,7 +14,7 @@ import {
   getSleepDailySeries,
 } from '../utils/correlationHelpers';
 import { getProtocolEvents, normalRange, changeEffect, addDays } from '../utils/protocolEvents';
-import { getInputEvents, nextDayEffect } from '../utils/inputEvents';
+import { getInputEvents, nextDayEffect, majorEvents } from '../utils/inputEvents';
 import HealthScoreCompact from './HealthScoreCompact';
 import SeriesPicker from './SeriesPicker';
 import { useHealthScore } from '../hooks/useHealthScore';
@@ -455,15 +455,16 @@ export default function ComparisonStudio({
     });
   }, [allMarkers, dates, activeSymptoms, entries, trackingMode, todayStr]);
 
-  // The chart draws at most MAX_MARKERS lines, strongest shift first. Up to a month, changes with no clear shift
-  // (or too recent to judge) fill any lines left over, newest first; zoomed out further, only clear shifts are drawn.
+  // The chart draws at most MAX_MARKERS lines, strongest shift first. Under a month, changes with no clear shift
+  // (or too recent to judge) fill any lines left over, newest first; from a month up, only clear shifts are drawn.
   const protocolMarkers = useMemo(() => {
     const ranked = [...windowMarkers].sort((a, b) => b.strength - a.strength || (a.date < b.date ? 1 : -1));
-    const eligible = timeframe > 30 ? ranked.filter(m => m.strength > 0) : ranked;
+    const eligible = timeframe >= 30 ? ranked.filter(m => m.strength > 0) : ranked;
     return eligible.slice(0, MAX_MARKERS).sort((a, b) => a.idx - b.idx);
   }, [windowMarkers, timeframe, MAX_MARKERS]);
 
-  // One-off days from the protocol's inputs (alcohol, a food): every one in the window, with how the next day went
+  // One-off days from the protocol's inputs (alcohol, a food) with how the next day went: every one in a short
+  // window; from a month up, only the days whose next day clearly stood out
   const eventMarkers = useMemo(() => {
     const events = getInputEvents(inputItems, inputEntries);
     if (events.length === 0) return [];
@@ -483,7 +484,7 @@ export default function ComparisonStudio({
       if (!byDate.has(ev.date)) byDate.set(ev.date, { kind: 'event', key: `ev-${ev.date}`, date: ev.date, idx, events: [] });
       byDate.get(ev.date).events.push(ev);
     });
-    return [...byDate.values()].map((m) => {
+    const all = [...byDate.values()].map((m) => {
       const lead = m.events[0];
       const effect = nextDayEffect({
         date: m.date, todayStr, scoreFor, symptomFor, symptoms: activeSymptoms, eventDates,
@@ -491,7 +492,8 @@ export default function ComparisonStudio({
       });
       return { ...m, label: m.events.map(ev => ev.label).join(', '), effect };
     });
-  }, [inputItems, inputEntries, dates, symptoms, activeSymptoms, entries, trackingMode, todayStr]);
+    return timeframe >= 30 ? majorEvents(all, MAX_MARKERS) : all;
+  }, [inputItems, inputEntries, dates, symptoms, activeSymptoms, entries, trackingMode, todayStr, timeframe, MAX_MARKERS]);
 
   // Protocol changes and one-off days, in date order: the card under the chart steps through them
   const chartMarkers = useMemo(

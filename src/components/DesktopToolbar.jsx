@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import './desktopNav.css';
 import { formatDate } from '../utils/helpers';
-import { getScoreColor } from '../utils/healthScore';
-import { useHealthScore } from '../hooks/useHealthScore';
 
-const TABS = [
+// Sleep (only once Garmin nights exist) sits before Progress, which is always last
+const tabsFor = (sleepAvailable) => [
   { id: 'symptoms', label: 'Tracking' },
   { id: 'stack', label: 'Protocol' },
+  ...(sleepAvailable ? [{ id: 'sleep', label: 'Sleep' }] : []),
   { id: 'insights', label: 'Progress' },
 ];
 
@@ -34,7 +34,7 @@ function garminStatus(sync, days) {
 const Chevron = ({ points }) => <svg viewBox="0 0 24 24"><polyline points={points} /></svg>;
 
 // One row: where am I (tabs), which day, the active view's own controls (portalled into the slot),
-// then the score and a single menu for everything occasional.
+// then a single menu for everything occasional.
 export default function DesktopToolbar({
   // Date navigation
   selectedDate,
@@ -47,7 +47,6 @@ export default function DesktopToolbar({
   setAppMode,
   showInsights,
   setShowInsights,
-  trackingMode,
   // The active view portals its scope + actions into this node
   slotRef,
   // Action handlers
@@ -59,8 +58,6 @@ export default function DesktopToolbar({
   onClearDay,        // clears the active list's day (Tracking or Protocol)
   onMatchYesterday,  // Protocol only
   onArrange,         // Tracking only: the arrange screen (order, groups)
-  symptoms,
-  entries,
   garminSync,
   garminSleepDays,
   showSleep,
@@ -75,10 +72,6 @@ export default function DesktopToolbar({
   const isToday = selectedDate.toDateString() === new Date().toDateString();
   const activeTab = showSleep ? 'sleep' : showInsights ? 'insights' : appMode === 'symptoms' ? 'symptoms' : 'stack';
   const timeline = activeTab === 'stack' && showPlan;
-
-  const { score, delta, rollingAvg } = useHealthScore(selectedDate, { symptoms, entries, trackingMode });
-  const scoreValue = score !== null ? score : rollingAvg;
-  const scoreColor = scoreValue !== null ? getScoreColor(scoreValue) : null;
 
   const handleTabClick = (tab) => {
     onCloseSettings?.();
@@ -115,7 +108,7 @@ export default function DesktopToolbar({
     <div className="dn-top">
       <div className="dn-wrap">
         <div className="dn-seg" role="tablist">
-          {(sleepAvailable ? [...TABS, { id: 'sleep', label: 'Sleep' }] : TABS).map((tab) => (
+          {tabsFor(sleepAvailable).map((tab) => (
             <button key={tab.id} role="tab" aria-selected={!settingsOpen && activeTab === tab.id} className={!settingsOpen && activeTab === tab.id ? 'on' : ''} onClick={() => handleTabClick(tab.id)}>
               {tab.label}
             </button>
@@ -163,15 +156,6 @@ export default function DesktopToolbar({
             <div className="dn-seg sm" role="group" aria-label="Protocol view">
               <button className={timeline ? '' : 'on'} onClick={() => setShowPlan(false)}>Today</button>
               <button className={timeline ? 'on' : ''} onClick={() => setShowPlan(true)}>Timeline</button>
-            </div>
-          )}
-          {scoreValue !== null && (
-            <div className="dn-score" title="Health score">
-              <span className="dn-ring" style={{ background: `conic-gradient(${scoreColor} ${scoreValue}%, rgba(255,255,255,.08) 0)` }} />
-              {scoreValue}%
-              {delta !== null && delta !== 0 && (
-                <small style={{ color: delta > 0 ? '#22c55e' : '#ef4444' }}>{delta > 0 ? '▲' : '▼'} {Math.abs(delta)}</small>
-              )}
             </div>
           )}
           {/* Garmin sync status only matters on the Sleep tab */}
