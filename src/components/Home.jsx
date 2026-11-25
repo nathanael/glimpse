@@ -14,19 +14,12 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { solar } from './solarIcons';
-import { formatMinutes, sparkPath } from '../utils/homeStats';
 import { springs, reducedMotion } from './motion';
 import { primeKeyboard } from '../utils/primeKeyboard';
 import { FACTORS_LABEL } from '../utils/labels';
 import symptomsArt from '../assets/home/symptoms.jpg';
 import supplementsArt from '../assets/home/supplements.jpg';
 import './home.css';
-
-// A trend line across the bottom of a tile; nothing until there are two points.
-function Spark({ values }) {
-  const d = sparkPath(values, 120, 24);
-  return d ? <svg className="hm-spark" viewBox="0 0 120 24" preserveAspectRatio="none" aria-hidden="true"><path d={d} /></svg> : null;
-}
 
 // Garmin dates a night by the morning you woke up, so today's date is last night.
 function sleepWhen(date) {
@@ -83,15 +76,15 @@ export default function Home({
   // Each panel: the ways of logging as frosted bars, then the door into the full tab as plain
   // text under them.
   const { health, sleep, sleepError, supplements, factors } = stats;
-  const change = health.change == null || health.change === 0 ? '' : ` · ${health.change > 0 ? '↑' : '↓'} ${Math.abs(health.change)} this week`;
+  // Each tile is its title and one number, nothing else: the latest health score, the share of
+  // today's supplements taken, the latest sleep score.
+  const pct = supplements.due ? Math.round((supplements.taken / supplements.due) * 100) : null;
   const cards = [
     {
       id: 'tracking', title: 'Health tracking', art: symptomsArt, line: summary.symptoms, empty: 'Not checked in yet',
       stat: (
         <span className="hm-num">
           <b className={health.today == null ? 'none' : ''}>{health.today ?? '–'}</b>
-          <Spark values={health.points} />
-          <small>{health.today == null ? 'Not checked in yet' : `Health score${change}`}</small>
         </span>
       ),
       options: [
@@ -105,12 +98,10 @@ export default function Home({
     {
       // What you take and do: today's pills, the other factors, and the one Add for anything.
       id: 'protocol', title: 'Protocol', art: supplementsArt,
-      line: supplements.due ? `${supplements.taken} of ${supplements.due} supplements taken` : null, empty: 'Nothing due today',
+      line: supplements.due ? `${supplements.taken} of ${supplements.due} supplements taken${factors.total ? ` · ${FACTORS_LABEL.toLowerCase()} ${factors.logged} of ${factors.total}` : ''}` : null, empty: 'Nothing due today',
       stat: (
         <span className="hm-num">
-          <b className={supplements.due ? '' : 'none'}>{supplements.due ? <>{supplements.taken}<em>/{supplements.due}</em></> : '–'}</b>
-          {supplements.due > 0 && <span className="hm-bar" aria-hidden="true"><i style={{ width: `${Math.round((supplements.taken / supplements.due) * 100)}%` }} /></span>}
-          <small>{supplements.due ? 'Supplements taken' : 'No supplements due'}{factors.total ? ` · ${FACTORS_LABEL.toLowerCase()} ${factors.logged}/${factors.total}` : ''}</small>
+          <b className={pct == null ? 'none' : ''}>{pct == null ? '–' : <>{pct}<em>%</em></>}</b>
         </span>
       ),
       options: [
@@ -296,17 +287,14 @@ export default function Home({
           <span className="hm-face">
             <span className="hm-title">Sleep</span>
             {sleep ? (
+              // Dimmed when the night is 2+ days old; the only words are a sync problem, since a
+              // signed-out phone otherwise shows an old score as if it were current.
               <span className={`hm-num${sleepWhen(sleep.date).stale ? ' stale' : ''}`}>
-                <b>{formatMinutes(sleep.minutes)}</b>
-                <span className="hm-stages" aria-hidden="true">
-                  <i className="deep" style={{ flex: sleep.stages.deep }} />
-                  <i className="light" style={{ flex: sleep.stages.light }} />
-                  <i className="rem" style={{ flex: sleep.stages.rem }} />
-                </span>
-                <small>{sleepError ? `${sleepError[0].toUpperCase()}${sleepError.slice(1)} · ${sleepWhen(sleep.date).label}` : `${sleepWhen(sleep.date).label}${sleep.score != null ? ` · score ${sleep.score}` : ''}`}</small>
+                <b className={sleep.score == null ? 'none' : ''}>{sleep.score ?? '–'}</b>
+                {sleepError && <small>{`${sleepError[0].toUpperCase()}${sleepError.slice(1)} · ${sleepWhen(sleep.date).label}`}</small>}
               </span>
             ) : (
-              <span className="hm-num"><b className="none">–</b><small>No sleep data yet</small></span>
+              <span className="hm-num"><b className="none">–</b></span>
             )}
           </span>
         </button>
