@@ -46,11 +46,13 @@ export default function BottomNav({
         {/* The list's day actions, and its + directly above the ⋯ so it is always in the same spot */}
         {actions && (
           <div className="mn-dock-in mn-acts">
-            <div className="mn-acts-in">
-              {actions.buttons.map((b) => (
-                <button key={b.label} type="button" className={b.primary ? 'primary' : ''} onClick={b.onClick}>{b.label}</button>
-              ))}
-            </div>
+            {actions.buttons.length > 0 ? (
+              <div className="mn-acts-in">
+                {actions.buttons.map((b) => (
+                  <button key={b.label} type="button" className={b.primary ? 'primary' : ''} onClick={b.onClick}>{b.label}</button>
+                ))}
+              </div>
+            ) : <div style={{ flex: 1 }} />}
             <button type="button" className="mn-add" aria-label={actions.addLabel} onClick={actions.onAdd}>
               <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
             </button>

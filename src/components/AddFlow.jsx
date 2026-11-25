@@ -1,7 +1,7 @@
 // Adding a supplement or a symptom, one question per screen, full screen. Opened from the + in
 // the bottom bar and from Home's "Add …" buttons.
 //
-// Supplement: name → dose → when → review. Symptom: name → kind and group.
+// Supplement: name → dose → when → review. Symptom: name → kind and group. Other factor: name → kind, unit, repeat.
 // Typing a name that is already on the list (or hidden from it) offers that item instead of a
 // duplicate. Nothing is written until the last screen's button; closing early leaves no trace.
 // The records written are the same shape the edit lists always wrote.
@@ -10,7 +10,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getDateKey } from '../utils/helpers';
 import { createHistoryEntry } from '../utils/helpers';
 import { makeId } from '../utils/listHelpers';
-import { applySupplementPatch } from '../utils/protocolHistory';
+import { applySupplementPatch, applyInputPatch } from '../utils/protocolHistory';
+import { INPUT_CATEGORIES } from '../utils/constants';
 import { matchSupplementCategory } from '../utils/supplementLookup';
 import { createSymptomHistoryEntry, applySymptomPatch } from '../utils/symptomHistory';
 import { suggestGroup, groupNames, availableGroups, nextGroupOrder } from '../utils/symptomGroups';
@@ -169,13 +170,14 @@ export function WhenPicker({ schedule, setSchedule, time, setTime }) {
   );
 }
 
-export default function AddFlow({ kind, stackItems, setStackItems, symptoms, setSymptoms, setLastAction, onClose }) {
+export default function AddFlow({ kind, stackItems, setStackItems, symptoms, setSymptoms, inputItems = [], setInputItems, setLastAction, onClose }) {
   const rootRef = useRef(null);
   const nameRef = useRef(null);
   useRiseIn(rootRef);
   useFlowViewport(rootRef);
   const doneKey = useDoneKey(rootRef);
   const isSupp = kind === 'supplement';
+  const isFactor = kind === 'factor';
   const steps = isSupp ? 4 : 2;
   const [step, setStep] = useState(0);
   const stepRef = useRef(step);
@@ -192,6 +194,9 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
   const [wellbeing, setWellbeing] = useState(false);
   const [group, setGroup] = useState(undefined);   // undefined: the suggestion; null: none
   const [newGroup, setNewGroup] = useState(null);  // string while naming one
+  const [category, setCategory] = useState('activity');
+  const [factorUnit, setFactorUnit] = useState('');
+  const [repeat, setRepeat] = useState(false);
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -199,7 +204,7 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const list = (isSupp ? stackItems : symptoms).filter((i) => !isDeleted(i));
+  const list = (isSupp ? stackItems : isFactor ? inputItems : symptoms).filter((i) => !isDeleted(i));
   const trimmed = name.trim();
   const exact = list.find((i) => i.name.toLowerCase() === trimmed.toLowerCase());
   const matches = useMemo(() => {
@@ -210,11 +215,12 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
 
   const autoDecay = isSupp ? matchSupplementCategory(trimmed) || null : null;
   const groups = availableGroups(symptoms);
-  const suggested = !isSupp && !wellbeing ? suggestGroup(trimmed, '', groups) : null;
+  const suggested = !isSupp && !isFactor && !wellbeing ? suggestGroup(trimmed, '', groups) : null;
   const chosenGroup = wellbeing ? null : group === undefined ? suggested : group;
 
   const bringBack = (item) => {
     if (isSupp) setStackItems((prev) => prev.map((i) => (i.id === item.id ? applySupplementPatch(i, { active: true }) : i)));
+    else if (isFactor) setInputItems((prev) => prev.map((i) => (i.id === item.id ? applyInputPatch(i, { active: true }) : i)));
     else setSymptoms((prev) => prev.map((s) => (s.id === item.id ? applySymptomPatch(s, { active: true }) : s)));
     setLastAction(`Brought back ${item.name}`);
     onClose();
@@ -251,24 +257,37 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
     onClose();
   };
 
+  const addFactor = () => {
+    const order = Math.max(-1, ...inputItems.map((i) => i.order || 0)) + 1;
+    const unitText = factorUnit.trim();
+    const item = {
+      id: makeId(trimmed), name: trimmed, description: note.trim(), category, active: true, order, verdict: null, verdictDate: null,
+      ...(unitText ? { unit: unitText } : {}), ...(repeat ? { autoRepeat: true } : {}),
+    };
+    item.history = [{ timestamp: new Date().toISOString(), type: 'created', snapshot: { name: trimmed, description: item.description, category, active: true, verdict: null } }];
+    setInputItems((prev) => [...prev, item]);
+    setLastAction(`Added ${item.name}`);
+    onClose();
+  };
+
   const last = step === steps - 1;
   const canNext = step > 0 || (trimmed && !(exact && exact.active));
   const next = () => {
     if (!canNext) return;
     if (step === 0 && exact && !exact.active) return bringBack(exact);
     if (!last) return setStep(step + 1);
-    if (isSupp) addSupplement(); else addSymptom();
+    if (isSupp) addSupplement(); else if (isFactor) addFactor(); else addSymptom();
   };
   const nextFrom = (s) => () => { if (stepRef.current === s) next(); };
   const nextLabel = step === 0 && exact && !exact.active ? `Bring back ${exact.name}`
-    : last ? (isSupp ? 'Add to protocol' : 'Add to tracking') : 'Next';
+    : last ? (isSupp || isFactor ? 'Add to protocol' : 'Add to tracking') : 'Next';
 
-  const summary = (item) => isSupp
+  const summary = (item) => isFactor ? (INPUT_CATEGORIES.find((c) => c.id === item.category)?.label || 'Other factor') : isSupp
     ? `${item.defaultDose || ''} ${item.defaultDose ? item.unit : ''}${item.defaultDose ? ' · ' : ''}${scheduleText(item.schedule)}`
     : item.group || (item.kind === WELLBEING ? 'Wellbeing' : 'Symptom');
 
   return (
-    <div className={`fl ${isSupp ? '' : 'sym'}`} ref={rootRef} role="dialog" aria-label={isSupp ? 'Add supplement' : 'Add symptom'}>
+    <div className={`fl ${isSupp || isFactor ? '' : 'sym'}`} ref={rootRef} role="dialog" aria-label={isSupp ? 'Add supplement' : isFactor ? 'Add other factor' : 'Add symptom'}>
       <div className="fl-in">
         <div className="fl-top">
           {step > 0 && <Back onClick={() => setStep(step - 1)} />}
@@ -279,10 +298,10 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
         <div className="fl-body">
           {step === 0 && (
             <>
-              <h1>{isSupp ? 'What are you adding?' : 'What do you want to track?'}</h1>
-              <label className="fl-label" htmlFor="fl-name">{isSupp ? 'Supplement name' : 'Symptom name'}</label>
+              <h1>{isSupp || isFactor ? 'What are you adding?' : 'What do you want to track?'}</h1>
+              <label className="fl-label" htmlFor="fl-name">{isSupp ? 'Supplement name' : isFactor ? 'Other factor' : 'Symptom name'}</label>
               <input id="fl-name" ref={nameRef} className="fl-input big" autoComplete="off" autoCapitalize="words" value={name}
-                placeholder={isSupp ? 'e.g. Magnesium glycinate' : 'e.g. Brain fog'}
+                placeholder={isSupp ? 'e.g. Magnesium glycinate' : isFactor ? 'e.g. Meditation, Alcohol' : 'e.g. Brain fog'}
                 onChange={(e) => setName(e.target.value)} {...doneKey(nextFrom(0))} />
               {matches.length > 0 && (
                 <>
@@ -331,7 +350,27 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
             </>
           )}
 
-          {!isSupp && step === 1 && (
+          {isFactor && step === 1 && (
+            <>
+              <p className="fl-sub" style={{ marginTop: 26 }}>Adding</p>
+              <h1 style={{ marginTop: 4 }}>{trimmed}</h1>
+              <div className="fl-lbl">WHAT KIND</div>
+              <div className="fl-chips">
+                {INPUT_CATEGORIES.map((c) => <button key={c.id} type="button" className={category === c.id ? 'on' : ''} onClick={() => setCategory(c.id)}>{c.label}</button>)}
+              </div>
+              <div className="fl-lbl">TOMORROW</div>
+              <div className="fl-kinds">
+                <button type="button" className={repeat ? 'on' : ''} aria-pressed={repeat} onClick={() => setRepeat(true)}>Repeat tomorrow<small>A Yes today is checked tomorrow too, like a daily meditation.</small></button>
+                <button type="button" className={!repeat ? 'on' : ''} aria-pressed={!repeat} onClick={() => setRepeat(false)}>Ask fresh<small>Never assumed, like alcohol.</small></button>
+              </div>
+              <label className="fl-label" htmlFor="fl-unit" style={{ marginTop: 24 }}>Counted in (optional)</label>
+              <input id="fl-unit" className="fl-input" value={factorUnit} maxLength={24} placeholder="e.g. drinks, minutes" onChange={(e) => setFactorUnit(e.target.value)} enterKeyHint="done" />
+              <label className="fl-label" htmlFor="fl-note" style={{ marginTop: 24 }}>Description (optional)</label>
+              <input id="fl-note" className="fl-input" value={note} placeholder="e.g. 10 minutes, morning" onChange={(e) => setNote(e.target.value)} enterKeyHint="done" />
+            </>
+          )}
+
+          {!isSupp && !isFactor && step === 1 && (
             <>
               <p className="fl-sub" style={{ marginTop: 26 }}>Adding</p>
               <h1 style={{ marginTop: 4 }}>{trimmed}</h1>

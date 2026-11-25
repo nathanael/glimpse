@@ -1,4 +1,4 @@
-// One supplement or symptom on its own full-screen page: the last two weeks at a glance, each
+// One supplement, other factor or symptom on its own full-screen page: the last two weeks at a glance, each
 // setting as a row that opens a sheet to change it, the change log, then Hide and Delete.
 // Opened by swiping a row left and tapping Edit. Every change saves as it is made, through the
 // same patch helpers the edit lists use, so history entries are recorded the same way.
@@ -6,7 +6,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getDateKey, isScheduledForDate } from '../utils/helpers';
 import { getStripDateKeys, getSeverityStrip } from '../utils/listHelpers';
-import { applySupplementPatch, formatSupplementChange } from '../utils/protocolHistory';
+import { applySupplementPatch, formatSupplementChange, applyInputPatch, formatInputChange } from '../utils/protocolHistory';
+import { INPUT_CATEGORIES } from '../utils/constants';
+import { isYes, isNo } from '../utils/dailyFactors';
 import { applySymptomPatch, formatSymptomChange } from '../utils/symptomHistory';
 import { matchSupplementCategory } from '../utils/supplementLookup';
 import { availableGroups, nextGroupOrder } from '../utils/symptomGroups';
@@ -39,12 +41,13 @@ function Sheet({ title, onClose, onSave, children }) {
   );
 }
 
-export default function ItemPage({ kind, id, stackItems, setStackItems, stackEntries, symptoms, setSymptoms, entries, onDelete, setLastAction, onClose }) {
+export default function ItemPage({ kind, id, stackItems, setStackItems, stackEntries, symptoms, setSymptoms, entries, inputItems = [], setInputItems, inputEntries = {}, onDelete, setLastAction, onClose }) {
   const rootRef = useRef(null);
   useRiseIn(rootRef);
   useFlowViewport(rootRef);
+  const isFactor = kind === 'factor';
   const isSupp = kind === 'supplement';
-  const item = (isSupp ? stackItems : symptoms).find((i) => i.id === id);
+  const item = (isSupp ? stackItems : isFactor ? inputItems : symptoms).find((i) => i.id === id);
   const [sheet, setSheet] = useState(null);   // which setting is being changed
   const [draft, setDraft] = useState({});
 
@@ -61,6 +64,7 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
 
   const patch = (p) => (isSupp
     ? setStackItems((prev) => prev.map((i) => (i.id === id ? applySupplementPatch(i, p) : i)))
+    : isFactor ? setInputItems((prev) => prev.map((i) => (i.id === id ? applyInputPatch(i, p) : i)))
     : setSymptoms((prev) => prev.map((s) => (s.id === id ? applySymptomPatch(s, p) : s))));
 
   const open = (which) => {
@@ -68,7 +72,7 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
       name: item.name,
       note: item.description || '',
       dose: item.defaultDose ? String(item.defaultDose) : '',
-      unit: item.unit || 'mg',
+      unit: item.unit || (isFactor ? '' : 'mg'),
       schedule: item.schedule || { type: 'daily' },
       time: item.timeOfDay || null,
       group: item.group || null,
@@ -80,6 +84,7 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
   const save = () => {
     if (sheet === 'name' && draft.name.trim()) patch({ name: draft.name.trim() });
     if (sheet === 'note') patch({ description: draft.note.trim() });
+    if (sheet === 'unit') patch({ unit: draft.unit.trim() || null });
     if (sheet === 'dose') patch({ defaultDose: parseFloat(draft.dose) || 0, unit: draft.unit });
     if (sheet === 'when') {
       const startDate = item.schedule?.startDate || getDateKey(new Date());
@@ -107,27 +112,29 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
   };
 
   // Last 14 days: taken / rated, or not due
-  const strip = isSupp
+  const strip = isFactor
+    ? keys.map((k) => { const e = inputEntries[`${k}-${id}`]; return { k, cls: isYes(e) ? 'y' : isNo(e) ? 'skip' : '' }; })
+    : isSupp
     ? keys.map((k) => ({ k, cls: stackEntries[`${k}-${id}`] ? 'y' : isScheduledForDate(item.schedule, new Date(`${k}T12:00:00`)) ? '' : 'skip' }))
     : getSeverityStrip(entries, id, keys).map((v, i) => ({ k: keys[i], v }));
 
-  const history = (item.history || []).map((h) => ({ at: h.timestamp, text: isSupp ? formatSupplementChange(h, item.unit) : formatSymptomChange(h) }))
+  const history = (item.history || []).map((h) => ({ at: h.timestamp, text: isSupp ? formatSupplementChange(h, item.unit) : isFactor ? formatInputChange(h) : formatSymptomChange(h) }))
     .filter((h) => h.text).reverse().slice(0, 6);
   const autoDecay = matchSupplementCategory(item.name) || 'moderate';
   const groups = availableGroups(symptoms);
 
   return (
-    <div className={`fl ${isSupp ? '' : 'sym'}`} ref={rootRef} role="dialog" aria-label={item.name}>
+    <div className={`fl ${isSupp || isFactor ? '' : 'sym'}`} ref={rootRef} role="dialog" aria-label={item.name}>
       <div className="fl-in">
         <div className="fl-top"><span style={{ marginRight: 'auto', fontSize: 14, color: '#9ca3af' }}>Saves as you go</span><CloseButton onClick={onClose} /></div>
         <div className="fl-body">
           <h1 style={{ margin: '22px 0 4px' }}>{item.name}</h1>
           <p className="fl-sub" style={{ margin: 0 }}>
-            {isSupp ? `${item.defaultDose ? `${item.defaultDose} ${item.unit} · ` : ''}${scheduleText(item.schedule)}` : isWellbeing(item) ? 'Wellbeing, higher is better' : 'Symptom'}
+            {isFactor ? `${INPUT_CATEGORIES.find((c) => c.id === item.category)?.label || 'Other factor'}${item.autoRepeat ? ' · repeats daily' : ''}` : isSupp ? `${item.defaultDose ? `${item.defaultDose} ${item.unit} · ` : ''}${scheduleText(item.schedule)}` : isWellbeing(item) ? 'Wellbeing, higher is better' : 'Symptom'}
             {hidden ? ' · hidden' : ''}
           </p>
           <div className="fl-strip">
-            {strip.map((d) => (isSupp
+            {strip.map((d) => (isSupp || isFactor
               ? <i key={d.k} className={d.cls} />
               : <i key={d.k} style={d.v === null || d.v === undefined ? undefined : { background: STRIP_COLOR[colorIndex(item, Math.round(d.v))] }} />))}
           </div>
@@ -137,7 +144,32 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
             <button type="button" className="fl-field" onClick={() => open('name')}><span>Name</span><b>{item.name}</b><i /></button>
             {isSupp && <button type="button" className="fl-field" onClick={() => open('dose')}><span>Dose</span><b>{item.defaultDose ? `${item.defaultDose} ${item.unit}` : 'No set dose'}</b><i /></button>}
             {isSupp && <button type="button" className="fl-field" onClick={() => open('when')}><span>When</span><b>{scheduleText(item.schedule)}{item.timeOfDay ? ` · ${timeLabel(item.timeOfDay)}` : ''}</b><i /></button>}
-            {!isSupp && !isWellbeing(item) && <button type="button" className="fl-field" onClick={() => open('group')}><span>Group</span><b>{item.group || 'None'}</b><i /></button>}
+            {isFactor && (
+              <>
+                <label className="fl-field">
+                  <span>Kind</span>
+                  <select value={item.category || 'food'} onChange={(e) => patch({ category: e.target.value })}>
+                    {INPUT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  </select>
+                </label>
+                <button type="button" className="fl-field" onClick={() => open('unit')}><span>Counted in</span><b style={item.unit ? undefined : { color: '#6b7280' }}>{item.unit || 'No unit'}</b><i /></button>
+                <label className="fl-field">
+                  <span>Rapid entry</span>
+                  <select value={item.askDaily === false ? 'no' : 'yes'} onChange={(e) => patch({ askDaily: e.target.value === 'yes' })}>
+                    <option value="yes">Ask daily</option>
+                    <option value="no">Don’t ask</option>
+                  </select>
+                </label>
+                <label className="fl-field">
+                  <span>Tomorrow</span>
+                  <select value={item.autoRepeat ? 'yes' : 'no'} onChange={(e) => patch({ autoRepeat: e.target.value === 'yes' })}>
+                    <option value="yes">Repeat a Yes</option>
+                    <option value="no">Ask fresh</option>
+                  </select>
+                </label>
+              </>
+            )}
+            {!isSupp && !isFactor && !isWellbeing(item) && <button type="button" className="fl-field" onClick={() => open('group')}><span>Group</span><b>{item.group || 'None'}</b><i /></button>}
             <button type="button" className="fl-field" onClick={() => open('note')}><span>Description</span><b style={item.description ? undefined : { color: '#6b7280' }}>{item.description || 'Add a description'}</b><i /></button>
             {isSupp && (
               <label className="fl-field">
@@ -172,6 +204,11 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
       {sheet === 'note' && (
         <Sheet title="Description" onClose={() => setSheet(null)} onSave={save}>
           <SheetInput className="fl-input" value={draft.note} placeholder="e.g. with dinner, for sleep" onChange={(e) => set('note')(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') save(); }} />
+        </Sheet>
+      )}
+      {sheet === 'unit' && (
+        <Sheet title="Counted in" onClose={() => setSheet(null)} onSave={save}>
+          <SheetInput className="fl-input" value={draft.unit} maxLength={24} placeholder="e.g. drinks, minutes" onChange={(e) => set('unit')(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') save(); }} />
         </Sheet>
       )}
       {sheet === 'dose' && (

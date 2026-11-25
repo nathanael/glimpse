@@ -49,6 +49,7 @@ import {
 } from './utils/helpers';
 import { clearDay, restoreDay } from './utils/listHelpers';
 import { liveItems, markDeleted, restoreDeleted, isExpired, removeEntriesFor } from './utils/softDelete';
+import { repeatedEntries } from './utils/dailyFactors';
 import { summaryLines, supplementsTaken } from './utils/homeSummary';
 import { healthTrend, lastSleep, bpTrend } from './utils/homeStats';
 
@@ -560,7 +561,7 @@ function App() {
     }
   }, [lastAction]);
 
-  // Auto-prefill today's stack and inputs from yesterday's checked entries.
+  // Auto-prefill today's stack from yesterday's checked entries, and today's repeating factors.
   // Uses refs to read latest data without causing re-triggers, and re-runs
   // when sync becomes ready (so cloud data is included).
   const stackEntriesRef = useRef(stackEntries);
@@ -611,30 +612,13 @@ function App() {
       });
     }
 
-    // Prefill input entries (per-item, skipping items that already have today's entry)
-    const currentInputEntries = inputEntriesRef.current;
-    const currentInputItems = inputItemsRef.current;
-    const yesterdayInputEntries = Object.entries(currentInputEntries).filter(([key]) => key.startsWith(yesterdayKey));
-    if (yesterdayInputEntries.length > 0) {
-      setInputEntries(prev => {
-        const newEntries = { ...prev };
-        let changed = false;
-        yesterdayInputEntries.forEach(([key, entry]) => {
-          const inputId = key.substring(yesterdayKey.length + 1);
-          const todayEntryKey = `${todayKey}-${inputId}`;
-          if (newEntries[todayEntryKey]) return; // already has today's entry
-          const item = currentInputItems.find(i => i.id === inputId);
-          if (item && item.active) {
-            newEntries[todayEntryKey] = {
-              date: todayKey,
-              inputId,
-              logged: true,
-              count: entry.count || 1,
-            };
-            changed = true;
-          }
-        });
-        return changed ? newEntries : prev;
+    // Other factors: only those set to repeat carry a "Yes" over. The rest are never prefilled, since a
+    // copied answer reads as answered and Rapid entry would skip asking (and a copied "No" became "Yes ×1").
+    const repeated = repeatedEntries(inputItemsRef.current, inputEntriesRef.current, yesterdayKey, todayKey);
+    if (Object.keys(repeated).length > 0) {
+      setInputEntries((prev) => {
+        const add = Object.fromEntries(Object.entries(repeated).filter(([k]) => !prev[k]));
+        return Object.keys(add).length ? { ...prev, ...add } : prev;
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -979,6 +963,11 @@ function App() {
       onAdd: () => setAddFlow('supplement'),
       addLabel: 'Add supplement',
     }
+    : appMode === 'stack' && !protocolEditMode && protocolTab === 'f' ? {
+      buttons: [],
+      onAdd: () => setAddFlow('factor'),
+      addLabel: 'Add other factor',
+    }
     : appMode === 'symptoms' && !symptomEditMode ? {
       buttons: [
         { label: 'Talk it through', onClick: () => openTalkMode() },
@@ -1151,7 +1140,7 @@ function App() {
                 onClearDay={protocolClearDay}
                 onMatchYesterday={protocolMatchYesterday}
                 onDeleteItem={(item, kind) => softDeleteItem(kind, item)}
-                onEditItem={(item) => setItemPage({ kind: 'supplement', id: item.id })}
+                onEditItem={(item, kind = 'supplement') => setItemPage({ kind, id: item.id })}
                 editing={protocolEditMode}
                 setEditing={setProtocolEditMode}
                 keyboardEnabled={listKeyboardEnabled}
@@ -1302,7 +1291,7 @@ function App() {
                 onClearDay={protocolClearDay}
                 onMatchYesterday={protocolMatchYesterday}
                 onDeleteItem={(item, kind) => softDeleteItem(kind, item)}
-                onEditItem={(item) => setItemPage({ kind: 'supplement', id: item.id })}
+                onEditItem={(item, kind = 'supplement') => setItemPage({ kind, id: item.id })}
                 editing={protocolEditMode}
                 setEditing={setProtocolEditMode}
                 keyboardEnabled={listKeyboardEnabled}
@@ -1346,6 +1335,8 @@ function App() {
           setStackItems={setStackItems}
           symptoms={symptoms}
           setSymptoms={setSymptoms}
+          inputItems={inputItems}
+          setInputItems={setInputItems}
           setLastAction={setLastAction}
           onClose={() => setAddFlow(null)}
         />
@@ -1361,6 +1352,9 @@ function App() {
           symptoms={symptoms}
           setSymptoms={setSymptoms}
           entries={entries}
+          inputItems={inputItems}
+          setInputItems={setInputItems}
+          inputEntries={inputEntries}
           onDelete={(item) => softDeleteItem(itemPage.kind, item)}
           setLastAction={setLastAction}
           onClose={() => setItemPage(null)}

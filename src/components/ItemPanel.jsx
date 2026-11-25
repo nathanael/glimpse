@@ -200,6 +200,9 @@ export default function ItemPanel({
           <div className="lr-field" title="Rapid entry asks about it once a day"><label>Check-in</label>
             {segmented([{ value: true, label: 'Ask daily' }, { value: false, label: 'Don’t ask' }], def.askDaily !== false, (v) => patchDef({ askDaily: v }))}
           </div>
+          <div className="lr-field" title="A Yes yesterday checks it today (for daily habits, not for things like alcohol)"><label>Tomorrow</label>
+            {segmented([{ value: true, label: 'Repeat' }, { value: false, label: 'Ask fresh' }], !!def.autoRepeat, (v) => patchDef({ autoRepeat: v }))}
+          </div>
         </div>
       )}
 

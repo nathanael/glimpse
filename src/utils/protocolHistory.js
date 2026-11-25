@@ -11,7 +11,7 @@ export const applySupplementPatch = (item, patch) => {
   return next;
 };
 
-const INPUT_FIELDS = ['name', 'description', 'category', 'verdict', 'active'];
+const INPUT_FIELDS = ['name', 'description', 'category', 'verdict', 'active', 'unit', 'askDaily', 'autoRepeat'];
 
 // Apply a patch to an input ("other factor"); stamps verdictDate when the verdict changes
 export const applyInputPatch = (item, patch) => {
@@ -61,6 +61,9 @@ export const formatInputChange = (entry) => {
     else if (field === 'category' && change.from !== change.to) parts.push(`Category: ${label(change.from)} → ${label(change.to)}`);
     else if (field === 'description' && change.from !== change.to) parts.push('Description changed');
     else if (field === 'verdict' && (change.from || 'none') !== (change.to || 'none')) parts.push(`Verdict: ${change.from || 'none'} → ${change.to || 'none'}`);
+    else if (field === 'unit' && (change.from || '') !== (change.to || '')) parts.push(`Unit: ${change.from || 'none'} → ${change.to || 'none'}`);
+    else if (field === 'askDaily' && (change.from !== false) !== (change.to !== false)) parts.push(change.to === false ? 'Not asked in Rapid entry' : 'Asked in Rapid entry');
+    else if (field === 'autoRepeat' && !!change.from !== !!change.to) parts.push(change.to ? 'Repeats tomorrow' : 'No longer repeats');
   });
   return parts.join(', ') || null;
 };

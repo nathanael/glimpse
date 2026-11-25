@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { isAnswered, isYes, isNo, countOf, noEntry, yesEntry, dailyFactors, factorPeriodId, amountLabel } from '../dailyFactors';
+import { repeatedEntries } from '../dailyFactors';
 import { getInputEvents } from '../inputEvents';
 
 describe('dailyFactors', () => {
@@ -36,5 +37,27 @@ describe('dailyFactors', () => {
   it('labels amounts with the unit', () => {
     expect(amountLabel({ unit: 'drinks' }, 2)).toBe('2 drinks');
     expect(amountLabel({}, 3)).toBe('×3');
+  });
+});
+
+describe('repeatedEntries', () => {
+  const items = [
+    { id: 'med', name: 'Meditation', active: true, autoRepeat: true },
+    { id: 'alc', name: 'Alcohol', active: true },
+    { id: 'walk', name: 'Walk', active: true, autoRepeat: true },
+  ];
+  it('carries a Yes into today only for factors set to repeat', () => {
+    const entries = {
+      '2026-11-24-med': { logged: true, count: 2 },
+      '2026-11-24-alc': { logged: true, count: 3 },
+      '2026-11-24-walk': { logged: false, count: 0 },
+    };
+    const out = repeatedEntries(items, entries, '2026-11-24', '2026-11-25');
+    expect(Object.keys(out)).toEqual(['2026-11-25-med']);
+    expect(out['2026-11-25-med']).toMatchObject({ logged: true, count: 2, date: '2026-11-25', inputId: 'med' });
+  });
+  it('never overwrites an answer already given today', () => {
+    const entries = { '2026-11-24-med': { logged: true, count: 1 }, '2026-11-25-med': { logged: false, count: 0 } };
+    expect(repeatedEntries(items, entries, '2026-11-24', '2026-11-25')).toEqual({});
   });
 });

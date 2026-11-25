@@ -37,10 +37,15 @@ export default function RapidEntry({
   const entryKey = (symptom, periodId) => queue.entryKey(dateKey, symptom.id, periodId);
   const factors = useMemo(() => (setInputEntries ? dailyFactors(inputItems) : []), [inputItems, setInputEntries]);
   const factorPeriod = factorPeriodId(timePeriods);
-  const factorEntry = (item, dk = dateKey) => inputEntries[factorKey(dk, item.id)];
+  const prevKey = (() => { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); return getDateKey(d); })();
+  // A factor card answers for its own day (`_day`): today's in the last period, and in the
+  // earlier period (AM) yesterday's, for any factor yesterday left unanswered.
+  const factorEntry = (item, dk = dateKey) => inputEntries[factorKey(item._day || dk, item.id)];
   const listFor = (periodId) => [
     ...queue.listFor(symptoms, periodId),
-    ...(periodId === factorPeriod ? factors.map((f) => ({ ...f, _factor: true })) : []),
+    ...(periodId === factorPeriod
+      ? factors.map((f) => ({ ...f, _factor: true }))
+      : factors.filter((f) => !isAnswered(inputEntries[factorKey(prevKey, f.id)])).map((f) => ({ ...f, _factor: true, _day: prevKey }))),
   ];
   const loggedOn = (item, periodId, dk = dateKey) =>
     item._factor ? isAnswered(factorEntry(item, dk)) : !!entries[queue.entryKey(dk, item.id, periodId)];
@@ -130,14 +135,15 @@ export default function RapidEntry({
   // A factor: 0 is "No", any other number is "Yes, this many". Tapping the chosen answer again clears it.
   const answerFactor = (count) => {
     const item = current;
-    const key = factorKey(dateKey, item.id);
+    const day = item._day || dateKey;
+    const key = factorKey(day, item.id);
     const prev = inputEntries[key];
     const same = count === 0 ? isNo(prev) : countOf(prev) === count;
     const wasAnswered = isAnswered(prev);
     setInputEntries((all) => {
       const next = { ...all };
       if (same) delete next[key];
-      else next[key] = count === 0 ? noEntry(dateKey, item.id) : yesEntry(dateKey, item.id, count, all[key]);
+      else next[key] = count === 0 ? noEntry(day, item.id) : yesEntry(day, item.id, count, all[key]);
       return next;
     });
     if (same || wasAnswered) return; // clearing or editing an earlier answer: stay put
@@ -180,7 +186,7 @@ export default function RapidEntry({
     if (list.some((s) => s._factor)) {
       setInputEntries((prev) => {
         const next = { ...prev };
-        factors.forEach((f) => delete next[factorKey(dateKey, f.id)]);
+        list.forEach((f) => { if (f._factor) delete next[factorKey(f._day || dateKey, f.id)]; });
         return next;
       });
     }
@@ -267,7 +273,7 @@ export default function RapidEntry({
         </div>
 
         <div className="re-symptom">
-          {current._factor && <span className="re-kind factor">Today · {current.unit ? `how many ${current.unit}?` : 'how many?'}</span>}
+          {current._factor && <span className="re-kind factor">{current._day ? 'Yesterday' : 'Today'} · {current.unit ? `how many ${current.unit}?` : 'how many?'}</span>}
           {!current._factor && isWellbeing(current) && <span className="re-kind">Wellbeing · 0 absent, 5 excellent</span>}
           <h1>{current.name}</h1>
           <p>{current.description}</p>

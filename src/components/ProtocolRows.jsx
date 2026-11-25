@@ -401,6 +401,10 @@ export default function ProtocolRows({
               <label>Daily check-in</label>
               {segmented([{ value: true, label: 'Ask in Rapid entry' }, { value: false, label: 'Don’t ask' }], item.askDaily !== false, (v) => patchFactor(item.id, { askDaily: v }))}
             </div>
+            <div className="lr-field" title="A Yes yesterday checks it today (for daily habits, not for things like alcohol)">
+              <label>Tomorrow</label>
+              {segmented([{ value: true, label: 'Repeat tomorrow' }, { value: false, label: 'Ask fresh' }], !!item.autoRepeat, (v) => patchFactor(item.id, { autoRepeat: v }))}
+            </div>
           </>
         )}
         <ChangeLog
@@ -546,7 +550,7 @@ export default function ProtocolRows({
 
   // Mobile: swipe a row left for Edit (the item's own page) and Hide
   const swipeActions = (item, kind) => (isDesktop ? null : [
-    ...(onEditItem && kind === 'supplement' ? [{ label: 'Edit', icon: swipeIcons.edit, onClick: () => onEditItem(item) }] : []),
+    ...(onEditItem ? [{ label: 'Edit', icon: swipeIcons.edit, onClick: () => onEditItem(item, kind) }] : []),
     { label: 'Hide', icon: swipeIcons.hide, tone: 'warn', onClick: () => { patch(kind, item.id, { active: false }); setLastAction(`${item.name} hidden (history kept)`); } },
   ]);
 
