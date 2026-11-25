@@ -15,7 +15,4 @@
 .db-date { flex: 1; min-width: 0; text-align: center; display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
 .db-date b { font-size: 15px; font-weight: 700; color: #f3f4f6; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
 .db-date small { font-size: 11px; font-weight: 500; color: #8b93a1; white-space: nowrap; }
-.db-date i { width: 6px; height: 6px; border-radius: 50%; }
-.db-date i.full { background: #a78bfa; }
-.db-date i.part { background: #5b4a99; }
 .db-sl:empty { background: none; }

@@ -18,7 +18,6 @@ function dayLabel(d) {
 export default function DayBar({
   selectedDate,   // omit for a screen without days (Progress)
   onSelect,       // (date)
-  status,         // (date) => 'full' | 'part' | ''
   onHome,
   onSwitch,       // omit where there is nothing to switch to
   switchLabel,    // e.g. 'Advanced tracking'
@@ -27,7 +26,6 @@ export default function DayBar({
   const isToday = day && day.getTime() >= startOfDay(new Date()).getTime();
   const shift = (n) => { const d = new Date(day); d.setDate(d.getDate() + n); onSelect(d); };
   const when = day ? dayLabel(day) : null;
-  const s = day && status ? status(day) : '';
 
   return (
     <div className="db">
@@ -41,7 +39,7 @@ export default function DayBar({
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
             </button>
             <div className="db-date" aria-live="polite" key={getDateKey(day)}>
-              <b>{when.label}{s && <i className={s} aria-label={s === 'full' ? 'done' : 'part done'} />}</b>
+              <b>{when.label}</b>
               <small>{when.sub}</small>
             </div>
             <button type="button" className="db-arr" aria-label="Next day" disabled={isToday} onClick={() => shift(1)}>
