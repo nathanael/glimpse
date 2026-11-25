@@ -27,7 +27,6 @@
 .re-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .re-key { position: relative; aspect-ratio: 1; border-radius: 16px; border: 1px solid rgba(255,255,255,.1); background: #0e0f11; color: var(--c, #d1d5db); font-size: 26px; font-weight: 600; display: grid; place-items: center; transition: transform .06s, background .12s, border-color .12s; }
 .re-key:active { transform: scale(.97); background: color-mix(in srgb, var(--c) 14%, #0e0f11); }
-.re-key.last { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, #0e0f11); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent); }
 .re-key.last::after { content: "last"; position: absolute; bottom: 7px; font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: #6b7280; }
 .re-key.on { background: color-mix(in srgb, var(--c) 20%, #0e0f11); border-color: var(--c); }
 .re-key.on::after { content: "✓"; position: absolute; top: 7px; right: 10px; bottom: auto; font-size: 12px; color: var(--c); }
