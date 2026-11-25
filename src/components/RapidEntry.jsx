@@ -277,9 +277,6 @@ export default function RapidEntry({
           {!current._factor && isWellbeing(current) && <span className="re-kind">Wellbeing · 0 absent, 5 excellent</span>}
           <h1>{current.name}</h1>
           <p>{current.description}</p>
-          {lastSeverity !== null && currentSeverity === undefined && (
-            <span className="re-last">Last time <b style={{ color: severityColors[colorIndex(current, lastSeverity)] }}>{lastSeverity}</b></span>
-          )}
         </div>
 
         <div className="re-pad">

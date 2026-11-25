@@ -22,8 +22,6 @@
 .re-symptom { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 16px 24px; text-align: center; }
 .re-symptom h1 { margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -.02em; line-height: 1.2; }
 .re-symptom p { margin: 0; color: #6b7280; font-size: 14.5px; min-height: 1.4em; }
-.re-last { margin-top: 6px; padding: 3px 10px; border-radius: 99px; border: 1px solid rgba(255,255,255,.07); color: #9ca3af; font-size: 12px; }
-.re-last b { font-weight: 600; }
 
 .re-pad { flex: none; padding: 0 12px calc(14px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; }
 .re-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
