@@ -1,6 +1,6 @@
 import { daysUntilPurge, isDeleted } from '../utils/softDelete';
 
-const KIND_LABEL = { symptom: '', supplement: 'Supplement', factor: 'Factor' };
+const KIND_LABEL = { symptom: '', supplement: 'Supplement', factor: 'Habit' };
 
 // Hidden and deleted items whose name or description matches the search.
 // lists: [[kind, items], ...] with every item, including hidden and soft-deleted ones.

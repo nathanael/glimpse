@@ -58,7 +58,7 @@ export function PlanDetail({ item, todayKey, onEnd, onEdit, onRemove, onAddToLis
         {item.author && item.author !== 'nate' && <span className="pp-muted"> · added by Claude</span>}
         {item.fromList && <span className="pp-muted"> · from your supplement list</span>}
       </p>
-      {item.linked && <p className="pp-muted">On your {item.linked.kind === 'factor' ? 'Other factors' : 'supplement'} list</p>}
+      {item.linked && <p className="pp-muted">On your {item.linked.kind === 'factor' ? 'habits' : 'supplement'} list</p>}
       {ending ? (
         <div className="pp-form">
           <label>Why stop<input value={endReason} onChange={(e) => setEndReason(e.target.value)} placeholder="Trial finished, side effects…" /></label>

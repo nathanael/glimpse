@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import './listUi.css';
 import { INPUT_CATEGORIES, VERDICT_COLORS } from '../utils/constants';
 import { isYes, isNo, countOf, amountLabel } from '../utils/dailyFactors';
-import { FACTORS_LABEL } from '../utils/labels';
+import { FACTORS_LABEL, FACTOR_LABEL } from '../utils/labels';
 import {
   getDateKey,
   haptic,
@@ -520,9 +520,9 @@ export default function ProtocolRows({
         <div className="lr-sec"><b>SUPPLEMENTS</b> {activeSupplements.length} active</div>
         {activeSupplements.map((item) => renderEditRow({ item, kind: 'supplement' }, false))}
         {renderAddRow('supplement', 'Add supplement')}
-        <div className="lr-sec"><b>OTHER FACTORS</b> {activeFactors.length} active</div>
+        <div className="lr-sec"><b>{FACTORS_LABEL.toUpperCase()}</b> {activeFactors.length} active</div>
         {activeFactors.map((item) => renderEditRow({ item, kind: 'factor' }, false))}
-        {renderAddRow('factor', 'Add factor')}
+        {renderAddRow('factor', `Add ${FACTOR_LABEL.toLowerCase()}`)}
         {hiddenRows.length > 0 && (
           <>
             <div className="lr-sec">HIDDEN · {hiddenRows.length} · history is kept</div>

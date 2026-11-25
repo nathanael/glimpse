@@ -130,7 +130,7 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
         <div className="fl-body">
           <h1 style={{ margin: '22px 0 4px' }}>{item.name}</h1>
           <p className="fl-sub" style={{ margin: 0 }}>
-            {isFactor ? `${INPUT_CATEGORIES.find((c) => c.id === item.category)?.label || 'Other factor'}${item.autoRepeat ? ' · repeats daily' : ''}` : isSupp ? `${item.defaultDose ? `${item.defaultDose} ${item.unit} · ` : ''}${scheduleText(item.schedule)}` : isWellbeing(item) ? 'Wellbeing, higher is better' : 'Symptom'}
+            {isFactor ? `${INPUT_CATEGORIES.find((c) => c.id === item.category)?.label || 'Habit'}${item.autoRepeat ? ' · repeats daily' : ''}` : isSupp ? `${item.defaultDose ? `${item.defaultDose} ${item.unit} · ` : ''}${scheduleText(item.schedule)}` : isWellbeing(item) ? 'Wellbeing, higher is better' : 'Symptom'}
             {hidden ? ' · hidden' : ''}
           </p>
           <div className="fl-strip">

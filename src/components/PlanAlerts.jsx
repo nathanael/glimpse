@@ -109,7 +109,7 @@ export default function PlanAlerts({ plan, todayKey, stackItems, inputItems, onA
   }
   const label = type === 'end' ? 'Time to stop'
     : item.kind === 'test' ? 'Today'
-      : `Added to your ${isFactor ? 'factors' : 'supplements'}`;
+      : `Added to your ${isFactor ? 'habits' : 'supplements'}`;
   const why = type === 'end' ? item.endReason : item.reason;
 
   return (

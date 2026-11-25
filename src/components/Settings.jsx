@@ -361,7 +361,7 @@ export default function Settings({
   const recentlyDeleted = [
     ...(symptoms || []).filter(isDeleted).map(item => ({ kind: 'symptom', label: 'Symptom', item, entryCount: countEntriesFor(entries, item.id, 'symptomId') })),
     ...(stackItems || []).filter(isDeleted).map(item => ({ kind: 'supplement', label: 'Supplement', item, entryCount: countEntriesFor(stackEntries, item.id, 'itemId') })),
-    ...(inputItems || []).filter(isDeleted).map(item => ({ kind: 'factor', label: 'Factor', item, entryCount: countEntriesFor(inputEntries, item.id, 'inputId') })),
+    ...(inputItems || []).filter(isDeleted).map(item => ({ kind: 'factor', label: 'Habit', item, entryCount: countEntriesFor(inputEntries, item.id, 'inputId') })),
   ].map(row => ({ ...row, daysLeft: daysUntilPurge(row.item) }))
     .sort((a, b) => a.daysLeft - b.daysLeft);
 

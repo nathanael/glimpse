@@ -1,4 +1,4 @@
-// User-facing names that may change. "Other factors" is up for renaming: change it here and every
+// User-facing names that may change. The list of non-supplement inputs (meditation, alcohol) was "Other factors" until v6.58.0: change it here and every
 // screen that says it follows.
-export const FACTORS_LABEL = 'Other factors';
-export const FACTOR_LABEL = 'Other factor';
+export const FACTORS_LABEL = 'Habits';
+export const FACTOR_LABEL = 'Habit';

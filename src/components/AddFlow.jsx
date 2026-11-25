@@ -177,7 +177,7 @@ export function WhenPicker({ schedule, setSchedule, time, setTime }) {
 const KINDS = [
   { id: 'symptom', label: 'Symptom', hint: 'Something you rate, like brain fog or energy.' },
   { id: 'supplement', label: 'Supplement', hint: 'A pill, powder or drop you take, with a dose.' },
-  { id: 'factor', label: FACTOR_LABEL, hint: 'Anything else you do or have, like meditation or alcohol.' },
+  { id: 'factor', label: FACTOR_LABEL, hint: 'Something you do day to day, like meditation or alcohol.' },
 ];
 const LIST_NAME = { symptom: 'symptom', supplement: 'supplement', factor: FACTORS_LABEL };
 
