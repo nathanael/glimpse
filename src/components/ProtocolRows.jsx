@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import './listUi.css';
 import { INPUT_CATEGORIES, VERDICT_COLORS } from '../utils/constants';
 import { isYes, isNo, countOf, amountLabel } from '../utils/dailyFactors';
+import { FACTORS_LABEL } from '../utils/labels';
 import {
   getDateKey,
   haptic,
@@ -691,7 +692,7 @@ export default function ProtocolRows({
       {!isDesktop && (
         <div className="lr-tabs" role="tablist">
           <button type="button" role="tab" aria-selected={tab === 's'} className={tab === 's' ? 'on' : ''} onClick={() => setTab('s')}>Supplements <span>{takenCount}/{dueItems.length}</span></button>
-          <button type="button" role="tab" aria-selected={tab === 'f'} className={tab === 'f' ? 'on' : ''} onClick={() => setTab('f')}>Other factors <span>{loggedCount}/{factors.length}</span></button>
+          <button type="button" role="tab" aria-selected={tab === 'f'} className={tab === 'f' ? 'on' : ''} onClick={() => setTab('f')}>{FACTORS_LABEL} <span>{loggedCount}/{factors.length}</span></button>
         </div>
       )}
       {showS && !isDesktop && dueItems.length > 0 && (

@@ -50,7 +50,8 @@ import {
 import { clearDay, restoreDay } from './utils/listHelpers';
 import { liveItems, markDeleted, restoreDeleted, isExpired, removeEntriesFor } from './utils/softDelete';
 import { repeatedEntries } from './utils/dailyFactors';
-import { summaryLines, supplementsTaken } from './utils/homeSummary';
+import { summaryLines, supplementsTaken, factorsLogged } from './utils/homeSummary';
+import { FACTOR_LABEL } from './utils/labels';
 import { healthTrend, lastSleep, bpTrend } from './utils/homeStats';
 
 // Components
@@ -267,7 +268,7 @@ function App() {
   const [protocolEditMode, setProtocolEditMode] = useState(false);
   // One-shot: Home's "Add symptom" / "Add supplement" opens the list in edit mode with its new
   // row's name field already open; the list clears this once it has opened the row.
-  const [addFlow, setAddFlow] = useState(null);     // 'supplement' | 'symptom' | null: the step-by-step add
+  const [addFlow, setAddFlow] = useState(null);     // 'supplement' | 'symptom' | 'factor' | 'any' (asks which) | null: the step-by-step add
   const [protocolTab, setProtocolTab] = useState('s'); // phone Supplements list: 's' supplements | 'f' other factors
   const [itemPage, setItemPage] = useState(null);   // { kind, id }: one item's full-screen settings
 
@@ -389,16 +390,17 @@ function App() {
   // Soft-deleted items stay in state (and sync) until purged, but nothing renders them
   const liveSymptoms = useMemo(() => liveItems(symptoms), [symptoms]);
   const liveStackItems = useMemo(() => liveItems(stackItems), [stackItems]);
+  const liveInputItems = useMemo(() => liveItems(inputItems), [inputItems]);
   // Home's stat tiles. Only computed while Home is on screen; the week of health scores is the
   // costly part.
   const homeStats = useMemo(() => (appMode !== 'home' ? null : {
     supplements: supplementsTaken(liveStackItems, deferredStackEntries, selectedDate),
+    factors: factorsLogged(liveInputItems, inputEntries, selectedDate),
     health: healthTrend(liveSymptoms, deferredEntries, trackingMode, selectedDate),
     sleep: lastSleep(garminSleepDays),
     sleepError: garminSleepError ? 'couldn’t update' : !firebase.user ? 'signed out' : null,
     bp: bpTrend(bloodPressure),
-  }), [appMode, liveStackItems, deferredStackEntries, liveSymptoms, deferredEntries, trackingMode, selectedDate, garminSleepDays, garminSleepError, firebase.user, bloodPressure]);
-  const liveInputItems = useMemo(() => liveItems(inputItems), [inputItems]);
+  }), [appMode, liveStackItems, deferredStackEntries, liveInputItems, inputEntries, liveSymptoms, deferredEntries, trackingMode, selectedDate, garminSleepDays, garminSleepError, firebase.user, bloodPressure]);
 
   // Protocol plan → the lists. "Add to my list" creates (or re-shows) the supplement or factor and
   // links it to the plan item; when the item ends, "hide it" hides that linked definition.
@@ -966,7 +968,7 @@ function App() {
     : appMode === 'stack' && !protocolEditMode && protocolTab === 'f' ? {
       buttons: [],
       onAdd: () => setAddFlow('factor'),
-      addLabel: 'Add other factor',
+      addLabel: `Add ${FACTOR_LABEL.toLowerCase()}`,
     }
     : appMode === 'symptoms' && !symptomEditMode ? {
       buttons: [
@@ -1203,6 +1205,10 @@ function App() {
             onProgress={() => setShowInsights(true)}
             onAddSymptom={() => setAddFlow('symptom')}
             onSymptomList={() => openFromHome('symptoms')}
+            onPills={() => setShowSimpleProtocol(true)}
+            onFactors={() => { setProtocolTab('f'); openFromHome('stack'); }}
+            onSupplementList={() => { setProtocolTab('s'); openFromHome('stack'); }}
+            onAddAny={() => setAddFlow('any')}
             onNote={() => setShowNoteModal(true)}
             onBloodPressure={() => setShowBloodPressure('entry')}
             stats={homeStats}

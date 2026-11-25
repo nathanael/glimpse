@@ -1,9 +1,10 @@
-// Adding a supplement or a symptom, one question per screen, full screen. Opened from the + in
-// the bottom bar and from Home's "Add …" buttons.
+// Adding a supplement, symptom or other factor, one question per screen, full screen. Opened from
+// the + in the bottom bar and from Home's "Add …" buttons. kind 'any' (Home's Protocol "Add") asks
+// which of the three it is first.
 //
 // Supplement: name → dose → when → review. Symptom: name → kind and group. Other factor: name → kind, unit, repeat.
-// Typing a name that is already on the list (or hidden from it) offers that item instead of a
-// duplicate. Nothing is written until the last screen's button; closing early leaves no trace.
+// Typing a name close to one already on any list (hidden and deleted ones included, typos
+// forgiven) pops up that item with a Bring back button instead of making a duplicate. Nothing is written until the last screen's button; closing early leaves no trace.
 // The records written are the same shape the edit lists always wrote.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -16,7 +17,10 @@ import { matchSupplementCategory } from '../utils/supplementLookup';
 import { createSymptomHistoryEntry, applySymptomPatch } from '../utils/symptomHistory';
 import { suggestGroup, groupNames, availableGroups, nextGroupOrder } from '../utils/symptomGroups';
 import { WELLBEING } from '../utils/wellbeing';
-import { isDeleted } from '../utils/softDelete';
+import { isDeleted, restoreDeleted } from '../utils/softDelete';
+import { findSimilar } from '../utils/fuzzyMatch';
+import { FACTOR_LABEL, FACTORS_LABEL } from '../utils/labels';
+import { primeKeyboard } from '../utils/primeKeyboard';
 import { TIMES, timeLabel } from '../utils/timeOfDay';
 import { formatSchedule } from './SchedulePicker';
 import { CloseButton, useRiseIn } from './overlay';
@@ -170,19 +174,29 @@ export function WhenPicker({ schedule, setSchedule, time, setTime }) {
   );
 }
 
-export default function AddFlow({ kind, stackItems, setStackItems, symptoms, setSymptoms, inputItems = [], setInputItems, setLastAction, onClose }) {
+const KINDS = [
+  { id: 'symptom', label: 'Symptom', hint: 'Something you rate, like brain fog or energy.' },
+  { id: 'supplement', label: 'Supplement', hint: 'A pill, powder or drop you take, with a dose.' },
+  { id: 'factor', label: FACTOR_LABEL, hint: 'Anything else you do or have, like meditation or alcohol.' },
+];
+const LIST_NAME = { symptom: 'symptom', supplement: 'supplement', factor: FACTORS_LABEL };
+
+export default function AddFlow({ kind: startKind, stackItems, setStackItems, symptoms, setSymptoms, inputItems = [], setInputItems, setLastAction, onClose }) {
   const rootRef = useRef(null);
   const nameRef = useRef(null);
   useRiseIn(rootRef);
   useFlowViewport(rootRef);
   const doneKey = useDoneKey(rootRef);
+  const asksKind = startKind === 'any';
+  const [kind, setKind] = useState(asksKind ? null : startKind);   // null: on the "What is it?" screen
   const isSupp = kind === 'supplement';
   const isFactor = kind === 'factor';
   const steps = isSupp ? 4 : 2;
   const [step, setStep] = useState(0);
   const stepRef = useRef(step);
   stepRef.current = step;
-  useFocusOnMount(nameRef);
+  useFocusOnMount(nameRef, !!kind);
+  const [dismissed, setDismissed] = useState('');   // the matches the pop-up was closed on
 
   const [name, setName] = useState('');
   const [dose, setDose] = useState('');
@@ -204,24 +218,29 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const list = (isSupp ? stackItems : isFactor ? inputItems : symptoms).filter((i) => !isDeleted(i));
+  const list = isSupp ? stackItems : isFactor ? inputItems : symptoms;
   const trimmed = name.trim();
-  const exact = list.find((i) => i.name.toLowerCase() === trimmed.toLowerCase());
-  const matches = useMemo(() => {
-    const q = trimmed.toLowerCase();
-    if (q.length < 2) return [];
-    return list.filter((i) => i.name.toLowerCase().includes(q)).slice(0, 4);
-  }, [trimmed, list]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The same name on this kind's list: on it already blocks Next, hidden or deleted turns Next
+  // into Bring back.
+  const same = list.filter((i) => i.name.toLowerCase() === trimmed.toLowerCase());
+  const exact = same.find((i) => !isDeleted(i)) || same[0];
+  const exactLive = exact && exact.active && !isDeleted(exact);
+  const matches = useMemo(() => findSimilar(trimmed, [
+    ['symptom', symptoms], ['supplement', stackItems], ['factor', inputItems],
+  ]), [trimmed, symptoms, stackItems, inputItems]);
+  const matchKey = matches.map((m) => m.item.id).join('|');
+  const showPop = step === 0 && !!kind && trimmed.length >= 3 && matches.length > 0 && matchKey !== dismissed;
 
   const autoDecay = isSupp ? matchSupplementCategory(trimmed) || null : null;
   const groups = availableGroups(symptoms);
   const suggested = !isSupp && !isFactor && !wellbeing ? suggestGroup(trimmed, '', groups) : null;
   const chosenGroup = wellbeing ? null : group === undefined ? suggested : group;
 
-  const bringBack = (item) => {
-    if (isSupp) setStackItems((prev) => prev.map((i) => (i.id === item.id ? applySupplementPatch(i, { active: true }) : i)));
-    else if (isFactor) setInputItems((prev) => prev.map((i) => (i.id === item.id ? applyInputPatch(i, { active: true }) : i)));
-    else setSymptoms((prev) => prev.map((s) => (s.id === item.id ? applySymptomPatch(s, { active: true }) : s)));
+  const bringBack = (item, itemKind = kind) => {
+    const back = (patch) => (i) => (i.id === item.id ? patch(isDeleted(i) ? restoreDeleted(i) : i, { active: true }) : i);
+    if (itemKind === 'supplement') setStackItems((prev) => prev.map(back(applySupplementPatch)));
+    else if (itemKind === 'factor') setInputItems((prev) => prev.map(back(applyInputPatch)));
+    else setSymptoms((prev) => prev.map(back(applySymptomPatch)));
     setLastAction(`Brought back ${item.name}`);
     onClose();
   };
@@ -271,48 +290,79 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
   };
 
   const last = step === steps - 1;
-  const canNext = step > 0 || (trimmed && !(exact && exact.active));
+  const canNext = step > 0 || (trimmed && !exactLive);
   const next = () => {
     if (!canNext) return;
-    if (step === 0 && exact && !exact.active) return bringBack(exact);
+    if (step === 0 && exact && !exactLive) return bringBack(exact);
     if (!last) return setStep(step + 1);
     if (isSupp) addSupplement(); else if (isFactor) addFactor(); else addSymptom();
   };
   const nextFrom = (s) => () => { if (stepRef.current === s) next(); };
-  const nextLabel = step === 0 && exact && !exact.active ? `Bring back ${exact.name}`
+  const nextLabel = step === 0 && exact && !exactLive ? `Bring back ${exact.name}`
     : last ? (isSupp || isFactor ? 'Add to protocol' : 'Add to tracking') : 'Next';
 
-  const summary = (item) => isFactor ? (INPUT_CATEGORIES.find((c) => c.id === item.category)?.label || 'Other factor') : isSupp
-    ? `${item.defaultDose || ''} ${item.defaultDose ? item.unit : ''}${item.defaultDose ? ' · ' : ''}${scheduleText(item.schedule)}`
-    : item.group || (item.kind === WELLBEING ? 'Wellbeing' : 'Symptom');
+  const summary = (m) => {
+    const { item } = m;
+    const what = m.kind === 'factor' ? `${FACTOR_LABEL} · ${INPUT_CATEGORIES.find((c) => c.id === item.category)?.label || ''}`.replace(/ · $/, '')
+      : m.kind === 'supplement' ? `Supplement${item.defaultDose ? ` · ${item.defaultDose} ${item.unit}` : ''}`
+      : item.kind === WELLBEING ? 'Wellbeing' : `Symptom${item.group ? ` · ${item.group}` : ''}`;
+    return `${what} · ${m.status === 'active' ? 'on your list' : m.status === 'hidden' ? 'hidden' : 'deleted'}`;
+  };
+
+  const pickKind = (k) => { primeKeyboard(); setKind(k); setStep(0); };
+  const back = () => (step > 0 ? setStep(step - 1) : setKind(null));
+  const allSteps = (asksKind ? 1 : 0) + (kind ? steps : 1);
+  const at = kind ? (asksKind ? 1 : 0) + step : 0;
+  const title = !kind ? 'Add' : isSupp ? 'Add supplement' : isFactor ? `Add ${FACTOR_LABEL.toLowerCase()}` : 'Add symptom';
 
   return (
-    <div className={`fl ${isSupp || isFactor ? '' : 'sym'}`} ref={rootRef} role="dialog" aria-label={isSupp ? 'Add supplement' : isFactor ? 'Add other factor' : 'Add symptom'}>
+    <div className={`fl ${kind && !isSupp && !isFactor ? 'sym' : ''}`} ref={rootRef} role="dialog" aria-label={title}>
       <div className="fl-in">
         <div className="fl-top">
-          {step > 0 && <Back onClick={() => setStep(step - 1)} />}
-          <div className="fl-bars">{Array.from({ length: steps }, (_, i) => <i key={i} className={i <= step ? 'on' : ''} />)}</div>
+          {(step > 0 || (asksKind && kind)) && <Back onClick={back} />}
+          <div className="fl-bars">{Array.from({ length: allSteps }, (_, i) => <i key={i} className={i <= at ? 'on' : ''} />)}</div>
           <CloseButton onClick={onClose} />
         </div>
 
         <div className="fl-body">
-          {step === 0 && (
+          {!kind && (
             <>
-              <h1>{isSupp || isFactor ? 'What are you adding?' : 'What do you want to track?'}</h1>
-              <label className="fl-label" htmlFor="fl-name">{isSupp ? 'Supplement name' : isFactor ? 'Other factor' : 'Symptom name'}</label>
+              <h1>What are you adding?</h1>
+              <div className="fl-type">
+                {KINDS.map((k) => (
+                  <button key={k.id} type="button" className={`t-${k.id}`} onClick={() => pickKind(k.id)}>
+                    <b>{k.label}</b><small>{k.hint}</small>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {kind && step === 0 && (
+            <>
+              <h1>{isSupp ? 'Which supplement?' : isFactor ? `Which ${FACTOR_LABEL.toLowerCase()}?` : 'What do you want to track?'}</h1>
+              <label className="fl-label" htmlFor="fl-name">{isSupp ? 'Supplement name' : isFactor ? FACTOR_LABEL : 'Symptom name'}</label>
               <input id="fl-name" ref={nameRef} className="fl-input big" autoComplete="off" autoCapitalize="words" value={name}
                 placeholder={isSupp ? 'e.g. Magnesium glycinate' : isFactor ? 'e.g. Meditation, Alcohol' : 'e.g. Brain fog'}
                 onChange={(e) => setName(e.target.value)} {...doneKey(nextFrom(0))} />
-              {matches.length > 0 && (
-                <>
-                  <div className="fl-lbl">ALREADY IN YOUR LISTS</div>
+              {showPop && (
+                <div className="fl-pop" role="status" key={matches[0].item.id}>
+                  <div className="fl-pop-head">
+                    <b>Already have {matches.length === 1 ? 'this' : 'one of these'}?</b>
+                    <button type="button" aria-label="Not these, keep adding" onClick={() => setDismissed(matchKey)}>
+                      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                    </button>
+                  </div>
                   {matches.map((m) => (
-                    <div key={m.id} className="fl-match">
-                      <span>{m.name}<small>{m.active ? 'On your list' : 'Hidden'} · {summary(m)}</small></span>
-                      {!m.active && <button type="button" onClick={() => bringBack(m)}>Bring back</button>}
+                    <div key={`${m.kind}-${m.item.id}`} className="fl-match">
+                      <span>{m.item.name}<small>{summary(m)}</small></span>
+                      {m.status !== 'active'
+                        ? <button type="button" onClick={() => bringBack(m.item, m.kind)}>Bring back</button>
+                        : m.kind !== kind && <em>On your {LIST_NAME[m.kind]} list</em>}
                     </div>
                   ))}
-                </>
+                  <button type="button" className="fl-pop-new" onClick={() => setDismissed(matchKey)}>None of these, add {trimmed ? `“${trimmed}”` : 'it'} as new</button>
+                </div>
               )}
             </>
           )}
@@ -405,8 +455,8 @@ export default function AddFlow({ kind, stackItems, setStackItems, symptoms, set
 
         <div className="fl-foot">
           {isSupp && step === 1 && <button type="button" className="fl-skip" onClick={() => { setDose(''); setStep(2); }}>No set dose, skip</button>}
-          {step === 0 && exact?.active && <p className="fl-hint" style={{ textAlign: 'center' }}>{exact.name} is already on your list.</p>}
-          <button type="button" className="fl-next" disabled={!canNext} onClick={next}>{nextLabel}</button>
+          {kind && step === 0 && exactLive && <p className="fl-hint" style={{ textAlign: 'center' }}>{exact.name} is already on your list.</p>}
+          {kind && <button type="button" className="fl-next" disabled={!canNext} onClick={next}>{nextLabel}</button>}
         </div>
       </div>
     </div>

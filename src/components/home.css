@@ -119,3 +119,9 @@ html.fx-reveal .hm, html.fx-reveal .mn-main, html.fx-reveal .mn-top { transition
 @media (prefers-reduced-motion: reduce) {
   .hm-card, .hm-stat, .hm-act, .hm-grid { transition: none; }
 }
+
+/* Protocol's two list links share a row under its options. */
+.hm-pair { display: flex; width: 100%; gap: 4px; }
+.hm-pair button { flex: 1; min-width: 0; padding-left: 8px; padding-right: 8px; }
+.hm-pair button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hm-tiles .hm-card .hm-bar { height: 6px; }

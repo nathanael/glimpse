@@ -1,4 +1,5 @@
-// The easy-mode landing screen: two sections stacked, Health tracking (a photograph) and Sleep,
+// The easy-mode landing screen: three sections stacked, Health tracking and Protocol (photographs)
+// and Sleep,
 // over a grid of the quick actions, all within reach of the thumb. Tapping the photograph morphs it into a panel that
 // fills Home: the photo grows out of its tile, the title flies up into a header and that kind of
 // logging's options spring up from the bottom. Purely presentational: every button calls a
@@ -15,20 +16,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { solar } from './solarIcons';
 import { formatMinutes, sparkPath } from '../utils/homeStats';
 import { springs, reducedMotion } from './motion';
+import { primeKeyboard } from '../utils/primeKeyboard';
+import { FACTORS_LABEL } from '../utils/labels';
 import symptomsArt from '../assets/home/symptoms.jpg';
+import supplementsArt from '../assets/home/supplements.jpg';
 import './home.css';
-
-// iOS only raises the keyboard for a focus() made inside the tap itself, and the note sheet's
-// textarea (or a new row's name field) mounts a render later. Focusing a throwaway input in the
-// tap raises it; the real field then takes the focus over and the keyboard stays up.
-function primeKeyboard() {
-  const el = document.createElement('input');
-  el.setAttribute('aria-hidden', 'true');
-  el.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px;border:0;padding:0';
-  document.body.appendChild(el);
-  el.focus();
-  setTimeout(() => el.remove(), 1000);
-}
 
 // A trend line across the bottom of a tile; nothing until there are two points.
 function Spark({ values }) {
@@ -53,6 +45,13 @@ const boxFrames = (a, b) => [
   { left: b.x + 'px', top: b.y + 'px', width: b.w + 'px', height: b.h + 'px', borderRadius: b.rad },
 ];
 
+const Option = ({ opt }) => (
+  <button type="button" className={opt.deep ? 'deep' : ''} onClick={opt.onClick}>
+    <svg viewBox="0 0 24 24">{solar[opt.icon]}</svg>
+    <span>{opt.label}</span>
+  </button>
+);
+
 export default function Home({
   summary,            // { symptoms }: a string, or null when nothing is logged yet
   stats,              // { health, sleep } from utils/homeStats.js
@@ -63,6 +62,11 @@ export default function Home({
   onProgress,
   onAddSymptom,
   onSymptomList,
+  // Protocol panel
+  onPills,
+  onFactors,
+  onAddAny,
+  onSupplementList,
   // Grid
   onSimpleChecklist,
   // Grid
@@ -70,7 +74,7 @@ export default function Home({
   onBloodPressure,
   onMore,
 }) {
-  const [open, setOpen] = useState(null);   // 'tracking' | null
+  const [open, setOpen] = useState(null);   // 'tracking' | 'protocol' | null
   const rootRef = useRef(null);
   const cardRefs = useRef({});
   const xpRef = useRef(null);
@@ -78,7 +82,7 @@ export default function Home({
 
   // Each panel: the ways of logging as frosted bars, then the door into the full tab as plain
   // text under them.
-  const { health, sleep, sleepError } = stats;
+  const { health, sleep, sleepError, supplements, factors } = stats;
   const change = health.change == null || health.change === 0 ? '' : ` · ${health.change > 0 ? '↑' : '↓'} ${Math.abs(health.change)} this week`;
   const cards = [
     {
@@ -96,6 +100,25 @@ export default function Home({
         { icon: 'progress', label: 'Progress', onClick: onProgress },
         { icon: 'add', label: 'Add symptom', onClick: () => { primeKeyboard(); onAddSymptom(); } },
         { icon: 'symptoms', label: 'Full list', onClick: onSymptomList, deep: true },
+      ],
+    },
+    {
+      // What you take and do: today's pills, the other factors, and the one Add for anything.
+      id: 'protocol', title: 'Protocol', art: supplementsArt,
+      line: supplements.due ? `${supplements.taken} of ${supplements.due} supplements taken` : null, empty: 'Nothing due today',
+      stat: (
+        <span className="hm-num">
+          <b className={supplements.due ? '' : 'none'}>{supplements.due ? <>{supplements.taken}<em>/{supplements.due}</em></> : '–'}</b>
+          {supplements.due > 0 && <span className="hm-bar" aria-hidden="true"><i style={{ width: `${Math.round((supplements.taken / supplements.due) * 100)}%` }} /></span>}
+          <small>{supplements.due ? 'Supplements taken' : 'No supplements due'}{factors.total ? ` · ${FACTORS_LABEL.toLowerCase()} ${factors.logged}/${factors.total}` : ''}</small>
+        </span>
+      ),
+      options: [
+        { icon: 'protocol', label: 'Pills', onClick: onPills },
+        { icon: 'list', label: FACTORS_LABEL, onClick: onFactors },
+        { icon: 'add', label: 'Add', onClick: onAddAny },
+        { icon: 'protocol', label: 'Supplements', onClick: onSupplementList, deep: true, pair: true },
+        { icon: 'symptoms', label: 'Symptoms', onClick: onSymptomList, deep: true, pair: true },
       ],
     },
   ];
@@ -321,12 +344,10 @@ export default function Home({
             <small>{openCard.line || openCard.empty}</small>
           </div>
           <div className="hm-opts">
-            {openCard.options.map((opt) => (
-              <button type="button" key={opt.label} className={opt.deep ? 'deep' : ''} onClick={opt.onClick}>
-                <svg viewBox="0 0 24 24">{solar[opt.icon]}</svg>
-                <span>{opt.label}</span>
-              </button>
-            ))}
+            {openCard.options.filter((o) => !o.pair).map((opt) => <Option key={opt.label} opt={opt} />)}
+            {openCard.options.some((o) => o.pair) && (
+              <div className="hm-pair">{openCard.options.filter((o) => o.pair).map((opt) => <Option key={opt.label} opt={opt} />)}</div>
+            )}
           </div>
         </div>
       )}

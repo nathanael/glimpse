@@ -7,6 +7,7 @@
 
 import { getDateKey, isScheduledForDate } from './helpers';
 import { mealDateKey } from '../food/mealKey';
+import { isYes } from './dailyFactors';
 
 // Entry values carry their own `date`, so count values rather than parsing keys — symptom ids
 // contain hyphens and a key split would be wrong.
@@ -41,6 +42,13 @@ export function supplementsTaken(stackItems, stackEntries, date) {
     if (stackEntries?.[`${dateKey}-${item.id}`]) taken += 1;
   }
   return { taken, due: due.length };
+}
+
+// Active other factors answered Yes today, out of all active ones.
+export function factorsLogged(inputItems, inputEntries, date) {
+  const dateKey = getDateKey(date);
+  const active = (inputItems || []).filter((i) => i.active !== false);
+  return { logged: active.filter((i) => isYes(inputEntries?.[`${dateKey}-${i.id}`])).length, total: active.length };
 }
 
 export function summaryLines({ entries, meals, stackItems, stackEntries, date }) {
