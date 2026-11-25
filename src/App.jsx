@@ -1203,7 +1203,6 @@ function App() {
             onRapidEntry={() => setShowRapidEntry(true)}
             onTalkMode={() => openTalkMode()}
             onProgress={() => setShowInsights(true)}
-            onAddSymptom={() => setAddFlow('symptom')}
             onSymptomList={() => openFromHome('symptoms')}
             onPills={() => setShowSimpleProtocol(true)}
             onFactors={() => { setProtocolTab('f'); openFromHome('stack'); }}

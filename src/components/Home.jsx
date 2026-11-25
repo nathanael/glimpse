@@ -53,7 +53,6 @@ export default function Home({
   onRapidEntry,
   onTalkMode,
   onProgress,
-  onAddSymptom,
   onSymptomList,
   // Protocol panel
   onPills,
@@ -91,12 +90,11 @@ export default function Home({
         { icon: 'bolt', label: 'Rapid entry', onClick: onRapidEntry },
         { icon: 'mic', label: 'Talk me through it', onClick: onTalkMode },
         { icon: 'progress', label: 'Progress', onClick: onProgress },
-        { icon: 'add', label: 'Add symptom', onClick: () => { primeKeyboard(); onAddSymptom(); } },
         { icon: 'symptoms', label: 'Full list', onClick: onSymptomList, deep: true },
       ],
     },
     {
-      // What you take and do: today's pills, the other factors, and the one Add for anything.
+      // What you take and do: today's pills and the habits.
       id: 'protocol', title: 'Protocol', art: supplementsArt,
       line: supplements.due ? `${supplements.taken} of ${supplements.due} supplements taken${factors.total ? ` · ${FACTORS_LABEL.toLowerCase()} ${factors.logged} of ${factors.total}` : ''}` : null, empty: 'Nothing due today',
       stat: (
@@ -107,7 +105,6 @@ export default function Home({
       options: [
         { icon: 'protocol', label: 'Pills', onClick: onPills },
         { icon: 'list', label: FACTORS_LABEL, onClick: onFactors },
-        { icon: 'add', label: 'Add', onClick: onAddAny },
         { icon: 'protocol', label: 'Supplements', onClick: onSupplementList, deep: true, pair: true },
         { icon: 'symptoms', label: 'Symptoms', onClick: onSymptomList, deep: true, pair: true },
       ],
@@ -120,7 +117,7 @@ export default function Home({
     { id: 'pills', icon: 'protocol', label: 'Pills', tone: 'b', onClick: onSimpleChecklist },
     { id: 'bp', icon: 'heart', label: 'BP', tone: 'c', onClick: onBloodPressure },
     { id: 'note', icon: 'note', label: "Day's note", onClick: () => { primeKeyboard(); onNote(); } },
-    { id: 'progress', icon: 'progress', label: 'Progress', onClick: onProgress },
+    { id: 'add', icon: 'add', label: 'Add', onClick: onAddAny },   // one Add for symptoms, supplements and habits
     { id: 'more', icon: 'more', label: 'More', onClick: onMore },
   ];
 
