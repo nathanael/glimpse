@@ -83,7 +83,7 @@ export default function Home({
       id: 'tracking', title: 'Health tracking', art: symptomsArt, line: summary.symptoms, empty: 'Not checked in yet',
       stat: (
         <span className="hm-num">
-          <b className={health.today == null ? 'none' : ''}>{health.today ?? '–'}</b>
+          <b className={health.today == null ? 'none' : ''}>{health.today == null ? '–' : <>{health.today}<i className="hm-pc">%</i></>}</b>
         </span>
       ),
       options: [
@@ -99,7 +99,7 @@ export default function Home({
       line: supplements.due ? `${supplements.taken} of ${supplements.due} supplements taken${factors.total ? ` · ${FACTORS_LABEL.toLowerCase()} ${factors.logged} of ${factors.total}` : ''}` : null, empty: 'Nothing due today',
       stat: (
         <span className="hm-num">
-          <b className={pct == null ? 'none' : ''}>{pct == null ? '–' : <>{pct}<em>%</em></>}</b>
+          <b className={pct == null ? 'none' : ''}>{pct == null ? '–' : <>{pct}<i className="hm-pc">%</i></>}</b>
         </span>
       ),
       options: [
@@ -287,7 +287,7 @@ export default function Home({
               // Dimmed when the night is 2+ days old; the only words are a sync problem, since a
               // signed-out phone otherwise shows an old score as if it were current.
               <span className={`hm-num${sleepWhen(sleep.date).stale ? ' stale' : ''}`}>
-                <b className={sleep.score == null ? 'none' : ''}>{sleep.score ?? '–'}</b>
+                <b className={sleep.score == null ? 'none' : ''}>{sleep.score == null ? '–' : <>{sleep.score}<i className="hm-pc">%</i></>}</b>
                 {sleepError && <small>{`${sleepError[0].toUpperCase()}${sleepError.slice(1)} · ${sleepWhen(sleep.date).label}`}</small>}
               </span>
             ) : (

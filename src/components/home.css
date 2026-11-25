@@ -125,3 +125,5 @@ html.fx-reveal .hm, html.fx-reveal .mn-main, html.fx-reveal .mn-top { transition
 .hm-pair button { flex: 1; min-width: 0; padding-left: 8px; padding-right: 8px; }
 .hm-pair button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hm-tiles .hm-card .hm-bar { height: 6px; }
+/* The % after each tile's number: small and faded, so the number reads first. */
+.hm-num b .hm-pc { font-style: normal; font-size: .36em; font-weight: 600; letter-spacing: 0; margin-left: 3px; opacity: .5; }
