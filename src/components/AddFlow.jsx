@@ -197,7 +197,8 @@ export function WhenPicker({ schedule, setSchedule, time, setTime }) {
 }
 
 const KINDS = [
-  { id: 'symptom', label: 'Symptom', hint: 'Something you rate, like brain fog or energy.' },
+  { id: 'symptom', label: 'Symptom', hint: 'Something you rate where lower is better, like brain fog or pain.' },
+  { id: 'wellbeing', label: 'Wellbeing', hint: 'Something you rate where higher is better, like energy or mood.' },
   { id: 'supplement', label: 'Supplement', hint: 'A pill, powder or drop you take, with a dose.' },
   { id: 'adhoc', label: 'Ad hoc supplement', hint: 'Something you took today that isn\u2019t on your daily list.' },
   { id: 'factor', label: FACTOR_LABEL, hint: 'Something you do day to day, like meditation or alcohol.' },
@@ -332,11 +333,18 @@ export default function AddFlow({ kind: startKind, onAdHoc, stackItems, setStack
     return `${what} · ${m.status === 'active' ? 'on your list' : m.status === 'hidden' ? 'hidden' : 'deleted'}`;
   };
 
-  const pickKind = (k) => { if (k === 'adhoc') { onClose(); onAdHoc?.(); return; } primeKeyboard(); setKind(k); setStep(0); };
+  const pickKind = (k) => {
+    if (k === 'adhoc') { onClose(); onAdHoc?.(); return; }
+    primeKeyboard();
+    // Wellbeing is a symptom rated the other way round: the same flow, its kind already picked
+    setWellbeing(k === 'wellbeing');
+    setKind(k === 'wellbeing' ? 'symptom' : k);
+    setStep(0);
+  };
   const back = () => (step > 0 ? setStep(step - 1) : setKind(null));
   const allSteps = (asksKind ? 1 : 0) + (kind ? steps : 1);
   const at = kind ? (asksKind ? 1 : 0) + step : 0;
-  const title = !kind ? 'Add' : isSupp ? 'Add supplement' : isFactor ? `Add ${FACTOR_LABEL.toLowerCase()}` : 'Add symptom';
+  const title = !kind ? 'Add' : isSupp ? 'Add supplement' : isFactor ? `Add ${FACTOR_LABEL.toLowerCase()}` : wellbeing ? 'Add wellbeing' : 'Add symptom';
 
   return (
     <div className={`fl ${kind && !isSupp && !isFactor ? 'sym' : ''}`} ref={rootRef} role="dialog" aria-label={title}>
@@ -363,10 +371,10 @@ export default function AddFlow({ kind: startKind, onAdHoc, stackItems, setStack
 
           {kind && step === 0 && (
             <>
-              <h1>{isSupp ? 'Which supplement?' : isFactor ? `Which ${FACTOR_LABEL.toLowerCase()}?` : 'What do you want to track?'}</h1>
+              <h1>{isSupp ? 'Which supplement?' : isFactor ? `Which ${FACTOR_LABEL.toLowerCase()}?` : (wellbeing ? 'What wellbeing do you want to track?' : 'What do you want to track?')}</h1>
               <label className="fl-label" htmlFor="fl-name">{isSupp ? 'Supplement name' : isFactor ? FACTOR_LABEL : 'Symptom name'}</label>
               <input id="fl-name" ref={nameRef} className="fl-input big" autoComplete="off" autoCapitalize="words" value={name}
-                placeholder={isSupp ? 'e.g. Magnesium glycinate' : isFactor ? 'e.g. Meditation, Alcohol' : 'e.g. Brain fog'}
+                placeholder={isSupp ? 'e.g. Magnesium glycinate' : isFactor ? 'e.g. Meditation, Alcohol' : wellbeing ? 'e.g. Energy, Mood' : 'e.g. Brain fog'}
                 onChange={(e) => setName(e.target.value)} {...doneKey(nextFrom(0))} />
               {showPop && (
                 <div className="fl-pop" role="status" key={matches[0].item.id}>
