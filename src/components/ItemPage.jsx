@@ -89,7 +89,7 @@ export default function ItemPage({ kind, id, stackItems, setStackItems, stackEnt
     if (sheet === 'when') {
       const startDate = item.schedule?.startDate || getDateKey(new Date());
       const s = draft.schedule.type === 'days' ? { type: 'days', days: draft.schedule.days, startDate }
-        : draft.schedule.type === 'interval' ? { type: 'interval', interval: draft.schedule.interval, startDate }
+        : draft.schedule.type === 'interval' ? { type: 'interval', interval: draft.schedule.interval, startDate: draft.schedule.startDate || startDate }
         : { type: 'daily', startDate };
       patch({ schedule: s, timeOfDay: draft.time || null });
     }

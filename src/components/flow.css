@@ -54,6 +54,11 @@
 .fl-every button { width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); background: #17191c; font-size: 22px; padding: 0; }
 .fl-every button:disabled { opacity: .35; }
 .fl-every b { font-size: 22px; min-width: 28px; text-align: center; color: #f3f4f6; }
+.fl-start { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.fl-start button, .fl-start label { position: relative; height: 52px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: #17191c; font-size: 14px; font-weight: 600; padding: 0; display: grid; place-items: center; color: inherit; overflow: hidden; }
+.fl-start .on { background: #f3f4f6; color: #08090a; }
+.fl-start input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; border: 0; }
+.fl-sheet .fl-start button:not(.on), .fl-sheet .fl-start label:not(.on) { background: #23262b; }
 .fl-times { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .fl-times button { height: 52px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: #17191c; font-size: 14px; font-weight: 600; padding: 0; }
 .fl-times button.on { background: #f3f4f6; color: #08090a; }

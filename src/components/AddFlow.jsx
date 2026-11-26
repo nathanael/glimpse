@@ -131,6 +131,27 @@ export function DosePicker({ dose, setDose, unit, setUnit, inputProps }) {
   );
 }
 
+// The first day of an "every few days" schedule; the count runs from it.
+const dayKey = (offset) => { const d = new Date(); d.setDate(d.getDate() + offset); return getDateKey(d); };
+function StartPicker({ value, onChange }) {
+  const today = dayKey(0), tomorrow = dayKey(1);
+  const v = value || today;
+  const other = v !== today && v !== tomorrow;
+  return (
+    <>
+      <div className="fl-lbl">STARTING</div>
+      <div className="fl-start">
+        <button type="button" className={v === today ? 'on' : ''} aria-pressed={v === today} onClick={() => onChange(today)}>Today</button>
+        <button type="button" className={v === tomorrow ? 'on' : ''} aria-pressed={v === tomorrow} onClick={() => onChange(tomorrow)}>Tomorrow</button>
+        <label className={other ? 'on' : ''}>
+          <span>{other ? new Date(`${v}T12:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Other day'}</span>
+          <input type="date" aria-label="Start date" value={v} onChange={(e) => e.target.value && onChange(e.target.value)} />
+        </label>
+      </div>
+    </>
+  );
+}
+
 export function WhenPicker({ schedule, setSchedule, time, setTime }) {
   const type = schedule.type || 'daily';
   const pick = (t) => setSchedule({ ...schedule, type: t, days: schedule.days || [1, 3, 5], interval: schedule.interval || 2 });
@@ -163,6 +184,7 @@ export function WhenPicker({ schedule, setSchedule, time, setTime }) {
           <span>days</span>
         </div>
       )}
+      {type === 'interval' && <StartPicker value={schedule.startDate} onChange={(startDate) => setSchedule({ ...schedule, startDate })} />}
       <div className="fl-lbl">TIME OF DAY</div>
       <div className="fl-times">
         {TIMES.map((t) => (
@@ -249,7 +271,7 @@ export default function AddFlow({ kind: startKind, stackItems, setStackItems, sy
     const order = Math.max(-1, ...stackItems.map((i) => i.order || 0)) + 1;
     const startDate = getDateKey(new Date());
     const s = schedule.type === 'days' ? { type: 'days', days: schedule.days, startDate }
-      : schedule.type === 'interval' ? { type: 'interval', interval: schedule.interval, startDate }
+      : schedule.type === 'interval' ? { type: 'interval', interval: schedule.interval, startDate: schedule.startDate || startDate }
       : { type: 'daily', startDate };
     const item = {
       id: makeId(trimmed), name: trimmed, unit, defaultDose: parseFloat(dose) || 0, description: note.trim(),
