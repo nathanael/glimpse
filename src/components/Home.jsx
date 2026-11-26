@@ -108,7 +108,7 @@ export default function Home({
       options: [
         { icon: 'protocol', label: 'Pills checklist', onClick: onPills },
         { icon: 'habit', label: FACTORS_LABEL, onClick: onFactors },
-        { icon: 'list', label: 'Advanced supplements', onClick: onSupplementList, deep: true },
+        { icon: 'list', label: 'Advanced protocol', onClick: onSupplementList, deep: true },
       ],
     },
   ];

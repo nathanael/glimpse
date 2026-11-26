@@ -45,7 +45,7 @@ export default function SimpleProtocol({
   setStackEntries,
   selectedDate,
   onSelectDate,   // (date): the day arrows move the day being checked off
-  onFullDetail,   // the switch: the Advanced supplements list
+  onFullDetail,   // the switch: the Advanced protocol list
   onHome,
   instant,        // opened by the switch: no rise-in, it just appears
   startAdding,    // open straight on the + sheet (Home's Add > Ad hoc supplement)
@@ -287,7 +287,7 @@ export default function SimpleProtocol({
               status={(d) => protocolDayStatus(stackItems, stackEntries, d)}
               onHome={onHome}
               onSwitch={onFullDetail}
-              switchLabel="Advanced supplements"
+              switchLabel="Advanced protocol"
             />
           </div>
         ) : (
