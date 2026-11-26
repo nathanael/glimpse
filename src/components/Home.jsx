@@ -90,23 +90,25 @@ export default function Home({
         { icon: 'bolt', label: 'Rapid entry', onClick: onRapidEntry },
         { icon: 'mic', label: 'Talk me through it', onClick: onTalkMode },
         { icon: 'progress', label: 'Progress', onClick: onProgress },
-        { icon: 'symptoms', label: 'Full list', onClick: onSymptomList, deep: true },
+        { icon: 'list', label: 'Advanced symptoms', onClick: onSymptomList, deep: true },
       ],
     },
     {
       // What you take and do: today's pills and the habits.
       id: 'protocol', title: 'Protocol', art: supplementsArt,
-      line: supplements.due ? `${supplements.taken} of ${supplements.due} supplements taken${factors.total ? ` · ${FACTORS_LABEL.toLowerCase()} ${factors.logged} of ${factors.total}` : ''}` : null, empty: 'Nothing due today',
+      line: supplements.due || factors.total ? [
+        supplements.due ? `${supplements.taken} of ${supplements.due} supplements taken` : null,
+        factors.total ? `${factors.logged} of ${factors.total} ${FACTORS_LABEL.toLowerCase()} done` : null,
+      ].filter(Boolean).join('\n') : null, empty: 'Nothing due today',
       stat: (
         <span className="hm-num">
           <b className={pct == null ? 'none' : ''}>{pct == null ? '–' : <>{pct}<i className="hm-pc">%</i></>}</b>
         </span>
       ),
       options: [
-        { icon: 'protocol', label: 'Pills', onClick: onPills },
-        { icon: 'list', label: FACTORS_LABEL, onClick: onFactors },
-        { icon: 'protocol', label: 'Supplements', onClick: onSupplementList, deep: true, pair: true },
-        { icon: 'symptoms', label: 'Symptoms', onClick: onSymptomList, deep: true, pair: true },
+        { icon: 'protocol', label: 'Pills checklist', onClick: onPills },
+        { icon: 'habit', label: FACTORS_LABEL, onClick: onFactors },
+        { icon: 'list', label: 'Advanced supplements', onClick: onSupplementList, deep: true },
       ],
     },
   ];
@@ -271,7 +273,7 @@ export default function Home({
             className={`hm-card${open === card.id ? ' hide' : ''}`}
             style={{ backgroundImage: `url(${card.art})` }}
             aria-expanded={open === card.id}
-            aria-label={`${card.title}: ${card.line || card.empty}. Show options`}
+            aria-label={`${card.title}: ${(card.line || card.empty).replace(/\n/g, ', ')}. Show options`}
             onClick={() => show(card.id)}
           >
             <span className="hm-face">
@@ -326,7 +328,7 @@ export default function Home({
           </button>
           <div className="hm-xp-head">
             <h2>{openCard.title}</h2>
-            <small>{openCard.line || openCard.empty}</small>
+            <small style={{ whiteSpace: 'pre-line' }}>{openCard.line || openCard.empty}</small>
           </div>
           <div className="hm-opts">
             {openCard.options.filter((o) => !o.pair).map((opt) => <Option key={opt.label} opt={opt} />)}
