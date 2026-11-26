@@ -12,6 +12,8 @@
 .sck-hud { flex: none; height: 56px; display: flex; align-items: center; justify-content: center; padding: 0 16px; background: #120f1c; border-bottom: 1px solid rgba(167,139,250,.35); box-sizing: border-box; }
 .sck-hud b { font-size: 34px; font-weight: 700; color: #ddd6fe; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
 .sck-hud b small { margin-left: 6px; font-size: 15px; font-weight: 600; color: #a78bfa; }
+/* In the + sheet it floats over the list so the list never moves */
+.sck-sheet > .sck-hud { position: absolute; top: env(safe-area-inset-top); left: 0; right: 0; max-width: none; z-index: 3; }
 .sck-hud.ovr { background: #1c1406; border-bottom-color: rgba(245,158,11,.5); }
 .sck-hud.ovr b { font-size: 20px; color: #fcd34d; }
 

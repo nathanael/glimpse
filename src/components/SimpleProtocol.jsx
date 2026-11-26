@@ -134,7 +134,14 @@ export default function SimpleProtocol({
         return;
       }
       const { min, max } = doseRange(d.usual);
-      const { dose, over } = doseAt(d.usual, d.start + ((e.clientX - d.x) / d.w) * (max - min));
+      // The whole range spans 60% of the row, so both ends (and past them) are in thumb reach
+      const res = doseAt(d.usual, d.start + ((e.clientX - d.x) / (d.w * 0.6)) * (max - min));
+      const { dose } = res;
+      let { over } = res;
+      // At an end with the finger near the screen edge counts as past it too
+      const edge = 44, vw = window.innerWidth || 0;
+      if (!over && dose >= max && e.clientX > vw - edge) over = 'hi';
+      if (!over && dose <= min && e.clientX < edge) over = 'lo';
       if (dose !== d.dose || over !== d.over) {
         if (dose !== d.dose || (over && !d.over)) haptic('light');
         d.dose = dose; d.over = over;

@@ -26,7 +26,7 @@ export const doseRange = (usual) => {
 };
 
 // How far past an end the finger must go (as a share of the range) before it means "other dose"
-export const OVER_ZONE = 0.12;
+export const OVER_ZONE = 0.15;
 
 /** The dose a drag lands on: { dose, over } where over is 'hi' | 'lo' | null. */
 export const doseAt = (usual, raw) => {

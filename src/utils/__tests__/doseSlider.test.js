@@ -17,7 +17,7 @@ describe('doseSlider', () => {
     expect(doseAt(200, 254)).toEqual({ dose: 250, over: null });
     expect(doseAt(200, 420)).toEqual({ dose: 400, over: null });
     expect(doseAt(200, 470)).toEqual({ dose: 400, over: 'hi' });
-    expect(doseAt(200, -30)).toEqual({ dose: 20, over: 'lo' });
+    expect(doseAt(200, -45)).toEqual({ dose: 20, over: 'lo' });
   });
   it('uses the median logged dose', () => {
     const items = [{ id: 'a', unit: 'mg', defaultDose: 0 }, { id: 'b', unit: 'IU' }];
