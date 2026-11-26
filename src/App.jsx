@@ -1369,6 +1369,7 @@ function App() {
       {showSimpleProtocol && (
         <SimpleProtocol
           stackItems={liveStackItems}
+          setStackItems={setStackItems}
           stackEntries={stackEntries}
           setStackEntries={setStackEntries}
           selectedDate={selectedDate}
