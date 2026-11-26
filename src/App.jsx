@@ -232,6 +232,7 @@ function App() {
   const [showQuickActions, setShowQuickActions] = useState(false);
   const [showRapidEntry, setShowRapidEntry] = useState(false);
   const [showSimpleProtocol, setShowSimpleProtocol] = useState(false);
+  const [pillsAdding, setPillsAdding] = useState(false);   // Pills opens straight on its + sheet (Add > Ad hoc supplement)
   const [showTalkMode, setShowTalkMode] = useState(false);
   const [showVoiceNote, setShowVoiceNote] = useState(false);
   const [showBloodPressure, setShowBloodPressure] = useState(null);   // null | 'entry' | 'history'
@@ -294,6 +295,7 @@ function App() {
   const goHome = () => {
     setShowRapidEntry(false);
     setShowSimpleProtocol(false);
+    setPillsAdding(false);
     setShowBloodPressure(null);
     setShowQuickActions(false);
     setShowInsights(false);
@@ -1336,6 +1338,7 @@ function App() {
       {addFlow && (
         <AddFlow
           kind={addFlow}
+          onAdHoc={() => { setPillsAdding(true); setShowSimpleProtocol(true); }}
           stackItems={stackItems}
           setStackItems={setStackItems}
           symptoms={symptoms}
@@ -1371,13 +1374,14 @@ function App() {
           stackItems={liveStackItems}
           setStackItems={setStackItems}
           stackEntries={stackEntries}
+          startAdding={pillsAdding}
           setStackEntries={setStackEntries}
           selectedDate={selectedDate}
           onSelectDate={selectDate}
           onFullDetail={() => toList('stack')}
           onHome={isDesktop ? undefined : goHome}
           instant={instantOpen}
-          onClose={() => setShowSimpleProtocol(false)}
+          onClose={() => { setShowSimpleProtocol(false); setPillsAdding(false); }}
         />
       )}
 

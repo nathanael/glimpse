@@ -23,13 +23,13 @@ describe('doseSlider', () => {
     const items = [{ id: 'a', unit: 'mg', defaultDose: 0 }, { id: 'b', unit: 'IU' }];
     const entries = { x: { itemId: 'a', dose: 3, taken: true }, y: { itemId: 'a', dose: 5, taken: true }, z: { itemId: 'a', dose: 3, taken: true } };
     const u = usualDoses(items, entries);
-    expect(u.a).toEqual({ usual: 3, count: 3 });
+    expect(u.a).toEqual({ usual: 3, count: 3, last: null });
     expect(u.b.usual).toBe(1000);
   });
-  it('offers the most used first and matches typos', () => {
-    const items = [{ id: 'm', name: 'Melatonin' }, { id: 'n', name: 'NAC' }, { id: 'z', name: 'Zinc' }];
-    const usual = { m: { count: 9 }, n: { count: 2 }, z: { count: 5 } };
-    expect(adHocChoices(items, { usual, excludeIds: new Set(['z']) }).map((i) => i.id)).toEqual(['m', 'n']);
+  it('offers the most recently taken first and matches typos', () => {
+    const items = [{ id: 'm', name: 'Melatonin' }, { id: 'n', name: 'NAC' }, { id: 'z', name: 'Zinc' }, { id: 'a', name: 'Apigenin' }];
+    const usual = { m: { count: 9, last: '2026-11-01' }, n: { count: 2, last: '2026-11-20' }, z: { count: 5, last: '2026-11-25' }, a: { count: 0, last: null } };
+    expect(adHocChoices(items, { usual, excludeIds: new Set(['z']) }).map((i) => i.id)).toEqual(['n', 'm', 'a']);
     expect(adHocChoices(items, { usual, excludeIds: new Set(), query: 'melatn' }).map((i) => i.id)).toEqual(['m']);
     expect(adHocChoices(items, { usual, excludeIds: new Set(), query: 'z' }).map((i) => i.id)).toEqual(['z']);
   });

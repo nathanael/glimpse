@@ -28,6 +28,15 @@ import { protocolDayStatus } from '../utils/dayStatus';
 const Check = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>;
 const Plus = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>;
 const pct = (x) => `${(x * 100).toFixed(1)}%`;
+// "today", "yesterday", "5 days ago", "3 weeks ago" for the last time something was taken
+const ago = (dateKey) => {
+  const days = Math.round((new Date(new Date().toDateString()) - new Date(`${dateKey}T00:00:00`)) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 14) return `${days} days ago`;
+  if (days < 60) return `${Math.round(days / 7)} weeks ago`;
+  return `${Math.round(days / 30)} months ago`;
+};
 
 export default function SimpleProtocol({
   stackItems,
@@ -39,6 +48,7 @@ export default function SimpleProtocol({
   onFullDetail,   // the switch: the Advanced supplements list
   onHome,
   instant,        // opened by the switch: no rise-in, it just appears
+  startAdding,    // open straight on the + sheet (Home's Add > Ad hoc supplement)
   onClose,
 }) {
   const rootRef = useRef(null);
@@ -50,10 +60,16 @@ export default function SimpleProtocol({
   const [other, setOther] = useState(null);     // { id } or { name } (a new one): typing a dose
   const [typed, setTyped] = useState('');
   const [newUnit, setNewUnit] = useState('mg');
-  const [adding, setAdding] = useState(false);  // the + sheet
+  const [adding, setAdding] = useState(!!startAdding);  // the + sheet
   const [q, setQ] = useState('');
   const dragRef = useRef(null);
   const swallowClick = useRef(false);
+  const sheetListRef = useRef(null);
+  // The + sheet's list runs oldest at the top to most recent at the bottom, by the thumb: open it there
+  useEffect(() => {
+    const el = sheetListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [adding, q]);
 
   const dateKey = getDateKey(selectedDate);
   const keyFor = (id) => `${dateKey}-${id}`;
@@ -140,7 +156,7 @@ export default function SimpleProtocol({
 
   // ---- the + sheet ----
   const shownIds = new Set([...dueIds, ...extra.map((i) => i.id)]);
-  const choices = adding ? adHocChoices(items, { usual: logged, excludeIds: shownIds, query: q }) : [];
+  const choices = adding ? adHocChoices(items, { usual: logged, excludeIds: shownIds, query: q, limit: q.trim() ? 7 : Infinity }) : [];
   const typedName = q.trim();
   const exists = typedName && items.some((i) => i.name.toLowerCase() === typedName.toLowerCase());
   const closeAdd = () => { setAdding(false); setQ(''); };
@@ -286,7 +302,7 @@ export default function SimpleProtocol({
       {adding && (
         <div className="sck-sheet" role="dialog" aria-label="Add a supplement">
           {hud}
-          <div className="sck-list end">
+          <div className="sck-list end" ref={sheetListRef}>
             {choices.length === 0 && !typedName && <p className="sck-empty">Nothing off your list yet. Type a name to add one.</p>}
             {[...choices].reverse().map((item) => {
               const live = drag?.id === item.id;
@@ -303,7 +319,7 @@ export default function SimpleProtocol({
                   >
                     <span className="sck-tx">
                       <b>{item.name}</b>
-                      <small className={live ? (drag.over ? 'big o' : 'big') : ''}>{live && drag.over ? 'Other dose…' : `${fmtDose(v)} ${item.unit || ''}`}</small>
+                      <small className={live ? (drag.over ? 'big o' : 'big') : ''}>{live && drag.over ? 'Other dose…' : `${fmtDose(v)} ${item.unit || ''}${!live && logged[item.id]?.last ? `  ·  ${ago(logged[item.id].last)}` : ''}`}</small>
                     </span>
                     <span className="sck-plus"><Plus /></span>
                   </button>

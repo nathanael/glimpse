@@ -57,30 +57,31 @@ const median = (xs) => {
  * dose, else a sensible first dose for its unit. Returns { [itemId]: { usual, count } }.
  */
 export const usualDoses = (stackItems, stackEntries) => {
-  const doses = {};
+  const doses = {}, last = {};
   for (const e of Object.values(stackEntries || {})) {
     if (!e || !e.itemId || !e.taken) continue;
     (doses[e.itemId] ||= []).push(parseFloat(e.dose));
+    if (e.date && !(last[e.itemId] >= e.date)) last[e.itemId] = e.date;
   }
   const out = {};
   for (const item of stackItems || []) {
     const logged = (doses[item.id] || []).filter((d) => d > 0);
     const usual = median(logged) || (parseFloat(item.defaultDose) > 0 ? parseFloat(item.defaultDose) : null) || FIRST_DOSE[item.unit] || 1;
-    out[item.id] = { usual: Number(Number(usual).toPrecision(6)), count: (doses[item.id] || []).length };
+    out[item.id] = { usual: Number(Number(usual).toPrecision(6)), count: (doses[item.id] || []).length, last: last[item.id] || null };
   }
   return out;
 };
 
 /**
  * Supplements to offer behind the Pills +: everything not due and not logged on this day, most
- * often taken or switched on and off first; with a query, the closest names first.
+ * recently taken first (never-taken ones last, by name); with a query, the closest names first.
  */
 export const adHocChoices = (items, { usual, excludeIds, query = '', limit = 7 }) => {
   const pool = items.filter((i) => !excludeIds.has(i.id));
-  const toggles = (i) => (i.history || []).filter((h) => h.type === 'updated' && h.changes && 'active' in h.changes).length;
-  const freq = (i) => (usual[i.id]?.count || 0) + 3 * toggles(i);
+  const lastOf = (i) => usual[i.id]?.last || '';
+  const freq = (i) => usual[i.id]?.count || 0;
   const q = query.trim();
-  if (!q) return pool.sort((a, b) => freq(b) - freq(a) || a.name.localeCompare(b.name)).slice(0, limit);
+  if (!q) return pool.sort((a, b) => lastOf(b).localeCompare(lastOf(a)) || a.name.localeCompare(b.name)).slice(0, limit);
   return pool
     .map((i) => ({ i, s: q.length < 2 ? (i.name.toLowerCase().split(/[^a-z0-9]+/).some((w) => w.startsWith(q.toLowerCase())) ? 0.9 : 0) : nameScore(q, i.name) }))
     .filter((x) => x.s >= 0.45)

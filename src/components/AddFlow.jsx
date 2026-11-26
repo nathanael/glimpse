@@ -199,11 +199,12 @@ export function WhenPicker({ schedule, setSchedule, time, setTime }) {
 const KINDS = [
   { id: 'symptom', label: 'Symptom', hint: 'Something you rate, like brain fog or energy.' },
   { id: 'supplement', label: 'Supplement', hint: 'A pill, powder or drop you take, with a dose.' },
+  { id: 'adhoc', label: 'Ad hoc supplement', hint: 'Something you took today that isn\u2019t on your daily list.' },
   { id: 'factor', label: FACTOR_LABEL, hint: 'Something you do day to day, like meditation or alcohol.' },
 ];
 const LIST_NAME = { symptom: 'symptom', supplement: 'supplement', factor: FACTORS_LABEL };
 
-export default function AddFlow({ kind: startKind, stackItems, setStackItems, symptoms, setSymptoms, inputItems = [], setInputItems, setLastAction, onClose }) {
+export default function AddFlow({ kind: startKind, onAdHoc, stackItems, setStackItems, symptoms, setSymptoms, inputItems = [], setInputItems, setLastAction, onClose }) {
   const rootRef = useRef(null);
   const nameRef = useRef(null);
   useRiseIn(rootRef);
@@ -331,7 +332,7 @@ export default function AddFlow({ kind: startKind, stackItems, setStackItems, sy
     return `${what} · ${m.status === 'active' ? 'on your list' : m.status === 'hidden' ? 'hidden' : 'deleted'}`;
   };
 
-  const pickKind = (k) => { primeKeyboard(); setKind(k); setStep(0); };
+  const pickKind = (k) => { if (k === 'adhoc') { onClose(); onAdHoc?.(); return; } primeKeyboard(); setKind(k); setStep(0); };
   const back = () => (step > 0 ? setStep(step - 1) : setKind(null));
   const allSteps = (asksKind ? 1 : 0) + (kind ? steps : 1);
   const at = kind ? (asksKind ? 1 : 0) + step : 0;
@@ -351,7 +352,7 @@ export default function AddFlow({ kind: startKind, stackItems, setStackItems, sy
             <>
               <h1>What are you adding?</h1>
               <div className="fl-type">
-                {KINDS.map((k) => (
+                {KINDS.filter((k) => k.id !== 'adhoc' || onAdHoc).map((k) => (
                   <button key={k.id} type="button" className={`t-${k.id}`} onClick={() => pickKind(k.id)}>
                     <b>{k.label}</b><small>{k.hint}</small>
                   </button>

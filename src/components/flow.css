@@ -111,6 +111,7 @@
 .fl-type .t-symptom { --dot: #fb7185; }
 .fl-type .t-supplement { --dot: #8b5cf6; }
 .fl-type .t-factor { --dot: #3b82f6; }
+.fl-type .t-adhoc { --dot: #c4b5fd; }
 
 /* "Already have this?": pops up under the name field while what's typed is close to something
    on any list, hidden and deleted ones included. */
